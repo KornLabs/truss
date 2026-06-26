@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['20', '22']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Verify CLI loads
+        run: node .truss/bin/truss.mjs help
+
+      - name: Run test suite (unix)
+        if: runner.os != 'Windows'
+        run: node --test .truss/tests/*.mjs
+
+      - name: Run test suite (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: node --test (Get-ChildItem .truss/tests/*.mjs).FullName

@@ -1,0 +1,14 @@
+{
+  "available": true,
+  "timestamp": "2026-06-18T12:00:00Z",
+  "version": "1.0.0-alpha",
+  "gate": "pass",
+  "summary": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 0,
+    "total": 0
+  },
+  "checks": [],
+  "findings": []
+}

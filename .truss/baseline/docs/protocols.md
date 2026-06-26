@@ -1,0 +1,72 @@
+# Protocols
+
+> Load when: told to process INBOX, unsure about session ritual or archiving procedure.
+> Defines the inbox protocol, session ritual, and controlled forgetting.
+
+## Inbox protocol
+
+INBOX.md collects human notes between sessions. The agent never reads it automatically.
+
+**When told "process inbox":**
+
+1. Read INBOX.md top to bottom.
+2. For each item, route it to exactly one destination:
+   - A task or question → state/current.md (next list) or state/open-decisions.md
+   - A decision → state/decisions.md (D-NNN)
+   - A human-only action → HUMAN-TODOS.md (HT-NNN)
+   - A domain fact → its canonical domain file
+   - A link or reference → docs/import.md, or the relevant domain file
+3. After routing, replace each processed item with `> [YYYY-MM-DD] processed → [destination]`.
+4. Do not delete items — the log is useful for recall.
+5. Report what was routed and where.
+
+**What stays in INBOX.md:** items the human hasn't finished writing (marked `wip:`). Leave these untouched.
+
+## Session ritual
+
+### Start
+
+1. Load files per AGENTS.md §1 (load order).
+2. State what you will do — one sentence. If the task is unclear, ask (`clarify` preference).
+3. Read state/current.md. If the focus is stale or the next list is empty, surface this and ask.
+
+### During
+
+- Respect the phase block (allowed/forbidden). If a task would violate `forbidden`, state the conflict and ask before proceeding (`phase-lock` preference).
+- Flag instead of drifting: if something is wrong or suboptimal, name it.
+- Route facts, decisions, and todos as they arise — don't batch at the end.
+
+### End (mandatory, in order)
+
+1. Update state/current.md: current focus, next ≤5, blockers, recently-done (≤7 days).
+2. Route any loose ends: unresolved open questions → open-decisions, unresolved todos → HUMAN-TODOS.md.
+3. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
+4. If `auto-commit: suggest`, propose a commit message: `<area>: <action> — <context>`.
+
+## Controlled forgetting
+
+The goal: keep the active workspace scannable in one pass. Archive is not deletion — it's relocation with a pointer.
+
+**When to archive:**
+
+- A domain file exceeds ~500 lines → split the oldest / least-active section to `archive/<domain>/<topic>.md`
+- A decision is superseded (see D-NNN grammar in docs/conventions.md) → the old entry stays in state/decisions.md with `superseded-by` status; no archiving needed
+- A task is fully done and has been in recently-done for >14 days → remove from state/current.md (it's in git history)
+
+**How to archive:**
+
+1. Move the content to `archive/<path>`.
+2. In the original location, add a one-line invalidation note: `> Archived to archive/<path> on YYYY-MM-DD — [reason].`
+3. Update the §2 table in AGENTS.md if the original file is removed.
+
+**Never silently drop content.** If it existed and mattered, the trace must remain.
+
+## Latent notes
+
+When you spot a future problem that isn't yet blocking, record it with a `latent:` prefix in the relevant file:
+
+```
+latent: [YYYY-MM-DD] this approach may break at scale because [reason] — revisit before build phase.
+```
+
+Latent notes are not action items. They are traps marked for future sessions.

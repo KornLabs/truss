@@ -1,0 +1,148 @@
+{
+  "version": 3,
+  "note": "Truss prompt library V3 — lean core. Two shelves (task, session) plus one generic orchestration wrapper. Dashboard serves only these. Bodies: EN base/<id>.md, DE base-de/<id>.md. Titles+tags here. `orchestratable: true` makes the Single|Orchestrated toggle appear; its `orchestrationHint` is injected into the orchestrate wrapper's {{HINT}}. `recommended: true` marks start-here prompts. No chains, no phase prompts (removed by design).",
+  "tagVocabulary": [
+    "plan",
+    "research",
+    "build",
+    "review",
+    "validate",
+    "ideate",
+    "maintain"
+  ],
+  "input": {
+    "note": "Every body opens with the SAME input block. These are the only tokens the user fills.",
+    "tokens": ["INPUT", "CONSTRAINTS", "POINTERS"],
+    "orchestratorTokens": ["MISSION", "HINT", "CONSTRAINTS"]
+  },
+  "shelves": {
+    "task": { "title": { "en": "Task prompts", "de": "Task-Prompts" } },
+    "session": {
+      "title": { "en": "Session & workflow", "de": "Session & Workflow" }
+    },
+    "orchestration": {
+      "title": { "en": "Orchestration", "de": "Orchestrierung" }
+    }
+  },
+  "prompts": [
+    {
+      "id": "plan",
+      "shelf": "task",
+      "tags": ["plan"],
+      "recommended": true,
+      "orchestratable": true,
+      "orchestrationHint": "Delegate research/option-exploration subagents in parallel; one subagent synthesizes them into a single plan.",
+      "title": { "en": "Plan", "de": "Planen" }
+    },
+
+    {
+      "id": "implement",
+      "shelf": "task",
+      "tags": ["build"],
+      "recommended": true,
+      "orchestratable": true,
+      "orchestrationHint": "Split into independent work packages by file/module; one subagent each; a review subagent gates each result before integration.",
+      "title": { "en": "Implement", "de": "Umsetzen" }
+    },
+
+    {
+      "id": "bug-fix",
+      "shelf": "task",
+      "tags": ["build"],
+      "orchestratable": false,
+      "title": { "en": "Bug fix / small fix", "de": "Bug-Fix / Small Fix" }
+    },
+
+    {
+      "id": "refactor",
+      "shelf": "task",
+      "tags": ["build"],
+      "orchestratable": true,
+      "orchestrationHint": "Map the blast radius first (one subagent), then parallel behavior-preserving edits, then a verification subagent confirms equivalence.",
+      "title": { "en": "Refactor", "de": "Refactor" }
+    },
+
+    {
+      "id": "research",
+      "shelf": "task",
+      "tags": ["research"],
+      "orchestratable": true,
+      "orchestrationHint": "Fan out breadth-first source-gathering subagents in parallel; one synthesis subagent clusters and resolves them.",
+      "title": { "en": "Research", "de": "Recherche" }
+    },
+
+    {
+      "id": "critique",
+      "shelf": "task",
+      "tags": ["review"],
+      "recommended": true,
+      "orchestratable": true,
+      "orchestrationHint": "Run independent critics in parallel (correctness, security, failure-modes/pre-mortem); one subagent merges and dedupes findings.",
+      "title": { "en": "Critique", "de": "Critique" }
+    },
+
+    {
+      "id": "idea-spar",
+      "shelf": "task",
+      "tags": ["ideate"],
+      "orchestratable": false,
+      "title": { "en": "Idea sparring", "de": "Ideen-Sparring" }
+    },
+
+    {
+      "id": "decide",
+      "shelf": "task",
+      "tags": ["plan", "review"],
+      "orchestratable": false,
+      "title": { "en": "Decide", "de": "Entscheiden" }
+    },
+
+    {
+      "id": "stress-test",
+      "shelf": "task",
+      "tags": ["validate", "review"],
+      "orchestratable": true,
+      "orchestrationHint": "Attack different failure vectors in parallel (market, unit economics, execution); one subagent synthesizes the kill-scenario and kill-metrics.",
+      "title": { "en": "Stress-test", "de": "Stresstest" }
+    },
+
+    {
+      "id": "founder-move",
+      "shelf": "task",
+      "tags": ["ideate", "plan"],
+      "orchestratable": true,
+      "orchestrationHint": "Spawn a research subagent for live facts (competitor pricing, market signals) and one for the gap vs. VISION.md; a pre-mortem subagent gut-checks the moves before you rank them.",
+      "title": { "en": "Founder move", "de": "Founder-Move" }
+    },
+
+    {
+      "id": "resume",
+      "shelf": "session",
+      "tags": ["maintain", "build"],
+      "recommended": true,
+      "orchestratable": false,
+      "title": { "en": "Resume / continue", "de": "Fortsetzen" }
+    },
+
+    {
+      "id": "handover",
+      "shelf": "session",
+      "tags": ["maintain"],
+      "recommended": true,
+      "orchestratable": false,
+      "title": { "en": "Handover", "de": "Übergabe" }
+    },
+
+    {
+      "id": "orchestrate",
+      "shelf": "orchestration",
+      "tags": ["build", "plan"],
+      "recommended": true,
+      "wrapper": true,
+      "title": {
+        "en": "Orchestrate (multi-agent)",
+        "de": "Orchestrieren (Multi-Agent)"
+      }
+    }
+  ]
+}

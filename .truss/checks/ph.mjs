@@ -1,0 +1,289 @@
+// checks/ph.mjs — Phase checks (PH-01 … PH-04)
+//
+// PH-01  E  phases.md grammar violated (unknown key, missing required, bad exit item)
+// PH-02  E  current: pointer doesn't match any defined phase id
+// PH-03  W  forbidden-globs of current phase have hits on disk
+// PH-04  E/W  --gate only: machine exit items unmet; human checklist output
+
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { parseExitItems, globToRegex } from '../lib/render.mjs'
+import { parseHeadings, headingToAnchor } from '../lib/md.mjs'
+
+// Declarative catalog of the checks this module implements (A2).
+export const meta = [
+  { id: 'PH-01', severity: 'E', title: 'phases.md grammar violated' },
+  { id: 'PH-02', severity: 'E', title: 'current: points to an unknown phase' },
+  { id: 'PH-03', severity: 'W', title: 'forbidden-globs of current phase have hits' },
+  { id: 'PH-04', severity: 'E', title: 'Phase exit criteria unmet', description: '--gate only; also lists the human checklist' },
+  { id: 'PH-05', severity: 'E', title: 'phases.md present but defines no phases', description: 'Guards against silent degradation (A4): a file that parses to zero phases' },
+  { id: 'PH-06', severity: 'W', title: 'Exit file:/section: target unresolved (any phase)', description: 'Static check across all phases (A5); glob: stays gate-only' },
+]
+
+const KNOWN_KEYS = new Set([
+  'label', 'name', 'purpose', 'behavior',
+  'allowed', 'forbidden', 'forbidden-globs',
+  'read', 'exit', 'prompts',
+])
+const REQUIRED_KEYS = ['purpose', 'behavior', 'exit']
+
+/**
+ * @param {import('../lib/workspace.mjs').WorkspaceContext} ctx
+ * @returns {Promise<Array>}
+ */
+export async function run(ctx) {
+  const findings = []
+  const { phases, root, gate } = ctx
+
+  if (!phases) {
+    findings.push({
+      id: 'PH-01', severity: 'E',
+      file: 'state/phases.md',
+      message: 'phases.md could not be parsed',
+      fix: 'Ensure state/phases.md exists and is valid UTF-8.',
+    })
+    return findings
+  }
+
+  const { ordered, defs, frontmatter } = phases
+
+  // ── PH-05: parse-degradation guard (A4) ─────────────────────────────────────
+  // The file exists (has a stat) but parsed to zero phase definitions — e.g. the
+  // "## <id>" headings were renamed or malformed. Without this guard PH-01/PH-02/
+  // PH-03 all iterate empty maps and doctor goes green at zero phase coverage.
+  if (phases.stat && defs.size === 0) {
+    findings.push({
+      id: 'PH-05', severity: 'E',
+      file: 'state/phases.md',
+      message: 'state/phases.md defines no phases — no "## <phase-id>" sections were parsed',
+      fix: 'Add at least one "## <phase-id>" section (kebab-case) with purpose/behavior/exit, per STRUKTUR.md §6',
+    })
+    return findings
+  }
+
+  // ── PH-01: Grammar ──────────────────────────────────────────────────────────
+  for (const [phaseId, def] of defs) {
+    // Unknown keys
+    for (const key of Object.keys(def)) {
+      if (!KNOWN_KEYS.has(key)) {
+        findings.push({
+          id: 'PH-01', severity: 'E',
+          file: 'state/phases.md',
+          message: `phase '${phaseId}': unknown key '${key}'`,
+          fix: `Remove '${key}'. Known keys: ${[...KNOWN_KEYS].join(', ')}.`,
+        })
+      }
+    }
+
+    // Required keys
+    for (const req of REQUIRED_KEYS) {
+      if (!def[req]) {
+        findings.push({
+          id: 'PH-01', severity: 'E',
+          file: 'state/phases.md',
+          message: `phase '${phaseId}': required key '${req}' is missing`,
+          fix: `Add '${req}: ...' under the ## ${phaseId} heading.`,
+        })
+      }
+    }
+
+    // exit item grammar
+    if (def.exit) {
+      for (const item of parseExitItems(def.exit)) {
+        if (item.type === 'unknown') {
+          findings.push({
+            id: 'PH-01', severity: 'E',
+            file: 'state/phases.md',
+            message: `phase '${phaseId}': exit item not recognized — '${item.raw}'`,
+            fix: `Prefix with 'file:', 'glob:', 'section:', or append '(human)'. Got: '${item.raw}'`,
+          })
+        }
+      }
+    }
+  }
+
+  // ── PH-02: current pointer valid ──────────────────────────────────────────
+  const current = frontmatter?.current
+  if (!current) {
+    findings.push({
+      id: 'PH-02', severity: 'E',
+      file: 'state/phases.md',
+      message: "frontmatter missing 'current:' key",
+      fix: "Add 'current: <phase-id>' to the YAML frontmatter block.",
+    })
+  } else if (!defs.has(current)) {
+    findings.push({
+      id: 'PH-02', severity: 'E',
+      file: 'state/phases.md',
+      message: `current: '${current}' is not a defined phase — defined: ${[...defs.keys()].join(', ')}`,
+      fix: `Change current: to one of: ${[...defs.keys()].join(', ')}.`,
+    })
+  }
+
+  // ── PH-03: forbidden-globs of current phase ──────────────────────────────
+  if (current && defs.has(current)) {
+    const def = defs.get(current)
+    const globsStr = def['forbidden-globs']
+    if (globsStr) {
+      const globs = globsStr.split(';').map(g => g.trim()).filter(Boolean)
+      for (const glob of globs) {
+        const hits = await findGlobHits(root, glob)
+        if (hits.length > 0) {
+          const shown = hits.slice(0, 3).map(h => path.relative(root, h)).join(', ')
+          const more = hits.length > 3 ? ` (+${hits.length - 3} more)` : ''
+          findings.push({
+            id: 'PH-03', severity: 'W',
+            file: 'state/phases.md',
+            message: `forbidden-glob '${glob}' has ${hits.length} hit${hits.length !== 1 ? 's' : ''} in phase '${current}': ${shown}${more}`,
+            fix: `Remove or move those files — they should not exist in the '${current}' phase. Narrow the pattern if it's too broad.`,
+          })
+        }
+      }
+    }
+  }
+
+  // ── PH-04: --gate exit checks ─────────────────────────────────────────────
+  if (gate && current && defs.has(current)) {
+    const def = defs.get(current)
+    const items = parseExitItems(def.exit || '')
+
+    const humanItems = []
+    const machineFailures = []
+
+    for (const item of items) {
+      switch (item.type) {
+        case 'human':
+          humanItems.push(item.raw.replace(/\s*\(human\)$/, '').trim())
+          break
+        case 'file': {
+          try { await fs.access(path.resolve(root, item.path)) }
+          catch { machineFailures.push({ item, reason: `file not found: ${item.path}` }) }
+          break
+        }
+        case 'glob': {
+          const hits = await findGlobHits(root, item.pattern)
+          if (hits.length === 0) {
+            machineFailures.push({ item, reason: `no files match: ${item.pattern}` })
+          }
+          break
+        }
+        case 'section': {
+          const ok = await headingExistsInFile(root, item.file, item.heading)
+          if (!ok) {
+            machineFailures.push({ item, reason: `heading '${item.heading}' not found in ${item.file}` })
+          }
+          break
+        }
+        // 'unknown' already caught by PH-01 — silently skip here
+      }
+    }
+
+    // E finding per machine failure
+    for (const { item, reason } of machineFailures) {
+      findings.push({
+        id: 'PH-04', severity: 'E',
+        file: 'state/phases.md',
+        message: `gate: exit criterion unmet — ${reason}`,
+        fix: `Satisfy the criterion: ${item.raw}`,
+      })
+    }
+
+    // W finding for human checklist (always present when --gate runs and human items exist)
+    if (humanItems.length > 0) {
+      const checklist = humanItems.map((h, i) => `  ${i + 1}. ${h}`).join('\n')
+      findings.push({
+        id: 'PH-04', severity: 'W',
+        file: 'state/phases.md',
+        message: `gate: ${humanItems.length} human check${humanItems.length !== 1 ? 's' : ''} ${humanItems.length === 1 ? 'requires' : 'require'} sign-off before leaving '${current}'`,
+        fix: `Confirm each item with the human, then update current: and run render:\n${checklist}\n\n  Advocate prompt: .truss/prompts/base/gate-advocate.md`,
+      })
+    }
+  }
+
+  // ── PH-06: static exit-target validation for ALL phases (A5) ──────────────
+  // file: and section: targets are statically resolvable, so validate them for
+  // every phase — not only the current one under --gate. A broken target in a
+  // *later* phase ("latent: trap") would otherwise stay invisible until reached.
+  // glob: match-counts stay gate-only on purpose: a blank template legitimately
+  // has no research*.md yet, so an empty glob is not a defect here.
+  // Under --gate the current phase is already covered by PH-04 (E), so skip it
+  // here to avoid a duplicate W for the same target.
+  for (const [phaseId, def] of defs) {
+    if (gate && phaseId === current) continue
+    for (const item of parseExitItems(def.exit || '')) {
+      if (item.type === 'file') {
+        try { await fs.access(path.resolve(root, item.path)) }
+        catch {
+          findings.push({
+            id: 'PH-06', severity: 'W',
+            file: 'state/phases.md',
+            message: `phase '${phaseId}': exit target file not found — ${item.path}`,
+            fix: `Create '${item.path}' or fix the exit item: ${item.raw}`,
+          })
+        }
+      } else if (item.type === 'section') {
+        const ok = await headingExistsInFile(root, item.file, item.heading)
+        if (!ok) {
+          findings.push({
+            id: 'PH-06', severity: 'W',
+            file: 'state/phases.md',
+            message: `phase '${phaseId}': exit target heading '${item.heading}' not found in ${item.file}`,
+            fix: `Add a "## ${item.heading}" heading to ${item.file} or fix the exit item: ${item.raw}`,
+          })
+        }
+      }
+      // glob: deliberately not checked here (gate-only); human/unknown skipped.
+    }
+  }
+
+  return findings
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Recursively find all files under root matching globPattern.
+ * Skips .git, .truss, node_modules.
+ */
+async function findGlobHits(root, globPattern) {
+  const re = globToRegex(globPattern)
+  const hits = []
+
+  async function walk(dir, relDir) {
+    let entries
+    try { entries = await fs.readdir(dir, { withFileTypes: true }) }
+    catch { return }
+
+    for (const entry of entries) {
+      const name = entry.name
+      if (name === '.git' || name === '.truss' || name === 'node_modules') continue
+
+      const relPath = relDir ? `${relDir}/${name}` : name
+
+      if (entry.isDirectory()) {
+        await walk(path.join(dir, name), relPath)
+      } else if (re.test(relPath)) {
+        hits.push(path.join(dir, name))
+      }
+    }
+  }
+
+  await walk(root, '')
+  return hits
+}
+
+/**
+ * Check if a heading (case-insensitive text match) exists in a file.
+ * `section: VISION.md#Problem` → finds `## Problem` in VISION.md.
+ */
+async function headingExistsInFile(root, filePath, heading) {
+  if (!filePath || !heading) return false
+  const absPath = path.resolve(root, filePath)
+  let content
+  try { content = await fs.readFile(absPath, 'utf8') }
+  catch { return false }
+
+  const headings = parseHeadings(content.split('\n'))
+  const targetAnchor = headingToAnchor(heading)
+  return headings.some(h => h.anchor === targetAnchor)
+}

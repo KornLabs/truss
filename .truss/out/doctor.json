@@ -1,0 +1,7 @@
+{
+  "initialized": false,
+  "message": "This folder is not a Truss workspace yet. Start with:\n\n  node .truss/bin/truss.mjs init\n\n  For an existing project, use:  node .truss/bin/truss.mjs init --overlay",
+  "timestamp": "2026-06-24T10:38:29.685Z",
+  "root": "/Users/niklas/source/Agent_Project_Framework/truss",
+  "version": "1.0.0-alpha"
+}

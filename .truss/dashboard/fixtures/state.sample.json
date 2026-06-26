@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "version": "1.0.0-alpha",
+    "root": "/abs/path",
+    "generatedAt": "2026-06-18T12:00:00Z"
+  },
+  "project": {
+    "name": "Sample",
+    "language": "en",
+    "pmMethod": "kanban",
+    "tools": [],
+    "style": "clean"
+  },
+  "phase": {
+    "current": "discover",
+    "label": "Discovery",
+    "position": 1,
+    "total": 4,
+    "purpose": "...",
+    "behavior": "...",
+    "allowed": "...",
+    "forbidden": "...",
+    "forbiddenGlobs": [],
+    "exit": [],
+    "prompts": []
+  },
+  "phases": [
+    {
+      "id": "discover",
+      "label": "Discovery",
+      "current": true
+    }
+  ],
+  "current": {
+    "focus": "...",
+    "next": [],
+    "blockers": "none",
+    "recentlyDone": [],
+    "updated": "2026-06-18",
+    "staleDays": 0
+  },
+  "humanTodos": {
+    "open": [],
+    "openCount": 0,
+    "closedCount": 0,
+    "total": 0
+  },
+  "decisions": {
+    "recent": [],
+    "totalCount": 0
+  },
+  "openDecisions": [],
+  "inbox": {
+    "unprocessedCount": 0
+  },
+  "sessions": [],
+  "map": {
+    "categories": []
+  },
+  "preferences": [],
+  "errors": []
+}

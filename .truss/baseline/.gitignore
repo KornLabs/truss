@@ -1,0 +1,6 @@
+.truss/out/
+
+# Secrets
+.env
+.env.*
+!.env.example

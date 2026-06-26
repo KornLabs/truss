@@ -1,0 +1,15 @@
+# Enforce LF line endings for all text files to prevent CRLF issues on Windows.
+# Truss compares generated blocks byte-for-byte (BL-02); mixed line endings
+# would cause false drift warnings.
+* text=auto eol=lf
+
+# Explicitly mark generated/managed Markdown as text (belt-and-suspenders).
+*.md text eol=lf
+
+# Binary files — never touch line endings.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
