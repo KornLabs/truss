@@ -3,7 +3,7 @@
 Two kinds of prompts live here, distinguished only by `library.json` (no subfolders):
 
 1. **Library prompts** (13) — user-facing, served by the dashboard.
-2. **Engine-ritual prompts** (11) — invoked by the phase machine / gate / overlay; never in the manifest.
+2. **Engine-ritual prompts** (12) — invoked by the phase machine / gate / overlay; never in the manifest.
 
 ## Layout
 
@@ -44,7 +44,7 @@ left to the agent. House rules (load order, stop-on-blocker, no fabrication, sub
 repeated here — they live in `AGENTS.md` (§1, §3–§5, preferences), which every agent reads. Each prompt
 carries only one orienting line: "read the relevant files first, starting with AGENTS.md."
 
-## Engine-ritual prompts (the 11, EN-only, not in the manifest)
+## Engine-ritual prompts (the 12, EN-only, not in the manifest)
 
 Precise about their protocol; they defer the generic rules to the AGENTS.md phase block.
 
@@ -54,7 +54,7 @@ Precise about their protocol; they defer the generic rules to the AGENTS.md phas
 | `operate-kickoff`, `operate-recap` | `software` phase profile (`.truss/phase-profiles/software.md`) `prompts:` lines |
 | `concept-kickoff`, `concept-recap` | `founders-thinking` phase profile (`.truss/phase-profiles/founders-thinking.md`) `prompts:` lines |
 | `gate-advocate` | phase-exit procedure (AGENTS.md §4) + `checks/ph.mjs` PH-04 (names its path) + the `gate-advocate` preference |
-| `repo-import` | overlay ingest phase (`baseline/overlay/phases.md`, used by `truss init --overlay`) |
+| `overlay-intake`, `repo-import` | overlay ingest phase (`baseline/overlay/phases.md`, used by `truss init --overlay`) — `overlay-intake` gathers the human context, `repo-import` surveys the code |
 
 Adding/removing a `prompts:` reference in any `phases.md` requires the matching `base/<id>.md` to exist,
 or RF-04 warns.

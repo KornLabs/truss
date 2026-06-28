@@ -5,6 +5,8 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { assembleState } from './lib/state.mjs';
+import { branchReport, repoBranchList } from '../lib/git.mjs';
+import { checkExistingLock, writeLock, removeLock } from './lib/lock.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -75,7 +77,18 @@ function send(res, status, obj, type = MIME['.json']) {
   res.end(typeof obj === 'string' ? obj : JSON.stringify(obj));
 }
 
-export async function startDashboard({ root, port = 3741, openBrowser = false, readOnly = false }) {
+// Highest port we'll scan up to before giving up when auto-porting.
+const MAX_PORT_SCAN = 20;
+
+export async function startDashboard({ root, port = 3741, openBrowser = false, readOnly = false,
+                                       autoPort = false, singleInstance = false } = {}) {
+  // One dashboard per project: if a live instance is already serving this root,
+  // don't start a second — hand the caller the existing url so it can just open it.
+  if (singleInstance) {
+    const existing = checkExistingLock(root);
+    if (existing) return { alreadyRunning: true, url: existing.url, port: existing.port, pid: existing.pid };
+  }
+
   const sessionToken = crypto.randomBytes(32).toString('hex');
   const dir = path.join(root, '.truss', 'dashboard');
 
@@ -125,6 +138,17 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
           const { stdout } = await execFileAsync('git', ['log', '--graph', '--oneline', '-n', '25'], { cwd: root, timeout: 8000, maxBuffer: 2 * 1024 * 1024 });
           return send(res, 200, { tree: stdout });
         } catch (e) { return send(res, 200, { error: e.message, tree: '' }); }
+      }
+
+      // Overlay repo/ branch awareness: actual checkout vs the declared branch:
+      // in state/current.md, plus the local branch list. Read-only; degrades to
+      // present:false when there is no overlay checkout. Reuses lib/git.mjs.
+      if (req.method === 'GET' && url === '/api/git/branches') {
+        try {
+          const report = await branchReport(root);
+          const list = report.present ? await repoBranchList(path.join(root, 'repo')) : [];
+          return send(res, 200, { ...report, list });
+        } catch (e) { return send(res, 200, { error: e.message, present: false, list: [] }); }
       }
 
       if (req.method === 'GET' && url === '/api/prompts') {
@@ -247,10 +271,36 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
   });
 
   return new Promise((resolve, reject) => {
-    server.on('error', reject);
-    server.listen(port, '127.0.0.1', () => {
-      const actualPort = server.address().port;
-      resolve({ server, port: actualPort, url: `http://127.0.0.1:${actualPort}` });
-    });
+    let attempt = 0;
+    const tryListen = (p) => {
+      const onError = (err) => {
+        // Auto-port: another project's dashboard (or anything) holds this port —
+        // step to the next one. Only when the caller didn't pin an explicit port
+        // (autoPort) and we asked for a real port (not 0 = OS-assigned).
+        if (err.code === 'EADDRINUSE' && autoPort && p !== 0 && attempt < MAX_PORT_SCAN) {
+          attempt++;
+          return tryListen(p + 1);
+        }
+        reject(err);
+      };
+      server.once('error', onError);
+      server.listen(p, '127.0.0.1', () => {
+        server.removeListener('error', onError);
+        const actualPort = server.address().port;
+        const url = `http://127.0.0.1:${actualPort}`;
+
+        if (singleInstance) {
+          writeLock(root, { port: actualPort, url });
+          const cleanup = () => removeLock(root);
+          server.once('close', cleanup);
+          process.once('exit', cleanup);
+          for (const sig of ['SIGINT', 'SIGTERM']) {
+            process.once(sig, () => { cleanup(); process.exit(0); });
+          }
+        }
+        resolve({ server, port: actualPort, url });
+      });
+    };
+    tryListen(port);
   });
 }

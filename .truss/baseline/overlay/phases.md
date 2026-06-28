@@ -16,7 +16,7 @@ allowed: inventories, import notes, questions about the existing system, domain 
 forbidden: refactors, feature work, deleting existing files, premature redesign of the inherited system.
 read: state/profile.md
 exit: glob: import*.md; existing system mapped and summarised (human); pursue/adjust decision recorded as D-entry (human)
-prompts: repo-import
+prompts: overlay-intake, repo-import
 
 ## operate
 

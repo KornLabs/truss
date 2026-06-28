@@ -32,6 +32,7 @@ export const api = {
   contextBudget: () => getJSON('/api/context-budget'),
   gitStatus: () => getJSON('/api/git/status'),
   gitTree: () => getJSON('/api/git/tree'),
+  gitBranches: () => getJSON('/api/git/branches'),
   prompts: () => getJSON('/api/prompts'),
   file: (name) => getJSON(`/api/file?name=${encodeURIComponent(name)}`),
 

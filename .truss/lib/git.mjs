@@ -1,0 +1,97 @@
+// lib/git.mjs — read-only git helpers for the nested overlay repo/.
+//
+// The doctor checks stay pure file reads by design (see checks/sy.mjs). The
+// branch awareness for an overlay lives OUTSIDE the check engine — in `truss
+// status` and the dashboard — and that is what this module powers. It only ever
+// READS git state (never mutates), shells out with execFile (no shell), short
+// timeouts, and degrades gracefully so a missing git binary or a non-overlay
+// project is a quiet skip, never an error.
+//
+// `repo/` may be a clone, a symlink to a checkout, or (advanced) a tracked
+// submodule — in every case `repo/.git` resolves, so the same calls work.
+
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
+const execFileP = promisify(execFile)
+
+/** Is there a git checkout at `repoDir`? Pure fs read (follows the symlink). */
+export async function isGitCheckout(repoDir) {
+  try { await fs.access(path.join(repoDir, '.git')); return true } catch { return false }
+}
+
+/**
+ * The branch info for a checkout. Never throws.
+ * @returns {Promise<{ok:boolean, branch:string|null, detached:boolean, sha:string|null, reason:string|null}>}
+ *   reason ∈ disabled | not-a-checkout | no-git-binary | error  (only when ok=false)
+ */
+export async function repoBranchInfo(repoDir) {
+  const off = (reason) => ({ ok: false, branch: null, detached: false, sha: null, reason })
+  if (process.env.TRUSS_NO_GIT) return off('disabled')
+  if (!await isGitCheckout(repoDir)) return off('not-a-checkout')
+  const run = (args) => execFileP('git', ['-C', repoDir, ...args], { timeout: 5000, maxBuffer: 1 << 20 })
+  try {
+    // --quiet → exit 1 (no throw text) on detached HEAD; we catch and fall back.
+    const { stdout } = await run(['symbolic-ref', '--quiet', '--short', 'HEAD'])
+    const branch = stdout.trim()
+    if (branch) return { ok: true, branch, detached: false, sha: null, reason: null }
+  } catch (err) {
+    if (err?.code === 'ENOENT') return off('no-git-binary')
+    // non-zero exit (detached HEAD) → fall through to read the sha
+  }
+  try {
+    const { stdout } = await run(['rev-parse', '--short', 'HEAD'])
+    return { ok: true, branch: null, detached: true, sha: stdout.trim() || null, reason: null }
+  } catch (err) {
+    if (err?.code === 'ENOENT') return off('no-git-binary')
+    return off('error')
+  }
+}
+
+/** Local branch names at `repoDir`, current first-class via repoBranchInfo. Never throws. */
+export async function repoBranchList(repoDir) {
+  if (process.env.TRUSS_NO_GIT) return []
+  if (!await isGitCheckout(repoDir)) return []
+  try {
+    const { stdout } = await execFileP(
+      'git', ['-C', repoDir, 'branch', '--format=%(refname:short)'],
+      { timeout: 5000, maxBuffer: 1 << 20 }
+    )
+    return stdout.split('\n').map(s => s.trim()).filter(Boolean)
+  } catch { return [] }
+}
+
+/** The `branch:` value declared in state/current.md (the expected branch), or null. */
+export async function declaredBranch(root) {
+  try {
+    const raw = await fs.readFile(path.join(root, 'state', 'current.md'), 'utf8')
+    const line = raw.split('\n').find(l => l.toLowerCase().startsWith('branch:'))
+    if (!line) return null
+    const v = line.slice(line.indexOf(':') + 1).trim()
+    return v || null
+  } catch { return null }
+}
+
+/**
+ * Compare the overlay's checked-out branch against the declared `branch:`.
+ * The single source of truth for status + the dashboard. Never throws.
+ * @returns {Promise<{
+ *   present:boolean, info:object, declared:string|null,
+ *   match:boolean, mismatch:boolean
+ * }>}  present=false when there is no overlay checkout, or git reads are disabled
+ *      (TRUSS_NO_GIT) — both mean "show no branch UI". present=true when a
+ *      checkout exists, even if currently unreadable (git missing) — so the UI
+ *      can surface that state.
+ */
+export async function branchReport(root) {
+  const repoDir = path.join(root, 'repo')
+  const info = await repoBranchInfo(repoDir)
+  const declared = await declaredBranch(root)
+  const present = info.ok || (info.reason !== 'not-a-checkout' && info.reason !== 'disabled')
+  const onBranch = info.ok && !info.detached && info.branch
+  const match = !!(onBranch && declared && info.branch === declared)
+  const mismatch = !!(declared && ((onBranch && info.branch !== declared) || info.detached))
+  return { present, info, declared, match, mismatch }
+}

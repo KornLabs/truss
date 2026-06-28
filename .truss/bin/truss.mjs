@@ -31,6 +31,7 @@ import { runInit } from '../lib/commands/init.mjs'
 import { runMap } from '../lib/commands/map.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
 import { runPrompt } from '../lib/commands/prompt.mjs'
+import { runPhase } from '../lib/commands/phase.mjs'
 import { COMMAND_META } from '../lib/command-meta.mjs'
 import { SEV_ORDER, SEV_LABEL, FAMILY_NAMES, col } from '../lib/severity.mjs'
 
@@ -209,9 +210,11 @@ Doctor flags:
   --fix-prompt  output a copyable remediation prompt for all findings
 
 Dashboard flags:
-  --port <n>    port to listen on (default: 3741)
+  --port <n>    pin a specific port (fails if taken). Without it, starts at 3741
+                and hops to the next free port so other projects can run too.
   --no-open     do not open dashboard in default browser automatically
   --read-only   start dashboard in read-only mode
+                (one dashboard per project; a second launch opens the running one)
 
 Exit codes: 0 = clean · 1 = warnings only · 2 = errors present
 `)
@@ -336,6 +339,8 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   // ── JSON output ─────────────────────────────────────────────────────────
   if (wantJson) {
     const report = {
+      initialized: true,       // reached only past the agentsMissing guard → workspace exists.
+                               // Stamped so a fresh doctor run self-heals a stale uninit report.
       timestamp: new Date().toISOString(),
       root,
       version: getVersion(),
@@ -560,26 +565,40 @@ async function runDashboard(args) {
   try {
     const { startDashboard } = await import('../dashboard/server.mjs')
     let port = 3741
+    let pinned = false // user passed an explicit --port: respect it strictly (no auto-scan)
     const portIdx = args.indexOf('--port')
     if (portIdx >= 0 && args.length > portIdx + 1) {
       const parsed = parseInt(args[portIdx + 1], 10)
-      if (!isNaN(parsed)) port = parsed
+      if (!isNaN(parsed)) { port = parsed; pinned = true }
     }
     const openBrowser = !args.includes('--no-open')
     const readOnly = args.includes('--read-only')
-    const { url } = await startDashboard({ root, port, openBrowser, readOnly })
+
+    const openInBrowser = (u) => {
+      if (!openBrowser) return
+      import('node:child_process').then(({ exec }) => {
+        const startCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
+        exec(`${startCmd} ${u}`)
+      }).catch(() => {})
+    }
+
+    // singleInstance: one dashboard per project. autoPort: when the port isn't
+    // pinned, hop to the next free port so OTHER projects can run in parallel.
+    const { url, alreadyRunning } = await startDashboard({ root, port, openBrowser, readOnly, autoPort: !pinned, singleInstance: true })
+
+    if (alreadyRunning) {
+      console.log(`\x1b[33m[Truss] A dashboard is already running for this project.\x1b[0m`)
+      console.log(`\x1b[36m➜  Local:   ${url.replace('127.0.0.1', 'localhost')}\x1b[0m`)
+      console.log(`(Stop it with Ctrl+C in its terminal, or open the link above.)`)
+      openInBrowser(url)
+      return
+    }
+
     console.log(`\x1b[32m[Truss] Dashboard is running!\x1b[0m`)
     console.log(`\x1b[36m➜  Local:   ${url.replace('127.0.0.1', 'localhost')}\x1b[0m`)
     console.log(`(Press Ctrl+C to stop)`)
-
-    // Open the browser automatically unless --no-open is passed. startDashboard
-    // does not open it, so this is the single opener.
-    if (openBrowser) {
-      import('node:child_process').then(({ exec }) => {
-        const startCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-        exec(`${startCmd} ${url}`)
-      }).catch(() => {})
-    }
+    // startDashboard does not open the browser, so this is the single opener.
+    openInBrowser(url)
   } catch (err) {
     console.error(`truss dashboard: ${err.message}`)
     process.exit(2)
@@ -596,15 +615,16 @@ const HANDLERS = {
   render:    ()     => runRender(),
   set:       (args) => runSet(args[0], args[1]),
   prompt:    (args) => runPrompt(root, args),
+  phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
   init:      (args) => runInit(root, args),
   dashboard: (args) => runDashboard(args),
 }
 
-// init surfaces user-facing fatals as a throw → exit code 2 (dashboard handles
-// its own errors internally).
-const THROWS_TO_EXIT_2 = new Set(['init'])
+// init/phase surface user-facing fatals as a throw → exit code 2 (dashboard
+// handles its own errors internally).
+const THROWS_TO_EXIT_2 = new Set(['init', 'phase'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); process.exit(0)

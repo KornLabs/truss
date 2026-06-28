@@ -3,6 +3,7 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
+import { branchReport } from '../git.mjs'
 
 export async function runStatus(root, argv) {
   let ctx
@@ -57,5 +58,25 @@ export async function runStatus(root, argv) {
   console.log(`\n${boldPrefix}${projectName}${boldSuffix} — truss status\n`)
   console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
   console.log(`  Health:  ${doctorSummary}`)
+
+  // Branch line — only for an overlay with a readable repo/ checkout. The live
+  // git read lives here (and in the dashboard), keeping the doctor checks pure.
+  const br = await branchReport(root)
+  if (br.present) {
+    const red = useColorGlobal ? '\x1b[31m' : '', grn = useColorGlobal ? '\x1b[32m' : '', rst = useColorGlobal ? '\x1b[0m' : ''
+    let line
+    if (br.info.detached) {
+      line = `(detached at ${br.info.sha || '?'})` + (br.declared ? ` ${red}✗ declared '${br.declared}'${rst}` : '')
+    } else if (!br.info.ok) {
+      line = `repo/ branch unreadable (${br.info.reason})`
+    } else if (br.mismatch) {
+      line = `${br.info.branch} ${red}✗ MISMATCH — declared '${br.declared}'${rst}; switch with: git -C repo switch ${br.declared}`
+    } else if (br.match) {
+      line = `${br.info.branch} ${grn}✓${rst} (declared)`
+    } else {
+      line = `${br.info.branch} (no 'branch:' declared in current.md)`
+    }
+    console.log(`  Branch:  ${line}`)
+  }
   console.log(`  Inbox:   ${inboxCount} pending items\n`)
 }

@@ -202,10 +202,16 @@ button { font-family: inherit; }
 .view-title { font-size: 19px; font-weight: 600; }
 .view-sub { font-size: 12.5px; color: var(--text-2); margin-top: 1px; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.content { padding: 24px 28px 56px; display: flex; flex-direction: column; gap: 18px; max-width: 1240px; width: 100%; flex: 1; min-height: 0; overflow-y: auto; }
+/* Fill the available width on wide displays (no fixed cap): the auto-fit card
+   grids gain columns, single cards stretch to the column. Small screens are
+   unaffected — there is nothing to cap there. Genuinely long prose opts into a
+   readable measure via `.measure` (below) so line length never runs away. */
+.content { padding: 24px 28px 56px; display: flex; flex-direction: column; gap: 18px; width: 100%; flex: 1; min-height: 0; overflow-y: auto; }
 /* Prevent flex-shrink from compressing stacked view content (e.g. Overview).
    Children that fill the container (grid-fill) still grow via flex-grow: 1. */
 .content > * { flex-shrink: 0; }
+/* Readable measure for long-form prose blocks in otherwise full-width cards. */
+.measure { max-width: 72ch; }
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;

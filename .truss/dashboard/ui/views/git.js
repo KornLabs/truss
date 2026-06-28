@@ -33,16 +33,16 @@ function parseTree(text) {
 }
 
 export class GitView extends Component {
-  state = { status: null, tree: null, error: null };
+  state = { status: null, tree: null, branches: null, error: null };
   componentDidMount() { this.load(); }
   load = async () => {
     try {
-      const [s, t] = await Promise.all([api.gitStatus(), api.gitTree()]);
-      this.setState({ status: s.status, tree: t.tree, error: s.error || t.error || null });
+      const [s, t, b] = await Promise.all([api.gitStatus(), api.gitTree(), api.gitBranches()]);
+      this.setState({ status: s.status, tree: t.tree, branches: b || null, error: s.error || t.error || null });
     } catch (e) { this.setState({ error: e.message }); }
   };
 
-  render(_, { status, tree, error }) {
+  render(_, { status, tree, branches, error }) {
     if (error) return html`<${Card}><${Empty} icon=${Icons.Git} title="Git unavailable" sub=${error} /><//>`;
     if (status == null) return html`<${Card}><p class="muted"><${Spinner} /> Reading repository…</p><//>`;
 
@@ -57,8 +57,38 @@ export class GitView extends Component {
         <span class="mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.file}</span></div>`;
     };
 
+    // Overlay repo/ branch awareness — only shown when there is a repo/ checkout.
+    const branchCard = (branches && branches.present) ? (() => {
+      const info = branches.info || {};
+      const current = info.detached ? `detached @ ${info.sha || '?'}` : (info.branch || (info.reason ? `unreadable (${info.reason})` : '—'));
+      const declared = branches.declared || null;
+      const badge = branches.mismatch
+        ? html`<${Badge} variant="err">Mismatch<//>`
+        : (branches.match ? html`<${Badge} variant="ok">On declared branch<//>`
+        : info.detached ? html`<${Badge} variant="warn">Detached HEAD<//>`
+        : html`<${Badge} variant="neutral">${declared ? 'OK' : 'No branch declared'}<//>`);
+      const row = (label, value, tone) => html`<div class="row" style="gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span class="dim" style="width:130px;font-size:12px">${label}</span>
+        <span class="mono" style="font-size:12.5px;color:${tone || 'var(--text)'}">${value}</span></div>`;
+      return html`
+        <${Card} className="card-fill">
+          <${CardHead} icon=${Icons.Git} title="Overlay branch (repo/)">${badge}<//>
+          <div class="col" style="gap:0;padding-right:8px">
+            ${row('Checked out', current, branches.mismatch ? 'var(--err)' : undefined)}
+            ${row('Declared (current.md)', declared || '— not set —', declared ? undefined : 'var(--text-3)')}
+          </div>
+          ${branches.mismatch ? html`<p class="muted" style="margin-top:8px;font-size:12.5px">repo/ is not on the declared branch. Switch with <span class="mono">git -C repo switch ${declared}</span>, or update <span class="mono">branch:</span> in state/current.md.</p>` : ''}
+          ${(branches.list && branches.list.length) ? html`<div style="margin-top:10px">
+            <div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Local branches · ${branches.list.length}</div>
+            <div class="row" style="flex-wrap:wrap;gap:6px">
+              ${branches.list.map(b => html`<span class="badge ${b === info.branch ? 'accent' : 'neutral'}" style="font-size:12px">${b}${b === info.branch ? ' ●' : ''}</span>`)}
+            </div></div>` : ''}
+        <//>`;
+    })() : '';
+
     return html`
       <div class="grid cols-auto-lg grid-fill">
+        ${branchCard}
         <${Card} className="card-fill">
           <${CardHead} icon=${Icons.Git} title="Working tree">
             <div class="row" style="gap:8px">

@@ -34,21 +34,34 @@ The agent never runs `git commit` itself (hard limit).
 
 ## Overlay git
 
-Some projects use Truss to manage an *existing* repository — the workspace sits alongside or above the repo. In this setup:
+Some projects use Truss to manage an *existing* repository. The model is **nested**: the Truss workspace is the outer directory with its own git history, and the existing code lives under `repo/` inside it, keeping its own history. In this setup:
 
-- `repo/` (or a symlink) points to the existing codebase.
-- The workspace and the repo have separate git histories.
+- `repo/` (a clone or a symlink) holds the existing codebase; `.gitignore` lists `repo/`, so the workspace never tracks or commits it.
+- The workspace and the repo therefore have **separate** git histories — they cannot mix.
 - Commits to `repo/` follow the repo's own conventions; workspace commits follow this file.
-- Never mix workspace state files and repo source files in the same commit.
+- Never stage workspace state files and repo source files together (the gitignore makes this the default, not just a rule to remember).
 
 **To set up overlay git:**
 
-1. Clone the target repo into `repo/` (or symlink).
-2. Add `repo/` to `.gitignore` if workspace and repo share a git root.
+1. `truss init --overlay --repo <path|url>` clones (URL) or symlinks (local path) the code into `repo/` for you. Otherwise: `git clone <url> repo/` or `ln -s /path/to/code repo`.
+2. Confirm `repo/` is in `.gitignore` (overlay init adds it).
 3. Document the overlay structure in state/profile.md under Tools.
 4. Note in docs/import.md which files were imported and from where.
+
+### Placing repo/ — symlink, clone, or submodule
+
+Three ways to put the existing code under `repo/`. The first two keep histories **separate** (the overlay default); the third deliberately couples them and is advanced.
+
+| Option | How | repo/ in `.gitignore`? | Use when | Watch out |
+|---|---|---|---|---|
+| **Symlink** (default for local code) | `ln -s /path/to/code repo` (or `--repo <localpath>`) | yes | the code already lives on your machine and you want one working copy | Windows symlink friction; the symlink's branch *is* your real checkout's branch |
+| **Clone** (default for remote code) | `git clone <url> repo/` (or `--repo <url>`) | yes | you want a self-contained workspace, or the code is remote | a second checkout to keep in sync with origin |
+| **Submodule** (advanced) | `git submodule add <url> repo` and **remove `repo/` from `.gitignore`** | no — the workspace tracks a pinned commit | you want the workspace to *pin/version* the exact repo commit (reproducible doc snapshots, release workspace+code together) | re-couples the histories (a gitlink SHA in workspace commits) — the opposite of the overlay's separation; adds submodule ceremony (`git submodule update`). Don't reach for this unless you specifically need the pin |
+
+Recommendation: prefer **symlink** (code in place) or **clone** (self-contained). Use a **submodule** only when pinning the repo version is an explicit goal — it trades the overlay's clean separation for reproducibility. (The Truss *source repo* itself uses a submodule for the engine; that is a packaging choice for the framework, not the model for your overlay.)
 
 ## Tags and branches
 
 - Tags: `truss/phase-<name>-exit` when a phase is approved (human tags after HT is checked off).
-- Branches: workspace conventions don't prescribe branch strategy — follow whatever is in state/profile.md.
+- Branches (workspace): conventions don't prescribe a branch strategy — follow whatever is in state/profile.md.
+- Branches (overlay `repo/`): the checked-out branch is part of the current reality. Declare it in `state/current.md` `branch:`; `truss status` and the dashboard compare it against the live checkout and flag a mismatch (`branch-guard` preference). For genuinely parallel work on several branches, prefer git **worktrees** (a separate `repo/` checkout per branch/focus) over flipping one checkout back and forth.

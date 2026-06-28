@@ -4,8 +4,19 @@
 
 export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars (industry rule of thumb)
 
-// Internal health bands for the total mandatory-reading tokens.
-export const THRESHOLDS = { green: 6000, yellow: 12000 }; // > yellow = red
+// Truss' fixed framework overhead: the §1 load order at a fresh `init` (empty
+// templates), measured 2026-06-28 from baseline/ ≈ 2.5k tokens (AGENTS.md alone
+// is ~2k; the four state templates ~0.5k). This is the cost the FRAMEWORK imposes
+// — independent of how much project content a given project has accumulated. Used
+// as the apples-to-apples figure when comparing against other agent frameworks,
+// and as the floor of the health gauge (a running project can never sit below it).
+export const TRUSS_BASELINE = 2500;
+
+// Internal health bands for the total mandatory-reading tokens (a running project).
+// floor  ≈ Truss default (gauge starts here, not 0 — you can't go below framework overhead)
+// green  = healthy ceiling: room for a mature decision log + filled vision on top of overhead
+// yellow = watch ceiling; above it cleanup clearly pays off.
+export const THRESHOLDS = { floor: TRUSS_BASELINE, green: 7000, yellow: 12000 }; // > yellow = red
 
 // Comparable agent frameworks and their boot/mandatory context per run (approximate;
 // see docs/context-management.md for sources + caveats). Truss is the lightweight reference.

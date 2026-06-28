@@ -1,7 +1,7 @@
 import { html, Component } from '../../vendor/preact-htm.mjs';
 import { Card, CardHead, Badge, Button, Icons, StackedBar, copyText } from '../components.js';
 import { api } from '../api.js';
-import { SEG_COLORS, FRAMEWORKS, THRESHOLDS, budgetStatus, CLEANUP_PROMPT } from '../context-config.js';
+import { SEG_COLORS, FRAMEWORKS, THRESHOLDS, TRUSS_BASELINE, budgetStatus, CLEANUP_PROMPT } from '../context-config.js';
 
 export class ContextView extends Component {
   state = { budget: null, error: null };
@@ -22,16 +22,31 @@ export class ContextView extends Component {
     })).sort((a, b) => b.tokens - a.tokens);
     const segs = files.filter(f => f.tokens > 0).map(f => ({ label: f.file, value: f.tokens, color: f.color }));
 
-    // health gauge scale: 0 .. max(red zone start * 1.6, total)
-    const gMax = Math.max(THRESHOLDS.yellow * 1.5, total * 1.1);
-    const pct = (t) => `${Math.min(t / gMax * 100, 100).toFixed(1)}%`;
+    // health gauge scale: starts at the Truss floor (≈ default footprint), not 0 —
+    // a running project can never sit below its framework overhead, so a 0-based
+    // scale would waste the left third and misplace where "healthy" begins.
+    const gFloor = THRESHOLDS.floor;
+    const gMax = Math.max(THRESHOLDS.yellow * 1.4, total * 1.1);
+    const gSpan = gMax - gFloor;
+    const pct = (t) => `${Math.min(Math.max(t - gFloor, 0) / gSpan * 100, 100).toFixed(1)}%`;
 
-    const rows = [{ name: 'Truss', tokens: total, self: true, note: `${files.length} files (§1 load order)` }, ...FRAMEWORKS]
+    // Apples-to-apples: compare Truss' FIXED framework overhead (≈ fresh-init §1
+    // load order, ~2.5k) against other frameworks' boot context. A project's
+    // accumulated state (decision log, filled vision…) is content you'd carry in
+    // ANY tool, so it is shown as a separate segment stacked on top — not counted
+    // as Truss overhead. This keeps the comparison from punishing Truss as a
+    // project matures and its decision log grows.
+    const overhead = Math.min(total, TRUSS_BASELINE);
+    const projectState = Math.max(0, total - TRUSS_BASELINE);
+    const rows = [{ name: 'Truss', tokens: total, self: true, overhead, projectState,
+                    note: `${overhead.toLocaleString()} framework overhead + ${projectState.toLocaleString()} your project state` }, ...FRAMEWORKS]
       .sort((a, b) => a.tokens - b.tokens);
-    const axisMax = Math.max(...rows.map(r => r.tokens)) * 1.05;
+    const axisMax = Math.max(...rows.map(r => r.tokens), TRUSS_BASELINE) * 1.05;
     const peers = FRAMEWORKS.map(f => f.tokens).sort((a, b) => a - b);
     const median = peers[Math.floor(peers.length / 2)] || 0;
-    const lighter = total > 0 ? median / total : 0;
+    // Overhead-vs-boot, not live-vs-boot — a stable figure that doesn't swing as
+    // the project accumulates state.
+    const lighter = TRUSS_BASELINE > 0 ? median / TRUSS_BASELINE : 0;
 
     return html`
       <div class="grid cols-auto-lg">
@@ -58,12 +73,12 @@ export class ContextView extends Component {
           </div>
           <div style="position:relative;height:14px;border-radius:7px;overflow:hidden;display:flex">
             <span style=${`width:${pct(THRESHOLDS.green)};background:var(--ok${stat.tone === 'ok' ? '' : '-soft'});transition:background .25s`}></span>
-            <span style=${`width:${pct(THRESHOLDS.yellow - THRESHOLDS.green)};background:var(--warn${stat.tone === 'warn' ? '' : '-soft'});transition:background .25s`}></span>
+            <span style=${`width:${((THRESHOLDS.yellow - THRESHOLDS.green) / gSpan * 100).toFixed(1)}%;background:var(--warn${stat.tone === 'warn' ? '' : '-soft'});transition:background .25s`}></span>
             <span style=${`flex:1;background:var(--err${stat.tone === 'err' ? '' : '-soft'});transition:background .25s`}></span>
             <span style=${`position:absolute;top:-3px;bottom:-3px;left:${pct(total)};width:3px;background:var(--text);border-radius:2px`} title=${`${total} tokens`}></span>
           </div>
           <div class="row between" style="font-size:10.5px;color:var(--text-3);margin-top:4px">
-            <span style=${`color:var(--ok);font-weight:${stat.tone === 'ok' ? '700' : '400'};opacity:${stat.tone === 'ok' ? '1' : '0.6'}`}>healthy &lt;${THRESHOLDS.green / 1000}k</span>
+            <span style=${`color:var(--ok);font-weight:${stat.tone === 'ok' ? '700' : '400'};opacity:${stat.tone === 'ok' ? '1' : '0.6'}`}>healthy ${THRESHOLDS.floor / 1000}–${THRESHOLDS.green / 1000}k</span>
             <span style=${`color:var(--warn);font-weight:${stat.tone === 'warn' ? '700' : '400'};opacity:${stat.tone === 'warn' ? '1' : '0.6'}`}>watch ${THRESHOLDS.green / 1000}–${THRESHOLDS.yellow / 1000}k</span>
             <span style=${`color:var(--err);font-weight:${stat.tone === 'err' ? '700' : '400'};opacity:${stat.tone === 'err' ? '1' : '0.6'}`}>clean up &gt;${THRESHOLDS.yellow / 1000}k</span>
           </div>
@@ -80,10 +95,16 @@ export class ContextView extends Component {
           ${lighter >= 1.3 ? html`
             <div class="row" style="align-items:baseline;gap:8px;margin-bottom:6px">
               <span class="stat-val" style="font-size:30px;color:var(--ok)">${lighter.toFixed(1)}×</span>
-              <span class="stat-unit">lighter than a typical autonomous agent</span>
+              <span class="stat-unit">lighter framework overhead than a typical autonomous agent</span>
             </div>` : ''}
-          <p class="muted" style="font-size:12.5px;margin-bottom:16px;line-height:1.5">
-            Mandatory / boot context other agent frameworks load per run (approx.).</p>
+          <p class="muted" style="font-size:12.5px;margin-bottom:10px;line-height:1.5">
+            Mandatory / boot context other agent frameworks load per run (approx.). Truss' bar
+            splits its fixed framework overhead from your project's own accumulated state.</p>
+          <div class="row wrap" style="gap:14px;margin-bottom:16px;font-size:11px">
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent)"></span>Truss framework overhead</span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent-soft)"></span>your project state</span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:var(--warn)"></span>other frameworks (boot)</span>
+          </div>
 
           <div class="col" style="gap:10px">
             ${rows.map(r => html`
@@ -92,18 +113,25 @@ export class ContextView extends Component {
                   <span style=${`font-size:12.5px;${r.self ? 'font-weight:600' : 'color:var(--text-2)'}`}>${r.name}${r.orchestrator ? html`<span class="dim" style="font-size:10px"> · orchestrator</span>` : ''}</span>
                   <span class="dim" style="font-size:11.5px">${(r.tokens / 1000).toFixed(r.tokens < 10000 ? 1 : 0)}k</span>
                 </div>
-                <div style="height:9px;background:var(--surface-2);border-radius:5px;overflow:hidden">
-                  <span style=${`display:block;height:100%;border-radius:5px;width:${(r.tokens / axisMax * 100).toFixed(1)}%;background:${r.self ? 'var(--accent)' : r.orchestrator ? 'var(--text-3)' : 'var(--warn)'}`}></span>
+                <div style="height:9px;background:var(--surface-2);border-radius:5px;overflow:hidden;display:flex">
+                  ${r.self ? html`
+                    <span title=${`Truss framework overhead: ${r.overhead.toLocaleString()}`} style=${`height:100%;width:${(r.overhead / axisMax * 100).toFixed(1)}%;background:var(--accent)`}></span>
+                    <span title=${`Your project state: ${r.projectState.toLocaleString()}`} style=${`height:100%;width:${(r.projectState / axisMax * 100).toFixed(1)}%;background:var(--accent-soft)`}></span>
+                  ` : html`
+                    <span style=${`height:100%;width:${(r.tokens / axisMax * 100).toFixed(1)}%;background:${r.orchestrator ? 'var(--text-3)' : 'var(--warn)'}`}></span>
+                  `}
                 </div>
                 ${r.note ? html`<div class="dim" style="font-size:11px;margin-top:3px">${r.note}</div>` : ''}
               </div>`)}
           </div>
 
           <p class="dim" style="font-size:11px;margin-top:16px;line-height:1.5">
-            Estimates, not official benchmarks — compared against autonomous agents that load a full boot
-            context per run. Lower isn't always better (can mean less encoded context). Why it matters:
-            model quality decays as input grows ("context rot", Chroma 2025) — a lean boot context leaves
-            more room for the task.</p>
+            Estimates, not official benchmarks. To compare like-for-like, Truss is shown at its fixed
+            framework overhead (~${(TRUSS_BASELINE / 1000).toFixed(1)}k, a fresh init) plus your project's
+            own state as a separate segment; competitor figures are their boot context per run and may
+            already include some representative memory. Lower isn't always better (can mean less encoded
+            context). Why it matters: model quality decays as input grows ("context rot", Chroma 2025) —
+            a lean boot context leaves more room for the task.</p>
         <//>
       </div>
 

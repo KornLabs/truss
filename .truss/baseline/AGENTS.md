@@ -82,9 +82,9 @@ IDs: D-NNN decisions · HT-NNN human todos · OD-NNN open decisions · L-NNN lea
 
 ## 4 Session protocol
 
-Start: load §1; state what you will do; if the task is unclear, ask before touching files (`clarify` preference).
+Start: load §1; state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If a `repo/` overlay exists, confirm its checked-out branch matches `state/current.md` `branch:` before working — run `node .truss/bin/truss.mjs status`; resolve a mismatch per `branch-guard`.
 During: respect the phase block; flag instead of drifting; if a task would violate `forbidden`, stop and ask (phase-lock).
-End — mandatory: update state/current.md; route loose ends; if `auto-commit: suggest`, propose the commit message. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
+End — mandatory: update state/current.md (incl. `branch:` if a `repo/` overlay is in use); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; at phase exits use the procedure below (`doctor --gate`).
 
 Phase exit — when exit criteria appear met (never self-declare a phase change):
 1. Run `node .truss/bin/truss.mjs doctor --gate` — collect all exit findings.

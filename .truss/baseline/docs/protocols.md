@@ -29,6 +29,7 @@ INBOX.md collects human notes between sessions. The agent never reads it automat
 1. Load files per AGENTS.md §1 (load order).
 2. State what you will do — one sentence. If the task is unclear, ask (`clarify` preference).
 3. Read state/current.md. If the focus is stale or the next list is empty, surface this and ask.
+4. If a `repo/` overlay exists, confirm its checked-out branch matches `current.md` `branch:` (run `truss status`, or `git -C repo symbolic-ref --short HEAD`). On a mismatch, apply the `branch-guard` preference: with `warn` (default) or `strict`, STOP, tell the human, and recommend `git -C repo switch <declared>` before doing branch-specific work; with `off`, just note it and continue.
 
 ### During
 
@@ -38,7 +39,7 @@ INBOX.md collects human notes between sessions. The agent never reads it automat
 
 ### End (mandatory, in order)
 
-1. Update state/current.md: current focus, next ≤5, blockers, recently-done (≤7 days).
+1. Update state/current.md: current focus, next ≤5, blockers, recently-done (≤7 days). With a `repo/` overlay, set `branch:` to the branch the work belongs to.
 2. Route any loose ends: unresolved open questions → open-decisions, unresolved todos → HUMAN-TODOS.md.
 3. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
 4. If `auto-commit: suggest`, propose a commit message: `<area>: <action> — <context>`.

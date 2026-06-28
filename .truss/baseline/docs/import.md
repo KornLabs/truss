@@ -27,7 +27,7 @@ Document the mapping in a section below this line before starting to move files.
 
 ## Step 2 — Set the phase correctly
 
-Decide where in the lifecycle the project currently is. Update `current:` in `state/phases.md` to reflect reality (human-only action). Do not start in discover if the project is already in build — the phase block must reflect the actual state.
+An overlay starts in `ingest` (import the system), then moves to `operate` (run it). Stay in `ingest` until the system is mapped and summarised; then `node .truss/bin/truss.mjs phase operate` (a human action — it updates `current:` and re-renders). If the project is actually still an idea/prototype rather than an existing system, the overlay is the wrong fit — use a fresh core `init` or a phase profile (see `.truss/phase-profiles/README.md`).
 
 ## Step 3 — Fill state files
 
@@ -37,10 +37,10 @@ Decide where in the lifecycle the project currently is. Update `current:` in `st
 
 ## Step 4 — Place the existing codebase
 
-If there is an existing repository:
+The code lives **nested** under a single `repo/` directory inside the workspace (gitignored, its own git history — see docs/git.md). `truss init --overlay --repo <path|url>` does this for you (symlink a local path, clone a URL). If you didn't pass `--repo`, place it now:
 
-1. Clone or symlink it to `repo/`.
-2. Set up overlay git per docs/git.md if needed.
+1. `git clone <url> repo/` (or `ln -s /path/to/code repo`). Multiple codebases go in as `repo/<name>/`.
+2. Confirm `repo/` is in `.gitignore` (overlay init adds it).
 3. Add a note in state/profile.md under Tools: `repo/: <what it is>`.
 
 ## Step 5 — First doctor run

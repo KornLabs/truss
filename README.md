@@ -43,7 +43,7 @@ documentation that stays in the source repo).
 # In an empty or existing project directory:
 
 # 1. Drop the engine in — just the .truss/ folder, nothing else.
-git clone --depth 1 https://github.com/<you>/truss.git /tmp/truss
+git clone --depth 1 https://github.com/Nk-Stack-Org/TRUSS.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 
 # 2. Scaffold a fresh workspace next to the engine.
@@ -64,7 +64,7 @@ node .truss/bin/truss.mjs dashboard
 # In an empty or existing project directory:
 
 # 1. Drop the engine in.
-git clone --depth 1 https://github.com/<you>/truss.git $env:TEMP\truss
+git clone --depth 1 https://github.com/Nk-Stack-Org/TRUSS.git $env:TEMP\truss
 Copy-Item -Recurse $env:TEMP\truss\.truss .\.truss
 Remove-Item -Recurse -Force $env:TEMP\truss
 
@@ -102,9 +102,19 @@ rem cmd.exe
 doskey truss=node .truss/bin/truss.mjs $*
 ```
 
-Working on an **existing** codebase? Use `init --overlay` — it sets up an
-import-first phase flow and treats your current code as `repo/`. See
-[.truss/docs/cli.md](.truss/docs/cli.md).
+Working on an **existing** codebase? Make a Truss workspace, then bring your code
+in under `repo/`:
+
+```bash
+node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English \
+  --repo /path/to/code            # local path → symlinked, or a URL → cloned
+```
+
+This sets up an import-first phase flow (`ingest → operate`), nests your code
+under `repo/` (its own git history, gitignored here so commits never mix), and
+starts an `ingest` phase that first asks you the context the code can't reveal,
+then surveys the code. Full walkthrough:
+[.truss/docs/overlay.md](.truss/docs/overlay.md).
 
 ## Agent setup
 

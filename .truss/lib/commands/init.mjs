@@ -8,6 +8,10 @@
 //   --name <name>   → profile.md `name:`, VISION/README titles
 //   --lang <lang>   → profile.md `language:` (the language the agent answers in)
 //   --overlay       → existing-project mode (phases ingest→operate, .gitignore +repo/)
+//   --repo <path|url> → (overlay only) bring the existing code in under repo/:
+//                       a local path is symlinked, a URL is `git clone`d (best-effort).
+//                       The nested repo/ keeps its own git history; the workspace
+//                       gitignores it, so the two never share commits.
 // Missing required answers + TTY → interactive readline; no TTY → error (no hang).
 //
 // A project that needs a different lifecycle (software's +operate, the
@@ -50,9 +54,9 @@ async function exists(p) {
   try { await fs.access(p); return true } catch { return false }
 }
 
-/** Parse argv into { name, lang, overlay }. Supports "--flag v" and "--flag=v". */
+/** Parse argv into { name, lang, overlay, repo }. Supports "--flag v" and "--flag=v". */
 export function parseInitArgs(argv) {
-  const opts = { name: null, lang: null, overlay: false }
+  const opts = { name: null, lang: null, overlay: false, repo: null }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     // Consume the next token as a value; reject a missing value or one that looks
@@ -67,9 +71,14 @@ export function parseInitArgs(argv) {
     if (a === '--overlay') opts.overlay = true
     else if (a === '--name') opts.name = value('--name')
     else if (a === '--lang') opts.lang = value('--lang')
+    else if (a === '--repo') opts.repo = value('--repo')
     else if (a.startsWith('--name=')) opts.name = a.slice('--name='.length)
     else if (a.startsWith('--lang=')) opts.lang = a.slice('--lang='.length)
-    else throw new InitError(`init: unknown argument '${a}'. Flags: --name --lang --overlay`)
+    else if (a.startsWith('--repo=')) opts.repo = a.slice('--repo='.length)
+    else throw new InitError(`init: unknown argument '${a}'. Flags: --name --lang --overlay --repo`)
+  }
+  if (opts.repo && !opts.overlay) {
+    throw new InitError('init: --repo only applies with --overlay (it places existing code under repo/).')
   }
   return opts
 }
@@ -85,6 +94,9 @@ async function resolveInteractive(opts) {
     if (!opts.overlay) {
       const o = (await rl.question('Overlay an existing project? (y/N): ')).trim().toLowerCase()
       if (o === 'y' || o === 'yes') opts.overlay = true
+    }
+    if (opts.overlay && !opts.repo) {
+      opts.repo = (await rl.question('Path or URL of the existing code to place under repo/ (blank to skip): ')).trim() || null
     }
   } finally { rl.close() }
 }
@@ -120,6 +132,38 @@ async function gitInitMaybe(root, report) {
   } catch (err) {
     const msg = err?.message || String(err) || 'unknown error';
     report.git = `git init skipped (${msg.split('\n')[0]}) — workspace is valid without git`;
+  }
+}
+
+/** A value that looks like a clonable URL rather than a local path. */
+function looksLikeUrl(v) {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(v) || /^[^/\s]+@[^/\s]+:/.test(v) // scheme:// or scp-like git@host:path
+}
+
+/**
+ * (overlay) Bring the existing code in under repo/. A local path is symlinked
+ * (keeps its own .git in place); a URL is cloned. Best-effort: a failure is
+ * reported but never fatal — the user can place repo/ by hand (docs/import.md).
+ * Skipped under TRUSS_NO_GIT for a URL (no network in tests); symlink still runs.
+ */
+async function placeRepoMaybe(root, repoArg, report) {
+  if (!repoArg) return
+  const dest = path.join(root, 'repo')
+  if (await exists(dest)) { report.repo = `repo/ already exists — left as is`; return }
+  try {
+    if (looksLikeUrl(repoArg)) {
+      if (process.env.TRUSS_NO_GIT) { report.repo = 'clone skipped (TRUSS_NO_GIT)'; return }
+      await execFileP('git', ['clone', repoArg, dest])
+      report.repo = `cloned ${repoArg} → repo/`
+    } else {
+      const src = path.resolve(repoArg)
+      if (!await exists(src)) { report.repo = `repo path not found: ${repoArg} — place repo/ by hand (docs/import.md)`; return }
+      await fs.symlink(src, dest, 'dir')
+      report.repo = `symlinked ${repoArg} → repo/`
+    }
+  } catch (err) {
+    const msg = (err?.message || String(err) || 'unknown error').split('\n')[0]
+    report.repo = `repo placement skipped (${msg}) — place repo/ by hand (docs/import.md)`
   }
 }
 
@@ -204,6 +248,9 @@ export async function runInit(root, argv) {
   const report = {}
   await gitInitMaybe(root, report)
 
+  // 6b. (overlay) Place the existing code under repo/ if --repo was given.
+  await placeRepoMaybe(root, opts.repo, report)
+
   // 7. Build + print the bundled report.
   const baselineConflicts = baseRes.skipped.filter(p => !expectedSkips.has(p))
   const conflicts = [...prewriteConflicts, ...baselineConflicts]
@@ -213,6 +260,7 @@ export async function runInit(root, argv) {
     baselineWritten: baseRes.written.length,
     conflicts, errors,
     git: report.git,
+    repo: report.repo ?? null,
   }
   printReport(root, result)
   return result
@@ -228,6 +276,7 @@ function printReport(root, r) {
   L.push(`  Baseline files written: ${r.baselineWritten}`)
   L.push(`  Current phase:          ${r.currentPhase}`)
   L.push(`  Git:                    ${r.git}`)
+  if (r.repo) L.push(`  Repo:                   ${r.repo}`)
   if (r.conflicts.length) {
     L.push('')
     L.push(`  Skipped (already existed — not overwritten):`)
@@ -240,8 +289,25 @@ function printReport(root, r) {
   }
   L.push('')
   L.push('  Next steps:')
-  L.push('    1. Fill VISION.md (#Problem first) and state/profile.md.')
-  L.push('    2. Run: node .truss/bin/truss.mjs doctor')
+  if (r.overlay) {
+    if (!r.repo) {
+      L.push('    1. Bring your existing code in under repo/ (it stays gitignored, keeps its own history):')
+      L.push('         git clone <your-repo-url> repo/      # or: ln -s /path/to/code repo')
+      L.push('         (or re-run init with --repo <path|url> next time)')
+      L.push('    2. Run: node .truss/bin/truss.mjs doctor')
+      L.push('    3. Start the ingest phase — the overlay-intake prompt asks you the')
+      L.push('       few things the code can\'t tell it (vision, status, role), then')
+      L.push('       repo-import surveys the code. Move to operate when import is done.')
+    } else {
+      L.push('    1. Run: node .truss/bin/truss.mjs doctor')
+      L.push('    2. Start the ingest phase — the overlay-intake prompt asks you the')
+      L.push('       few things the code can\'t tell it (vision, status, role), then')
+      L.push('       repo-import surveys the code. Move to operate when import is done.')
+    }
+  } else {
+    L.push('    1. Fill VISION.md (#Problem first) and state/profile.md.')
+    L.push('    2. Run: node .truss/bin/truss.mjs doctor')
+  }
   L.push('')
   L.push('  Boot prompt for your AI tool:')
   L.push('    "Read AGENTS.md fully, then follow §1 load order and start the current phase."')

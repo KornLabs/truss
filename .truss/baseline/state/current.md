@@ -4,6 +4,10 @@
 
 focus:
 
+branch:
+<!-- overlay only: the repo/ branch this focus belongs to. Keep in sync with the
+     checked-out branch; `truss status` flags a mismatch (see branch-guard). -->
+
 next:
 <!-- format: "  - action description", one per line, ≤ 5 -->
 

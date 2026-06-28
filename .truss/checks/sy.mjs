@@ -15,12 +15,21 @@
 // falls back to the file mtime only when no entry carries a parseable date
 // (older instances or hand-written notes) — an honest, coarse signal that the
 // finding labels as such. No git shell-out: checks stay pure file reads.
+//
+// SY-05 nudges an overlay to declare its active branch. It is still pure: it only
+// reads whether `repo/.git` exists on disk (fs.access) — it never runs git. The
+// live branch *comparison* (actual vs declared) is deliberately NOT here; it
+// lives in `truss status` and the dashboard so the check engine stays hermetic.
+
+import fs from 'node:fs/promises'
+import path from 'node:path'
 
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key or stale (> 7 days)' },
   { id: 'SY-02', severity: 'I', title: 'open-decisions.md holds an entry open > 30 days', description: 'Per-entry Opened: date when present, else file mtime' },
   { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / learnings / HUMAN-TODOS / INBOX)' },
   { id: 'SY-04', severity: 'I', title: 'INBOX.md has unprocessed entries under ## Inbox' },
+  { id: 'SY-05', severity: 'W', title: 'overlay repo/ checkout present but no branch: declared in current.md' },
 ]
 
 const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done', 'updated']
@@ -119,7 +128,31 @@ export async function run(ctx) {
   // ── SY-04: unprocessed inbox entries ───────────────────────────────────────
   checkInboxUnprocessed(ctx.files.get('INBOX.md'), findings)
 
+  // ── SY-05: overlay repo/ present but branch: undeclared ────────────────────
+  // Pure fs read (no git): if repo/ is a checkout, current.md should declare the
+  // branch the work belongs to so `truss status` / branch-guard can compare.
+  await checkOverlayBranchDeclared(ctx, findings)
+
   return findings
+}
+
+/** SY-05 — repo/.git exists but current.md has no non-empty `branch:` line. */
+async function checkOverlayBranchDeclared(ctx, findings) {
+  let isCheckout = false
+  try { await fs.access(path.join(ctx.root, 'repo', '.git')); isCheckout = true } catch { /* no overlay checkout */ }
+  if (!isCheckout) return
+
+  const current = ctx.files.get('state/current.md')
+  const branchLine = current?.lines?.find(l => l.toLowerCase().startsWith('branch:'))
+  const declared = branchLine ? branchLine.slice(branchLine.indexOf(':') + 1).trim() : ''
+  if (declared) return
+
+  findings.push({
+    id: 'SY-05', severity: 'W',
+    file: 'state/current.md',
+    message: 'repo/ is a git checkout but no active branch is declared (branch:)',
+    fix: "Add 'branch: <name>' to state/current.md (the repo/ branch this focus belongs to). `truss status` then flags a mismatch.",
+  })
 }
 
 // Indices of lines inside fenced code blocks (``` or ~~~). Entry-grammar checks

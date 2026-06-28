@@ -15,6 +15,7 @@ export const COMMAND_META = [
   { name: 'status',    display: 'status',            summary: 'show a compact workspace status summary',          dashboardSafe: false },
   { name: 'doctor',    display: 'doctor [flags]',    summary: 'check workspace health (all findings, by severity)', dashboardSafe: true },
   { name: 'render',    display: 'render',            summary: 'sync phase block in AGENTS.md from state/phases.md', dashboardSafe: true },
+  { name: 'phase',     display: 'phase [<id>]',      summary: 'show phases, or set the current phase and re-render', dashboardSafe: false },
   { name: 'set',       display: 'set <key> <val>',   summary: 'update a preference in the preferences block',      dashboardSafe: true },
   { name: 'init',      display: 'init [flags]',      summary: 'configure a fresh workspace (flags or interactive)', dashboardSafe: false },
   { name: 'map',       display: 'map',               summary: 'regenerate the state/map.md domain file overview',  dashboardSafe: true },

@@ -92,7 +92,7 @@ export function renderPhaseBlock(phaseDef, phaseId, position, total, ts) {
 // group so unknown/extra rows still render (keeps `set` robust). Adding a new
 // preference key here only changes grouping; rendering tolerates missing keys.
 export const PREFS_GROUPS = [
-  { title: 'HARD — STOP conditions; never violate silently', keys: ['phase-lock', 'clarify'] },
+  { title: 'HARD — STOP conditions; never violate silently', keys: ['phase-lock', 'clarify', 'branch-guard'] },
   { title: 'AUTONOMY',               keys: ['orchestration', 'gate-advocate'] },
   { title: 'RIGOR & VERIFICATION',   keys: ['criticality', 'input-trust', 'source-citation', 'review-agent', 'post-task-check'] },
   { title: 'DELEGATION',             keys: ['research-agent'] },

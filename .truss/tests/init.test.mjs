@@ -15,9 +15,18 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false })
+      { name: 'A', lang: 'English', overlay: false, repo: null })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true })
+      { name: 'A B', lang: null, overlay: true, repo: null })
+  })
+  it('parses --repo (spaced and =) with overlay', () => {
+    assert.deepEqual(parseInitArgs(['--overlay', '--repo', '/p/code']),
+      { name: null, lang: null, overlay: true, repo: '/p/code' })
+    assert.deepEqual(parseInitArgs(['--overlay', '--repo=https://x/y.git']),
+      { name: null, lang: null, overlay: true, repo: 'https://x/y.git' })
+  })
+  it('rejects --repo without --overlay', () => {
+    assert.throws(() => parseInitArgs(['--repo', '/p/code']), InitError)
   })
   it('throws on unknown flag', () => {
     assert.throws(() => parseInitArgs(['--bogus']), InitError)
@@ -26,6 +35,7 @@ describe('parseInitArgs', () => {
     assert.throws(() => parseInitArgs(['--lang']), InitError)
     assert.throws(() => parseInitArgs(['--name', '--overlay']), InitError)
     assert.throws(() => parseInitArgs(['--name']), InitError)
+    assert.throws(() => parseInitArgs(['--overlay', '--repo']), InitError)
   })
 })
 
@@ -67,6 +77,31 @@ describe('init --overlay', () => {
     assert.deepEqual(phases.ordered, ['ingest', 'operate'])
     assert.match(await read(root, '.gitignore'), /repo\//)
     assert.match(await phaseBlockOf(root), /\*\*Phase 1\/2 — ingest/)
+    assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('--repo <local path> symlinks the code into repo/', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const os = await import('node:os')
+    // A throwaway "existing project" to bring in.
+    const src = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-src-'))
+    await fs.writeFile(path.join(src, 'index.js'), '// code\n')
+
+    const root = await makeRoot('truss-init-repo-')
+    const res = await runInit(root, ['--name', 'Legacy', '--lang', 'English', '--overlay', '--repo', src])
+
+    const lst = await fs.lstat(path.join(root, 'repo'))
+    assert.ok(lst.isSymbolicLink(), 'repo/ is a symlink to the source')
+    assert.equal(await read(root, 'repo/index.js'), '// code\n', 'code reachable through repo/')
+    assert.match(res.repo, /symlinked/)
+    assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('--repo with a missing local path is reported, not fatal', async () => {
+    const root = await makeRoot('truss-init-repo-missing-')
+    const res = await runInit(root, ['--name', 'L', '--lang', 'English', '--overlay', '--repo', '/no/such/path'])
+    assert.match(res.repo, /not found/)
     assert.equal(errorsOf(await runChecks(root)).length, 0)
   })
 })

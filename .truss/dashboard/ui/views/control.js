@@ -46,9 +46,13 @@ export class ControlView extends Component {
 
   render({ doctor, state }, { running, results, cmdOpen }) {
     // ── Init guard: workspace not yet initialised ─────────────────────────
-    // Check state.initialized (from assembleState, works without doctor.json)
-    // OR doctor.initialized (from doctor.json, for backwards compat).
-    if (state?.initialized === false || doctor?.initialized === false) {
+    // state.initialized (live AGENTS.md read by assembleState) is authoritative.
+    // doctor.initialized is consulted ONLY as a fallback when state is absent —
+    // a stale doctor.json (e.g. a `doctor --json` run before `init`) carries
+    // initialized:false forever and must NOT override the live state.
+    const uninitialised = state?.initialized === false
+      || (state == null && doctor?.initialized === false);
+    if (uninitialised) {
       return html`
         <${Card}>
           <${CardHead} icon=${Icons.Stethoscope} title="Workspace not initialised" />

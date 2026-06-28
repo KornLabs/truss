@@ -15,6 +15,7 @@ export const PREFS_CATALOG = [
   { key: 'post-task-check', values: ['off', 'inline', 'subagent'],   default: 'off' },
   { key: 'gate-advocate',   values: ['off', 'on'],                   default: 'on'       },
   { key: 'phase-lock',      values: ['off', 'advisory'],             default: 'advisory' },
+  { key: 'branch-guard',    values: ['off', 'warn', 'strict'],       default: 'warn'     },
   { key: 'response-style',  values: ['normal', 'compact', 'maxcompact'], default: 'normal' },
   { key: 'control-word',    values: ['off'],                         default: 'TRUSS', free: true },
 ]

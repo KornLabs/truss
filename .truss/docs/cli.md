@@ -30,20 +30,26 @@ truss init --name "My Project" --lang English
 | `--name <name>` | project name (used in `profile.md`, VISION/README titles); skips the interactive prompt |
 | `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
 | `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore` |
+| `--repo <path\|url>` | (overlay only) bring the existing code in under `repo/`: a local path is symlinked, a URL is `git clone`d. Best-effort — a failure is reported, never fatal |
 
 With no flags in a TTY, `init` asks interactively. With no TTY and missing
 required answers it errors instead of hanging.
 
-Switching to a different lifecycle (e.g. the `software` profile's `operate`
-phase) is a human-only phase change made *after* init — see
+For the full existing-project flow, see
+[overlay.md](overlay.md). Switching to a different lifecycle (e.g. the `software`
+profile's `operate` phase) is a human-only phase change made *after* init — see
 [../phase-profiles/README.md](../phase-profiles/README.md).
 
 ---
 
 ## `status`
 
-Print a compact, read-only summary of the workspace — current phase, focus, open
-human to-dos, and open decisions. The quickest "where am I?" command.
+Print a compact, read-only summary of the workspace — current phase, health, and
+inbox count. The quickest "where am I?" command. In an overlay with a `repo/`
+checkout it also prints a **Branch** line: the live `repo/` branch against the
+`branch:` declared in `state/current.md` (`✓` when they match, `✗ MISMATCH` with a
+switch hint when they don't). This is the live branch check — `doctor` itself
+stays purely file-based and never reads the live branch (see `branch-guard`).
 
 ```bash
 truss status
@@ -82,6 +88,25 @@ truss render
 
 ---
 
+## `phase`
+
+Show the phases, or set the current one. With no argument it lists every defined
+phase and marks where you are. With an `<id>` it validates the id against
+`state/phases.md`, updates the `current:` pointer, and re-renders the `AGENTS.md`
+phase block — the supported alternative to hand-editing `current:` and remembering
+to `render`.
+
+```bash
+truss phase            # list phases, show the current one
+truss phase operate    # switch to a defined phase and re-render
+```
+
+Phase changes stay **human-only** (AGENTS.md §4): this is your deliberate
+set/override, not something the agent runs to self-advance. It does not bypass the
+phase-exit ritual — confirm the previous phase's exit criteria were met first.
+
+---
+
 ## `set`
 
 Change one agent preference. The value is validated against the catalogue before
@@ -108,6 +133,7 @@ truss set response-style compact
 | `post-task-check` | off · inline · subagent | off |
 | `gate-advocate` | off · on | on |
 | `phase-lock` | off · advisory | advisory |
+| `branch-guard` | off · warn · strict | warn |
 | `response-style` | normal · compact · maxcompact | normal |
 | `control-word` | `off` or any short word | TRUSS |
 

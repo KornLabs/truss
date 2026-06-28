@@ -44,6 +44,24 @@ test('assembleState handles empty/missing directories gracefully', async () => {
   }
 });
 
+test('assembleState.initialized is authoritative (live AGENTS.md), not the doctor.json', async () => {
+  // Regression for the dashboard "Workspace not initialised" bug: a stale
+  // doctor.json (initialized:false) must NOT override the live AGENTS.md read.
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'truss-init-'));
+  try {
+    // no AGENTS.md yet → not initialised
+    assert.strictEqual((await assembleState(tmpDir)).initialized, false);
+    // a stale uninit doctor.json on disk must not matter
+    fs.mkdirSync(path.join(tmpDir, '.truss', 'out'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.truss', 'out', 'doctor.json'), JSON.stringify({ initialized: false }));
+    // once AGENTS.md exists → initialised, regardless of the stale doctor.json
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# AGENTS.md\n\n## 1 Load order\n');
+    assert.strictEqual((await assembleState(tmpDir)).initialized, true);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('assembleState loads date-named session files (regex regression)', async () => {
   // Regression for state.mjs:157 — a literal "\\d" never matched real ISO-dated
   // filenames, so state.sessions was always empty. This test fails on the old regex.
