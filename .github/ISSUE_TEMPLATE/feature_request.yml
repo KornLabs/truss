@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an improvement or new capability for TRUSS
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem or limitation are you running into? Why does it matter?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like TRUSS to do? Sketch the CLI command, check, or behavior if you can.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+      description: Workarounds you tried or other approaches you weighed.
+    validations:
+      required: false

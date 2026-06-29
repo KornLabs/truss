@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in TRUSS behaves incorrectly
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands you ran (e.g. `truss init`, `truss doctor`) and what you saw.
+      placeholder: |
+        1. truss init
+        2. truss doctor
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: TRUSS version (`cat .truss/VERSION`), Node version (`node -v`), and OS.
+      placeholder: |
+        TRUSS: 1.0.0-alpha
+        Node: v22.x
+        OS: macOS 15 / Windows 11 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output (optional)
+      description: Paste `truss status` / `truss doctor` output or error logs. Will be rendered as code.
+      render: shell
+    validations:
+      required: false
