@@ -6,8 +6,9 @@
 import { describe, it, before } from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
+import os from 'node:os'
 import fs from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
@@ -633,17 +634,25 @@ describe('PH checks: valid fixture is clean', async () => {
 // ── B1: resolveRoot must not percent-encode spaced paths ──────────────────────
 
 describe('resolveRoot (B1)', () => {
+  // URLs are derived from real OS-absolute paths via pathToFileURL so the test
+  // is valid on Windows too (a hardcoded POSIX file:// URL has no drive letter
+  // and makes fileURLToPath throw ERR_INVALID_FILE_URL_PATH on win32). The space
+  // in the directory name is what pathToFileURL percent-encodes, so this still
+  // proves resolveRoot decodes %20 back to a space.
   it('decodes a path containing a space — no %20', () => {
-    const url = 'file:///Users/x/My Projects/app/.truss/bin/truss.mjs'
+    const dir = path.join(os.tmpdir(), 'My Projects', 'app')
+    const url = pathToFileURL(path.join(dir, '.truss', 'bin', 'truss.mjs')).href
     const root = resolveRoot(url)
-    assert.equal(root, '/Users/x/My Projects/app')
+    assert.equal(root, dir)
     assert(!root.includes('%20'), 'resolved root must not contain %20')
   })
 
   it('handles multiple encoded characters', () => {
-    const url = 'file:///tmp/Mobile Documents/a b/.truss/bin/truss.mjs'
+    const dir = path.join(os.tmpdir(), 'Mobile Documents', 'a b')
+    const url = pathToFileURL(path.join(dir, '.truss', 'bin', 'truss.mjs')).href
     const root = resolveRoot(url)
-    assert.equal(root, '/tmp/Mobile Documents/a b')
+    assert.equal(root, dir)
+    assert(!root.includes('%20'), 'resolved root must not contain %20')
   })
 })
 
