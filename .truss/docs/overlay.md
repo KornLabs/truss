@@ -87,14 +87,19 @@ holds a checkout, `status` shows its branch against the declared one — see
 ## Step 4 — Start the `ingest` phase
 
 An overlay starts in `ingest`. Point your AI tool at `AGENTS.md` and start the
-phase. The ingest phase runs two prompts in order:
+phase. The ingest phase runs one prompt, **`overlay-onboard`** (also on the
+dashboard's Setup shelf), which works in stages:
 
-1. **`overlay-intake`** — asks *you* the handful of things the code cannot reveal:
-   the problem and vision, where the project stands and where it's headed
-   (Aussicht), your role and working style, hard constraints, and the biggest open
-   questions. These seed `VISION.md`, `state/profile.md`, and `state/current.md`.
-2. **`repo-import`** — surveys the code itself (architecture, stack, domains, past
-   decisions) and maps it onto the workspace files, leaving the code untouched.
+1. **Intake** — asks *you* the handful of things the code cannot reveal: the
+   problem and vision, where the project stands and where it's headed (Aussicht),
+   your role and working style, hard constraints, and the biggest open questions.
+   These seed `VISION.md`, `state/profile.md`, and `state/current.md`.
+2. **Survey & dispositions** — examines the artifacts (architecture, stack,
+   domains, past decisions), then proposes a disposition per artifact —
+   *absorb / reference / product / ignore* — for you to confirm, leaving the code
+   untouched.
+3. **Phase model** — fits the lifecycle to the project: a standard track, or a
+   bespoke `state/phases.md` (down to a single phase) when none fit.
 
 Intake first, then survey: the human framing makes the code survey far more useful.
 
@@ -144,7 +149,8 @@ The overlay is `ingest → operate`: import an existing system, then run it. If 
 overlay is too coarse. Use a fresh `init` (core `discover → validate → plan →
 build`) or a [phase profile](../phase-profiles/README.md) (`founders-thinking` for
 think-it-through work, `software` for build-then-operate) instead. The
-`overlay-intake` prompt will flag this if your answers point that way.
+`overlay-onboard` prompt will flag this if your answers point that way — and can
+author a project-specific phase model when no standard track fits.
 
 ## See also
 

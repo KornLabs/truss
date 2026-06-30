@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "note": "Truss prompt library V3 — lean core. Two shelves (task, session) plus one generic orchestration wrapper. Dashboard serves only these. Bodies: EN base/<id>.md, DE base-de/<id>.md. Titles+tags here. `orchestratable: true` makes the Single|Orchestrated toggle appear; its `orchestrationHint` is injected into the orchestrate wrapper's {{HINT}}. `recommended: true` marks start-here prompts. No chains, no phase prompts (removed by design).",
+  "note": "Truss prompt library V3 — lean core. Three shelves (task, session, setup) plus one generic orchestration wrapper. Dashboard serves only these. Bodies: EN base/<id>.md, DE base-de/<id>.md. Titles+tags here. `orchestratable: true` makes the Single|Orchestrated toggle appear; its `orchestrationHint` is injected into the orchestrate wrapper's {{HINT}}. `recommended: true` marks start-here prompts. No chains, no phase-kickoff prompts. The setup shelf's `overlay-onboard` doubles as the overlay ingest ritual (referenced by baseline/overlay/phases.md).",
   "tagVocabulary": [
     "plan",
     "research",
@@ -19,6 +19,9 @@
     "task": { "title": { "en": "Task prompts", "de": "Task-Prompts" } },
     "session": {
       "title": { "en": "Session & workflow", "de": "Session & Workflow" }
+    },
+    "setup": {
+      "title": { "en": "Setup", "de": "Einrichtung" }
     },
     "orchestration": {
       "title": { "en": "Orchestration", "de": "Orchestrierung" }
@@ -131,6 +134,15 @@
       "recommended": true,
       "orchestratable": false,
       "title": { "en": "Handover", "de": "Übergabe" }
+    },
+
+    {
+      "id": "overlay-onboard",
+      "shelf": "setup",
+      "tags": ["plan"],
+      "recommended": true,
+      "orchestratable": false,
+      "title": { "en": "Onboard existing project", "de": "Bestehendes Projekt aufnehmen" }
     },
 
     {
