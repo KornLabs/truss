@@ -295,14 +295,14 @@ function printReport(root, r) {
       L.push('         git clone <your-repo-url> repo/      # or: ln -s /path/to/code repo')
       L.push('         (or re-run init with --repo <path|url> next time)')
       L.push('    2. Run: node .truss/bin/truss.mjs doctor')
-      L.push('    3. Start the ingest phase — the overlay-intake prompt asks you the')
+      L.push('    3. Start the ingest phase — the overlay-onboard prompt asks you the')
       L.push('       few things the code can\'t tell it (vision, status, role), then')
-      L.push('       repo-import surveys the code. Move to operate when import is done.')
+      L.push('       surveys the code and fits the phase model. Move to operate when done.')
     } else {
       L.push('    1. Run: node .truss/bin/truss.mjs doctor')
-      L.push('    2. Start the ingest phase — the overlay-intake prompt asks you the')
+      L.push('    2. Start the ingest phase — the overlay-onboard prompt asks you the')
       L.push('       few things the code can\'t tell it (vision, status, role), then')
-      L.push('       repo-import surveys the code. Move to operate when import is done.')
+      L.push('       surveys the code and fits the phase model. Move to operate when done.')
     }
   } else {
     L.push('    1. Fill VISION.md (#Problem first) and state/profile.md.')
