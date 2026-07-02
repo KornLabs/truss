@@ -1,16 +1,12 @@
 <p align="center">
-  <img src=".github/social-preview.png" alt="Truss — a file-based, dependency-free workspace structure for AI coding agents" width="640">
+  <img src=".github/hero-mockup.png" alt="Left: a project's plain-Markdown state files (AGENTS.md, state/current.md). Right: an AI agent booting from them and resuming exactly where the last session stopped." width="800">
 </p>
-
-<!-- TODO(release): replace the banner above with the Split-Screen Hero Mockup (Structure + Agent)
-     (an agent using Truss, or the dashboard). The GIF is the strongest
-     conversion lever — see planning/LAUNCH-HANDOVER.md in the dev repo. -->
 
 # Truss
 
 **A file-based, dependency-free workspace structure for AI coding agents.**
 
-[![CI](https://github.com/Nk-Stack-Org/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/Nk-Stack-Org/truss/actions/workflows/ci.yml)
+[![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org)
 ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
@@ -70,7 +66,7 @@ documentation that stays in the source repo).
 # In an empty or existing project directory:
 
 # 1. Drop the engine in — just the .truss/ folder, nothing else.
-git clone --depth 1 https://github.com/Nk-Stack-Org/truss.git /tmp/truss
+git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 
 # 2. Scaffold a fresh workspace next to the engine.
@@ -91,7 +87,7 @@ node .truss/bin/truss.mjs dashboard
 # In an empty or existing project directory:
 
 # 1. Drop the engine in.
-git clone --depth 1 https://github.com/Nk-Stack-Org/truss.git $env:TEMP\truss
+git clone --depth 1 https://github.com/KornLabs/truss.git $env:TEMP\truss
 Copy-Item -Recurse $env:TEMP\truss\.truss .\.truss
 Remove-Item -Recurse -Force $env:TEMP\truss
 
@@ -136,6 +132,10 @@ in under `repo/`:
 node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English \
   --repo /path/to/code            # local path → symlinked, or a URL → cloned
 ```
+
+> **Windows note:** creating symlinks requires Developer Mode (or an elevated
+> shell). If symlinking fails, pass a git URL instead — the repo is cloned
+> under `repo/`.
 
 This sets up an import-first phase flow (`ingest → operate`), nests your code
 under `repo/` (its own git history, gitignored here so commits never mix), and
