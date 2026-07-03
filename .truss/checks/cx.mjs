@@ -1,7 +1,7 @@
 // checks/cx.mjs — Context-size check (CX-01)
 //
 // CX-01  W/E  the mandatory read-context exceeds the token budget
-//             (warn ≥ 6000, error ≥ 12000 token-equivalent; words × 1.5 heuristic)
+//             (warn ≥ 9000, error ≥ 15000 token-equivalent; words × 1.5 heuristic)
 //
 // "Mandatory read-context" = the files an agent must load every session per the
 // AGENTS.md §1 load order, anchored to file *identities* (not the literal step
@@ -19,11 +19,11 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 export const meta = [
-  { id: 'CX-01', severity: 'W', title: 'mandatory read-context exceeds the token budget', description: 'W ≥ 6000, E ≥ 12000 token-equivalent (words × 1.5); emits a cleanup prompt (S-08)' },
+  { id: 'CX-01', severity: 'W', title: 'mandatory read-context exceeds the token budget', description: 'W ≥ 9000, E ≥ 15000 token-equivalent (words × 1.5); emits a cleanup prompt (S-08)' },
 ]
 
-const WARN_TOKENS      = 6000
-const ERROR_TOKENS     = 12000
+const WARN_TOKENS      = 9000
+const ERROR_TOKENS     = 15000
 const TOKENS_PER_WORD  = 1.5
 
 // Always-loaded boot context (§1 load order, by file identity).

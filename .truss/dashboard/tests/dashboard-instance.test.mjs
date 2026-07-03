@@ -74,14 +74,14 @@ test('singleInstance: second launch for same project returns the running one', a
   } finally { a.server.close(); }
 });
 
-test('config: bands are floor 2.5k / green 7k / yellow 12k', () => {
+test('config: bands are floor 2.5k / green 9k / yellow 15k', () => {
   assert.equal(TRUSS_BASELINE, 2500);
   assert.equal(THRESHOLDS.floor, 2500);
-  assert.equal(THRESHOLDS.green, 7000);
-  assert.equal(THRESHOLDS.yellow, 12000);
+  assert.equal(THRESHOLDS.green, 9000);
+  assert.equal(THRESHOLDS.yellow, 15000);
   assert.equal(budgetStatus(2500).tone, 'ok');
-  assert.equal(budgetStatus(7000).tone, 'ok');
-  assert.equal(budgetStatus(7001).tone, 'warn');
-  assert.equal(budgetStatus(12000).tone, 'warn');
-  assert.equal(budgetStatus(12001).tone, 'err');
+  assert.equal(budgetStatus(9000).tone, 'ok');
+  assert.equal(budgetStatus(9001).tone, 'warn');
+  assert.equal(budgetStatus(15000).tone, 'warn');
+  assert.equal(budgetStatus(15001).tone, 'err');
 });

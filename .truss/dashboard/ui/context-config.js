@@ -16,7 +16,7 @@ export const TRUSS_BASELINE = 2500;
 // floor  ≈ Truss default (gauge starts here, not 0 — you can't go below framework overhead)
 // green  = healthy ceiling: room for a mature decision log + filled vision on top of overhead
 // yellow = watch ceiling; above it cleanup clearly pays off.
-export const THRESHOLDS = { floor: TRUSS_BASELINE, green: 7000, yellow: 12000 }; // > yellow = red
+export const THRESHOLDS = { floor: TRUSS_BASELINE, green: 9000, yellow: 15000 }; // > yellow = red
 
 // Comparable agent frameworks and their boot/mandatory context per run (approximate;
 // see docs/context-management.md for sources + caveats). Truss is the lightweight reference.
