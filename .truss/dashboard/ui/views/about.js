@@ -142,7 +142,7 @@ export class AboutView extends Component {
 
           <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
             <div class="row" style="justify-content:space-between;align-items:center;padding:9px 12px;background:var(--surface-2);border-bottom:1px solid var(--border)">
-              <span class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em">Setup prompt — fill the &lt;…&gt; and paste to your agent</span>
+              <span class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em">Setup prompt — fill the ${'<'}…${'>'} and paste to your agent</span>
               <${Button} className="sm" icon=${Icons.Copy} onClick=${() => copyText(SETUP_PROMPT, 'Setup prompt copied')}>Copy<//>
             </div>
             <pre class="mono" style="margin:0;padding:14px 16px;font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--text)">${SETUP_PROMPT}</pre>

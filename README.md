@@ -38,17 +38,17 @@ focus, plus a tiny CLI that _checks_ the structure but never decides for you.
 
 ## How it compares
 
-|                        | **Truss**                                              | Raw `AGENTS.md`                | Heavy agent frameworks                  |
-| ---------------------- | ------------------------------------------------------ | ------------------------------ | --------------------------------------- |
-| Setup                  | Copy one `.truss/` folder, run `init`                  | Write & maintain a file by hand | Install deps, configure, sometimes a service |
-| Dependencies           | None — Node ≥ 20 only                                  | None                           | Many (npm/PyPI, lockfiles)              |
-| Memory across sessions | Structured Markdown: context, decisions, phases        | One flat file you curate       | Framework DB or vendor-hosted store     |
-| Drift detection        | `doctor` checks the files still agree                  | None                           | Varies                                  |
-| Guardrails             | Human-gated phases narrow what the agent may do        | None                           | Often fully autonomous                  |
-| Who decides            | Humans & agents; scripts only report                   | You                            | The framework may act on its own        |
-| Tool-agnostic          | Yes — AGENTS.md standard (Claude, Gemini, Cursor, Copilot) | Yes                         | Usually tied to one runtime             |
-| Lock-in                | None — plain, git-diffable files                       | None                           | Framework + sometimes hosted state      |
-| Mandatory context      | ~3k tokens                                             | Whatever you put in the file   | Can be heavy                            |
+|                        | **Truss**                                                  | Raw `AGENTS.md`                 | Heavy agent frameworks                       |
+| ---------------------- | ---------------------------------------------------------- | ------------------------------- | -------------------------------------------- |
+| Setup                  | Copy one `.truss/` folder, run `init`                      | Write & maintain a file by hand | Install deps, configure, sometimes a service |
+| Dependencies           | None — Node ≥ 20 only                                      | None                            | Many (npm/PyPI, lockfiles)                   |
+| Memory across sessions | Structured Markdown: context, decisions, phases            | One flat file you curate        | Framework DB or vendor-hosted store          |
+| Drift detection        | `doctor` checks the files still agree                      | None                            | Varies                                       |
+| Guardrails             | Human-gated phases narrow what the agent may do            | None                            | Often fully autonomous                       |
+| Who decides            | Humans & agents; scripts only report                       | You                             | The framework may act on its own             |
+| Tool-agnostic          | Yes — AGENTS.md standard (Claude, Gemini, Cursor, Copilot) | Yes                             | Usually tied to one runtime                  |
+| Lock-in                | None — plain, git-diffable files                           | None                            | Framework + sometimes hosted state           |
+| Mandatory context      | ~3k tokens                                                 | Whatever you put in the file    | Can be heavy                                 |
 
 ## Quickstart
 
@@ -205,16 +205,30 @@ alias). Full reference: [.truss/docs/cli.md](.truss/docs/cli.md).
 | `prompt <save\|reset\|delete> <id>`                | manage custom prompts                                    |
 | `help`                                             | list commands                                            |
 
+## Dashboard (optional)
+
+An optional, read-only local viewer over the same Markdown — nothing runs in the
+background and it keeps the zero-dependency rule. Start it with `node
+.truss/bin/truss.mjs dashboard` (binds to `127.0.0.1` only). It surfaces the
+current focus and phase, open decisions, the context budget, and any drift, using
+the same health language as the CLI (Lightweight / Growing / Heavy).
+
+<p align="center">
+  <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and context budget at a glance" width="820">
+  <br><br>
+  <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — Context budget: mandatory per-session reading, per-file breakdown, and how Truss compares with other agent frameworks" width="820">
+</p>
+
 ## Documentation
 
-| Doc                                                                  | Read it for                                                 |
-| -------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [.truss/docs/concepts.md](.truss/docs/concepts.md)                   | the model — files, state layer, phases, checks, preferences |
-| [.truss/docs/cli.md](.truss/docs/cli.md)                             | command reference and flags                                 |
-| [.truss/docs/architecture.md](.truss/docs/architecture.md)           | how the engine is built (contributors)                      |
-| [.truss/prompts/README.md](.truss/prompts/README.md)                 | the prompt library                                          |
-| [.truss/phase-profiles/README.md](.truss/phase-profiles/README.md)   | alternative lifecycles                                      |
-| [.truss/dashboard/README.md](.truss/dashboard/README.md)             | the local dashboard                                         |
+| Doc                                                                | Read it for                                                 |
+| ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| [.truss/docs/concepts.md](.truss/docs/concepts.md)                 | the model — files, state layer, phases, checks, preferences |
+| [.truss/docs/cli.md](.truss/docs/cli.md)                           | command reference and flags                                 |
+| [.truss/docs/architecture.md](.truss/docs/architecture.md)         | how the engine is built (contributors)                      |
+| [.truss/prompts/README.md](.truss/prompts/README.md)               | the prompt library                                          |
+| [.truss/phase-profiles/README.md](.truss/phase-profiles/README.md) | alternative lifecycles                                      |
+| [.truss/dashboard/README.md](.truss/dashboard/README.md)           | the local dashboard                                         |
 
 ## Contributing
 

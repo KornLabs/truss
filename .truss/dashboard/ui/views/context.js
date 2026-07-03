@@ -80,7 +80,7 @@ export class ContextView extends Component {
           <div class="row between" style="font-size:10.5px;color:var(--text-3);margin-top:4px">
             <span style=${`color:var(--ok);font-weight:${stat.tone === 'ok' ? '700' : '400'};opacity:${stat.tone === 'ok' ? '1' : '0.6'}`}>healthy ${THRESHOLDS.floor / 1000}–${THRESHOLDS.green / 1000}k</span>
             <span style=${`color:var(--warn);font-weight:${stat.tone === 'warn' ? '700' : '400'};opacity:${stat.tone === 'warn' ? '1' : '0.6'}`}>watch ${THRESHOLDS.green / 1000}–${THRESHOLDS.yellow / 1000}k</span>
-            <span style=${`color:var(--err);font-weight:${stat.tone === 'err' ? '700' : '400'};opacity:${stat.tone === 'err' ? '1' : '0.6'}`}>clean up &gt;${THRESHOLDS.yellow / 1000}k</span>
+            <span style=${`color:var(--err);font-weight:${stat.tone === 'err' ? '700' : '400'};opacity:${stat.tone === 'err' ? '1' : '0.6'}`}>clean up ${'>'}${THRESHOLDS.yellow / 1000}k</span>
           </div>
           <div class="row wrap" style="gap:8px;margin-top:14px">
             <${Button} variant=${stat.tone === 'ok' ? '' : 'primary'} className="sm" icon=${Icons.Copy} onClick=${this.copyCleanup}>Copy cleanup prompt<//>
