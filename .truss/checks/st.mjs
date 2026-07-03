@@ -16,7 +16,7 @@ import { generateMapContent } from '../lib/commands/map.mjs'
 // Additive metadata only — does not affect run() or the finding shape.
 export const meta = [
   { id: 'ST-01', severity: 'E', title: 'Structure-table path missing on disk' },
-  { id: 'ST-02', severity: 'W', title: 'Untracked file — not yet in structure table (hint, not error)' },
+  { id: 'ST-02', severity: 'W', title: 'New file — not yet in structure table (hint, not error)' },
   { id: 'ST-03', severity: 'W', title: 'Empty table-managed directory' },
   { id: 'ST-04', severity: 'W', title: 'Adapter stub does not point to AGENTS.md' },
   { id: 'ST-05', severity: 'I', title: 'File exceeds growth-rule line limit (450)' },
@@ -161,8 +161,8 @@ export async function run(ctx) {
     findings.push({
       id: 'ST-02', severity: 'W',
       file: diskRel,
-      message: `untracked file — not yet listed in the §2 structure table (hint, not an error)`,
-      fix: `The agent will add '${relNoSlash}' to the §2 table during normal work, or you can add it manually. Safe to ignore for now.`,
+      message: `new file not yet noted in the §2 structure table — the agent will map it during normal work`,
+      fix: `No action needed. '${relNoSlash}' will be added to the §2 table next time the agent updates it, or add it yourself if you like.`,
     });
   }
 

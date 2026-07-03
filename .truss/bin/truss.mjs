@@ -576,9 +576,14 @@ async function runDashboard(args) {
 
     const openInBrowser = (u) => {
       if (!openBrowser) return
-      import('node:child_process').then(({ exec }) => {
-        const startCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-        exec(`${startCmd} ${u}`)
+      import('node:child_process').then(({ exec, spawn }) => {
+        if (process.platform === 'win32') {
+          // `start` is a cmd builtin; "" is the required window-title arg so a quoted URL isn't swallowed as the title.
+          spawn('cmd', ['/c', 'start', '', u], { detached: true, stdio: 'ignore' }).unref()
+        } else {
+          const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open'
+          exec(`${cmd} ${JSON.stringify(u)}`)
+        }
       }).catch(() => {})
     }
 

@@ -130,19 +130,19 @@ describe('CX-01 context size', () => {
     const f = await cx.run(ctxOf({ 'AGENTS.md': file('# A\n\nshort'), 'VISION.md': file('# V\n\nshort') }))
     assert.equal(ids(f, 'CX-01').length, 0)
   })
-  it('warns past ~6k tokens and errors past ~12k', async () => {
-    const w = ids(await cx.run(ctxOf({ 'VISION.md': file(big(5000)) })), 'CX-01')
+  it('warns past ~9k tokens and errors past ~15k', async () => {
+    const w = ids(await cx.run(ctxOf({ 'VISION.md': file(big(7000)) })), 'CX-01')
     assert.equal(w.length, 1); assert.equal(w[0].severity, 'W')
-    const e = ids(await cx.run(ctxOf({ 'VISION.md': file(big(9000)) })), 'CX-01')
+    const e = ids(await cx.run(ctxOf({ 'VISION.md': file(big(11000)) })), 'CX-01')
     assert.equal(e[0].severity, 'E')
   })
   it('counts the current phase read: target', async () => {
     const phases = { frontmatter: { current: 'discover' }, defs: new Map([['discover', { read: 'big.md' }]]) }
-    assert.equal(ids(await cx.run(ctxOf({ 'big.md': file(big(5000)) }, { phases })), 'CX-01').length, 1)
+    assert.equal(ids(await cx.run(ctxOf({ 'big.md': file(big(7000)) }, { phases })), 'CX-01').length, 1)
   })
   it('counts whitespace-separated read: targets (not just comma/semicolon)', async () => {
     const phases = { frontmatter: { current: 'discover' }, defs: new Map([['discover', { read: 'a.md b.md' }]]) }
-    assert.equal(ids(await cx.run(ctxOf({ 'a.md': file(big(2500)), 'b.md': file(big(2500)) }, { phases })), 'CX-01').length, 1)
+    assert.equal(ids(await cx.run(ctxOf({ 'a.md': file(big(3500)), 'b.md': file(big(3500)) }, { phases })), 'CX-01').length, 1)
   })
 })
 
