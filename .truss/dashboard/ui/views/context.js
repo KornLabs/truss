@@ -56,7 +56,7 @@ export class ContextView extends Component {
           <//>
           <div class="row" style="align-items:baseline;gap:8px;margin-bottom:14px">
             <span class="stat-val" style="font-size:34px">${total.toLocaleString()}</span>
-            <span class="stat-unit">tokens · ≈ ${(total * 4 / 1000).toFixed(1)}k chars</span>
+            <span class="stat-unit">tokens · ≈ ${((budget.totalChars || 0) / 1000).toFixed(1)}k chars</span>
           </div>
           <${StackedBar} segments=${segs} />
           <div class="row wrap" style="gap:12px;margin-top:12px">
@@ -87,7 +87,8 @@ export class ContextView extends Component {
           </div>
           <p class="dim" style="font-size:11px;margin-top:12px;line-height:1.5">
             "Mandatory reading" = the AGENTS.md §1 load order every agent ingests each session
-            (estimate at ~4 chars/token). Use the cleanup prompt above when the footprint grows.</p>
+            (estimated at ≈1.5 tokens/word — the same method the doctor's CX-01 check uses, so this
+            number matches <code>truss doctor</code>). Use the cleanup prompt above when the footprint grows.</p>
         <//>
 
         <${Card}>

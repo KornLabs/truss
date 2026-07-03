@@ -14,9 +14,14 @@
 // Token factor 1.5 (not 1.35): truss files are markdown dense with tables, IDs,
 // paths and backticks, which tokenize into more sub-tokens than prose — 1.35 would
 // systematically under-count and miss real bloat. The message labels it a "≈".
+//
+// The file list (CONTEXT_FILES), the token factor and the phase-read resolution
+// live in lib/context-budget.mjs and are SHARED with the dashboard budget
+// endpoint, so the doctor and the dashboard never diverge on the number.
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { CONTEXT_FILES, TOKENS_PER_WORD, wordCount, toTokens, phaseReadTargets } from '../lib/context-budget.mjs'
 
 export const meta = [
   { id: 'CX-01', severity: 'W', title: 'mandatory read-context exceeds the token budget', description: 'W ≥ 9000, E ≥ 15000 token-equivalent (words × 1.5); emits a cleanup prompt (S-08)' },
@@ -24,20 +29,6 @@ export const meta = [
 
 const WARN_TOKENS      = 9000
 const ERROR_TOKENS     = 15000
-const TOKENS_PER_WORD  = 1.5
-
-// Always-loaded boot context (§1 load order, by file identity).
-const CONTEXT_FILES = [
-  'AGENTS.md',
-  'state/current.md',
-  'VISION.md',
-  'state/decisions.md',
-  'state/open-decisions.md',
-  'state/profile.md',
-]
-
-const wordCount = (content) => (content.trim().match(/\S+/g) || []).length
-const toTokens  = (words) => Math.round(words * TOKENS_PER_WORD)
 
 /**
  * @param {import('../lib/workspace.mjs').WorkspaceContext} ctx
@@ -61,18 +52,12 @@ export async function run(ctx) {
   }
 
   // 2) Current phase `read:` targets (load-order step 6, deterministic part).
-  const currentId = ctx.phases?.frontmatter?.current
-  const def = currentId ? ctx.phases?.defs?.get(currentId) : null
-  if (def?.read) {
-    // Split on whitespace as well as , ; — a human may write "read: a.md b.md".
-    const targets = def.read.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
-    for (const rel of targets) {
-      if (seen.has(rel)) continue
-      const f = ctx.files.get(rel)
-      if (f) { add(rel, f.content); continue }
-      // read: may point at an on-demand domain file that isn't table-managed.
-      try { add(rel, await fs.readFile(path.join(ctx.root, rel), 'utf8')) } catch { /* missing — ignore */ }
-    }
+  for (const rel of phaseReadTargets(ctx.phases)) {
+    if (seen.has(rel)) continue
+    const f = ctx.files.get(rel)
+    if (f) { add(rel, f.content); continue }
+    // read: may point at an on-demand domain file that isn't table-managed.
+    try { add(rel, await fs.readFile(path.join(ctx.root, rel), 'utf8')) } catch { /* missing — ignore */ }
   }
 
   const totalWords = counted.reduce((s, c) => s + c.words, 0)

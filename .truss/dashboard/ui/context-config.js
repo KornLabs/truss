@@ -1,16 +1,20 @@
-// Context-budget reference data. Sourced from research (2026-06-19), documented in
-// docs/context-management.md (repo root, outside /truss). Token estimate: chars / 4.
-// Thresholds and framework figures are ESTIMATES; see docs for sources + caveats.
+// Context-budget reference data. See PROJECT.md "Context budget" for sources + caveats.
+//
+// The HEALTH GAUGE total (what the bands below judge) is computed server-side with
+// the SAME method as the doctor's CX-01 check — words × 1.5 over the shared
+// CONTEXT_FILES set (lib/context-budget.mjs) — so doctor and dashboard never
+// disagree. The peer FRAMEWORKS figures below are external chars/4 estimates, so
+// the comparison chart mixes methods by a few %; treat all peer numbers as rough.
 
-export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars (industry rule of thumb)
+export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars — basis of the external peer estimates only
 
 // Truss' fixed framework overhead: the §1 load order at a fresh `init` (empty
-// templates), measured 2026-06-28 from baseline/ ≈ 2.5k tokens (AGENTS.md alone
-// is ~2k; the four state templates ~0.5k). This is the cost the FRAMEWORK imposes
-// — independent of how much project content a given project has accumulated. Used
-// as the apples-to-apples figure when comparing against other agent frameworks,
-// and as the floor of the health gauge (a running project can never sit below it).
-export const TRUSS_BASELINE = 2500;
+// templates), measured 2026-07-03 from baseline/ via the shared words×1.5 method
+// ≈ 2.7k tokens (real BPE ground truth on that corpus: GPT-4 ≈ 2.75k, Claude ≈ 3.1k;
+// words×1.5 = 2679). This is the cost the FRAMEWORK imposes — independent of how
+// much project content a given project has accumulated. It floors the health gauge
+// (a running project can never sit below framework overhead).
+export const TRUSS_BASELINE = 2700;
 
 // Internal health bands for the total mandatory-reading tokens (a running project).
 // floor  ≈ Truss default (gauge starts here, not 0 — you can't go below framework overhead)
