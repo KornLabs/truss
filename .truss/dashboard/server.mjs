@@ -7,6 +7,9 @@ import { promisify } from 'node:util';
 import { assembleState } from './lib/state.mjs';
 import { branchReport, repoBranchList } from '../lib/git.mjs';
 import { checkExistingLock, writeLock, removeLock } from './lib/lock.mjs';
+import { parsePhases } from '../lib/md.mjs';
+// Shared with the doctor's CX-01 check so the two never disagree (lib/context-budget.mjs).
+import { CONTEXT_FILES, phaseReadTargets, wordCount, toTokens } from '../lib/context-budget.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -25,8 +28,10 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
-// Files every agent must read each session (AGENTS.md §1 load order).
-const MANDATORY = ['AGENTS.md', 'state/current.md', 'VISION.md', 'state/decisions.md', 'state/profile.md'];
+// The mandatory read-context file set (AGENTS.md §1 load order) lives in the
+// shared lib/context-budget.mjs (CONTEXT_FILES) so it matches the doctor's CX-01
+// check exactly — including state/open-decisions.md and the current phase's
+// `read:` targets, which the old local list omitted.
 
 // Fixed allowlist for the read-only file viewer (GET /api/file?name=<key>).
 const FILE_ALLOWLIST = {
@@ -221,15 +226,25 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
 
       if (req.method === 'GET' && url === '/api/context-budget') {
         try {
-          let totalChars = 0; const stats = {};
-          for (const file of MANDATORY) {
+          // Same file set + token method as the doctor's CX-01 check.
+          const files = [...CONTEXT_FILES];
+          try {
+            const raw = await fs.promises.readFile(path.join(root, 'state/phases.md'), 'utf-8');
+            for (const rel of phaseReadTargets(parsePhases(raw.split(/\r?\n/)))) {
+              if (!files.includes(rel)) files.push(rel);
+            }
+          } catch { /* no phases.md yet — skip phase read: targets */ }
+
+          let totalWords = 0, totalChars = 0; const stats = {};
+          for (const file of files) {
             try {
               const content = await fs.promises.readFile(path.join(root, file), 'utf-8');
-              totalChars += content.length;
-              stats[file] = { chars: content.length, tokens: Math.round(content.length / 4) };
-            } catch { stats[file] = { chars: 0, tokens: 0 }; }
+              const words = wordCount(content);
+              totalWords += words; totalChars += content.length;
+              stats[file] = { chars: content.length, words, tokens: toTokens(words) };
+            } catch { stats[file] = { chars: 0, words: 0, tokens: 0 }; }
           }
-          return send(res, 200, { totalTokens: Math.round(totalChars / 4), totalChars, stats });
+          return send(res, 200, { totalTokens: toTokens(totalWords), totalWords, totalChars, stats });
         } catch (e) { return send(res, 500, { error: e.message }); }
       }
 

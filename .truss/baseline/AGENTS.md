@@ -101,6 +101,7 @@ Phase exit — when exit criteria appear met (never self-declare a phase change)
 - Never store the same truth twice, create empty folders, or add per-folder index files.
 - Never delete a decision — supersede it.
 - Never ignore a known problem — fix it if no human input is needed, otherwise flag it explicitly (open-decisions or HT entry).
+- Any subagent you spawn inherits your active preferences (`phase-lock`, `branch-guard`, `auto-commit`, …) and the current phase's forbidden list / `forbidden-globs`. Before any write to a forbidden path (e.g. `repo/**`) a subagent MUST re-check the phase gate and refuse if the phase forbids it — recursively for subagents it spawns in turn. This is the canonical inheritance rule; spawn prompts reference it rather than restating it.
 
 ## 6 On-demand docs
 
