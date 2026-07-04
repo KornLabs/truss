@@ -4,25 +4,31 @@
 
 # Truss
 
-**A file-based, dependency-free workspace structure for AI coding agents.**
-**No API keys, no metered bills — it runs on the AI subscription you already pay for.**
+**A layer that sits on top of your project and holds everything an AI agent needs to work on it — vision, plans, phases, current state, decisions, and docs — as plain Markdown.**
+**No API keys, no metered bills: it runs on the AI subscription you already pay for.**
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org)
 ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
-> A truss is a light framework of struts that carries the load and holds a
-> structure's shape — without being the building itself. Truss does the same for
-> a project worked on with AI agents: a thin frame your work rests on, never a
-> replacement for it.
+Every AI coding session starts from zero. Context scatters, decisions get
+forgotten, and consistency rests on you re-explaining the project each time.
+Truss fixes that with one folder that lives beside your code and acts as its
+memory. An agent opens a single boot file — `AGENTS.md` — and instantly knows
+what the project is, what phase it's in, what's being worked on right now, and
+where to find anything else. It loads only what it needs (~3k tokens by
+default), never your whole repo.
 
-AI subscriptions (Claude Code, Cowork, Copilot, Gemini CLI, …) are powerful and
-already paid for — but they only reach you through a chat box. Every session
-starts from zero, knowledge scatters, and consistency rests on human discipline.
-Truss gives an agent a structure it can reliably **boot-strap from**: a small
-set of Markdown files that hold the project's context, decisions, and current
-focus, plus a tiny CLI that _checks_ the structure but never decides for you.
+Point any AGENTS.md-aware agent at it — Claude Code, Cowork, Codex, Gemini CLI,
+Copilot, Cursor — start it in the project folder, and it resumes exactly where
+the last session stopped. Agent-driven, but you make the calls: a tiny,
+zero-dependency CLI checks the structure and surfaces open decisions for you.
+
+> A truss is a light framework of struts that carries a structure's load and
+> holds its shape — without being the building itself. Truss does the same for a
+> project built with AI agents: a thin frame your work rests on, never a
+> replacement for it.
 
 ## Principles
 
@@ -58,6 +64,12 @@ focus, plus a tiny CLI that _checks_ the structure but never decides for you.
 ## Quickstart
 
 Requires **Node ≥ 20** — no other dependencies, no build step.
+
+Truss wraps your project in two ways: **drop-in** places the workspace
+_beside_ your existing code (both live in the same folder), while **overlay**
+nests your code _underneath_ it in `repo/`. Either way Truss is the layer your
+work rests on — the steps below cover drop-in; see
+[overlay](.truss/docs/overlay.md) for an existing codebase.
 
 Truss is a **drop-in**: you copy the `.truss/` engine folder into your
 project, then run `init` to scaffold the workspace. This repo is the
@@ -228,8 +240,9 @@ alias). Full reference: [.truss/docs/cli.md](.truss/docs/cli.md).
 An optional, read-only local viewer over the same Markdown — nothing runs in the
 background and it keeps the zero-dependency rule. Start it with `node
 .truss/bin/truss.mjs dashboard` (binds to `127.0.0.1` only). It surfaces the
-current focus and phase, open decisions, the context budget, and any drift, using
-the same health language as the CLI (Lightweight / Growing / Heavy).
+current focus and phase, open decisions, the context budget, the prompt library,
+and any drift, using the same health language as the CLI (Lightweight / Growing /
+Heavy — a reading of the _workspace structure_, not your code).
 
 <p align="center">
   <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and context budget at a glance" width="820">
