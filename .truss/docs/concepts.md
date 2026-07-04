@@ -88,6 +88,9 @@ Two rules make phases trustworthy:
 1. **Phase changes are human-only.** An agent never edits `current:` in
    `state/phases.md` or declares a phase done. When exit criteria look met, it
    runs `doctor --gate`, writes an `HT-NNN` summary, and stops. The human decides.
+   The phase *model* itself — the definitions, order, and set of phases — can be
+   reshaped by an agent, but only when the human explicitly asks; never on its own
+   initiative, and never silently.
 2. **The phase block is generated.** `state/phases.md` is the source; running
    `truss render` writes the human-readable phase block into `AGENTS.md` so an
    agent always sees the active rules without loading the whole phase file.

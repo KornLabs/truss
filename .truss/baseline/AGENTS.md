@@ -96,6 +96,7 @@ Phase exit — when exit criteria appear met (never self-declare a phase change)
 ## 5 Hard limits
 
 - Never change `current:` in state/phases.md, declare a phase change, or proceed past exit criteria — human act only; use the phase exit procedure (§4).
+- Never restructure the phase model on your own initiative — the phase definitions, their order, and the set of phases in state/phases.md are edited only when the human explicitly asks for it; then run `truss render` and `doctor`. It reshapes every downstream guardrail, so treat it as a sensitive change and confirm the shape with the human before writing.
 - Never edit the generated blocks by hand; `truss set` / `truss render` are the only writers.
 - Never write or commit secrets/API keys to files tracked by git. Always store them in a local `.env` file (which must be gitignored) and document the required key names in a tracked `.env.example` file.
 - Never store the same truth twice, create empty folders, or add per-folder index files.
