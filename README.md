@@ -77,10 +77,11 @@ cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 # 2. Scaffold a fresh workspace next to the engine.
 node .truss/bin/truss.mjs init
 
-# 3. Check that the workspace is healthy.
-node .truss/bin/truss.mjs doctor
+# 3. Copy the boot prompt init printed into your AI tool, paste your idea after
+#    it, and you're ready to go — the agent interviews you to build VISION.md.
 
-# 4. Point your AI tool at AGENTS.md — e.g. tell it: "Read AGENTS.md and start a session."
+# Optional: sanity-check workspace health anytime.
+node .truss/bin/truss.mjs doctor
 ```
 
 **Windows (PowerShell):**
@@ -96,10 +97,28 @@ Remove-Item -Recurse -Force $env:TEMP\truss
 # 2. Scaffold a fresh workspace next to the engine.
 node .truss/bin/truss.mjs init
 
-# 3. Check that the workspace is healthy.
-node .truss/bin/truss.mjs doctor
+# 3. Copy the boot prompt init printed into your AI tool, paste your idea after
+#    it, and you're ready to go — the agent interviews you to build VISION.md.
 
-# 4. Point your AI tool at AGENTS.md — e.g. tell it: "Read AGENTS.md and start a session."
+# Optional: sanity-check workspace health anytime.
+node .truss/bin/truss.mjs doctor
+```
+
+`init` doesn't scaffold and leave you at a blank page. It ends with your next
+steps and a **ready-to-paste boot prompt** — drop it into your AI tool, add your
+idea, and the agent interviews you into a real `VISION.md` instead of an empty
+template (abbreviated):
+
+```text
+  Next steps:
+    1. Start with the boot prompt below — the agent interviews you to turn your
+       idea into VISION.md and state/profile.md (no blank-template filling).
+    2. Run: node .truss/bin/truss.mjs doctor
+
+  Boot prompt for your AI tool:
+    "Read AGENTS.md fully, then follow §1 load order. This is a fresh project.
+     First turn my idea into VISION.md and state/profile.md by interviewing me,
+     one question at a time.  My idea: ⟨paste your idea, role, and goal here⟩"
 ```
 
 The product documentation travels with the engine under

@@ -43,7 +43,7 @@ export function renderPhaseBlock(phaseDef, phaseId, position, total, ts) {
 
   // Provenance line (always first)
   lines.push(
-    `> Rendered ${timestamp} from \`state/phases.md\` — edit there, then run \`truss render\`. Phase changes are human-only; propose via HUMAN-TODOS.md.`
+    `> Rendered ${timestamp} from \`state/phases.md\` — edit there, then run \`truss render\`. Advancing \`current:\` is human-only (propose via HUMAN-TODOS.md); change the phase model only on the human's explicit instruction.`
   )
   lines.push('')
 

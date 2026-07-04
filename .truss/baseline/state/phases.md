@@ -3,8 +3,8 @@ current: discover
 ---
 
 > Source of truth for phase definitions. `truss render` reads this file and writes the phase block in AGENTS.md.
-> `current:` is the only line a human changes here. All other edits are agent-assisted.
-> Phase changes are human-only — see AGENTS.md §4 (phase exit procedure).
+> `current:` is the only line a human changes here; advancing it (a phase change) is human-only — see AGENTS.md §4 (phase exit procedure).
+> The phase definitions below are edited by an agent only on the human's explicit instruction — never on its own initiative — then `truss render`.
 
 ## discover
 
