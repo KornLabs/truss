@@ -5,6 +5,7 @@
 # Truss
 
 **A file-based, dependency-free workspace structure for AI coding agents.**
+**No API keys, no metered bills — it runs on the AI subscription you already pay for.**
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -29,6 +30,9 @@ focus, plus a tiny CLI that _checks_ the structure but never decides for you.
   plain Markdown you can read, edit, and diff. No database, no lock-in.
 - **Scripts check and report — they never decide.** The CLI validates the
   structure and surfaces drift; humans and agents make the calls.
+- **Subscription-first.** Truss never calls a model itself — your agent does,
+  through the plan you already have. That's what keeps it free to run and
+  genuinely tool-agnostic.
 - **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`.
 - **Tool-agnostic.** Built on the open [AGENTS.md](https://agents.md) convention;
   one-line adapter stubs point Claude, Gemini, Cursor, and Copilot at the same
@@ -42,6 +46,7 @@ focus, plus a tiny CLI that _checks_ the structure but never decides for you.
 | ---------------------- | ---------------------------------------------------------- | ------------------------------- | -------------------------------------------- |
 | Setup                  | Copy one `.truss/` folder, run `init`                      | Write & maintain a file by hand | Install deps, configure, sometimes a service |
 | Dependencies           | None — Node ≥ 20 only                                      | None                            | Many (npm/PyPI, lockfiles)                   |
+| Cost to run            | **None — your existing subscription, no API keys**         | None                            | Often metered API keys / token spend         |
 | Memory across sessions | Structured Markdown: context, decisions, phases            | One flat file you curate        | Framework DB or vendor-hosted store          |
 | Drift detection        | `doctor` checks the files still agree                      | None                            | Varies                                       |
 | Guardrails             | Human-gated phases narrow what the agent may do            | None                            | Often fully autonomous                       |
@@ -52,10 +57,10 @@ focus, plus a tiny CLI that _checks_ the structure but never decides for you.
 
 ## Quickstart
 
-Requires **Node ≥ 20**. There is nothing to install.
+Requires **Node ≥ 20** — no other dependencies, no build step.
 
 Truss is a **drop-in**: you copy the `.truss/` engine folder into your
-project, then let it scaffold the workspace around itself. This repo is the
+project, then run `init` to scaffold the workspace. This repo is the
 _source_ of that folder — don't run `init` inside the clone; copy `.truss/`
 into a project of its own (everything else here, README and docs included, is
 documentation that stays in the source repo).
@@ -75,10 +80,7 @@ node .truss/bin/truss.mjs init
 # 3. Check that the workspace is healthy.
 node .truss/bin/truss.mjs doctor
 
-# 4. Point your AI tool at AGENTS.md and ask it to start a session.
-
-# 5. Start the dashboard for a visual overview and control center
-node .truss/bin/truss.mjs dashboard
+# 4. Point your AI tool at AGENTS.md — e.g. tell it: "Read AGENTS.md and start a session."
 ```
 
 **Windows (PowerShell):**
@@ -97,10 +99,7 @@ node .truss/bin/truss.mjs init
 # 3. Check that the workspace is healthy.
 node .truss/bin/truss.mjs doctor
 
-# 4. Point your AI tool at AGENTS.md and ask it to start a session.
-
-# 5. Start the dashboard for a visual overview and control center
-node .truss/bin/truss.mjs dashboard
+# 4. Point your AI tool at AGENTS.md — e.g. tell it: "Read AGENTS.md and start a session."
 ```
 
 The product documentation travels with the engine under
