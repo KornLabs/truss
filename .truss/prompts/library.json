@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "note": "Truss prompt library V3 — lean core. Three shelves (task, session, setup) plus one generic orchestration wrapper. Dashboard serves only these. Bodies: EN base/<id>.md, DE base-de/<id>.md. Titles+tags here. `orchestratable: true` makes the Single|Orchestrated toggle appear; its `orchestrationHint` is injected into the orchestrate wrapper's {{HINT}}. `recommended: true` marks start-here prompts. No chains, no phase-kickoff prompts. The setup shelf's `overlay-onboard` doubles as the overlay ingest ritual (referenced by baseline/overlay/phases.md).",
+  "note": "Truss prompt library V3 — lean core. Three shelves (task, session, setup) plus one generic orchestration wrapper. Dashboard serves only these. Bodies: EN base/<id>.md, DE base-de/<id>.md. Titles+tags here. `orchestratable: true` makes the Single|Orchestrated toggle appear; its `orchestrationHint` is injected into the orchestrate wrapper's {{HINT}}. `recommended: true` marks start-here prompts. No chains, no phase-kickoff prompts. The setup shelf holds two start rituals: `project-kickoff` turns a fresh project's raw idea into VISION.md + profile.md (the fresh init boot prompt points at it), and `overlay-onboard` doubles as the overlay ingest ritual (referenced by baseline/overlay/phases.md).",
   "tagVocabulary": [
     "plan",
     "research",
@@ -134,6 +134,15 @@
       "recommended": true,
       "orchestratable": false,
       "title": { "en": "Handover", "de": "Übergabe" }
+    },
+
+    {
+      "id": "project-kickoff",
+      "shelf": "setup",
+      "tags": ["ideate", "plan"],
+      "recommended": true,
+      "orchestratable": false,
+      "title": { "en": "Start a new project", "de": "Neues Projekt starten" }
     },
 
     {
