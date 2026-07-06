@@ -45,6 +45,7 @@ This table lists core system files. Domain (topic) files live under `context/` a
 | docs/git.md | A | commit discipline, overlay git mechanics |
 | docs/import.md | A | guided import of an existing project |
 | .gitignore | S | excludes `.truss/out/`; overlay mode adds `repo/` |
+| .trussignore | A | paths the map + doctor must skip (foreign/bulk data); gitignore syntax. Keep current when copying in non-content data |
 | package.json | S | metadata + `test`/`doctor` script aliases; zero dependencies (GE-14) |
 | CLAUDE.md · GEMINI.md · .cursorrules · .github/copilot-instructions.md | S | adapter stubs — one line each pointing to AGENTS.md (GE-10); checked by ST-04 |
 | .truss/ | S | engine: scripts, checks, prompts, phase-profiles, dashboard — read-only for agents except `prompts/custom/` |
@@ -60,6 +61,8 @@ Routing tie-breakers: behavior/style rule ("always plan first") → state/profil
 Canonical truth: every operational fact lives in exactly one file; link, never copy.
 
 Language: write all free-text in the `language:` set in state/profile.md — this includes entry titles and bodies (the text after `## OD-NNN — ` / `## D-NNN — `), briefings, focus, learnings, and notes; the dashboard displays this text as-is. Only the machine-parsed skeleton stays English: ID tokens (D-NNN, OD-NNN, …), keys and field labels (`focus:`, `Opened:`, `Leaning:`, `Options:`, `Date:`), and fixed file headings (e.g. profile.md's `## Project`).
+
+Scan scope: the map and doctor only cover workspace content. Foreign or bulk data placed in the project (probe/raw data, vendored datasets, build artifacts, copied app-support folders) belongs in `.trussignore` — add its path there so it stays out of state/map.md and doctor findings. truss also honours `.gitignore` by default, so git-ignored paths usually need no extra entry.
 
 Consistency — a change is complete only after its follow-ups:
 

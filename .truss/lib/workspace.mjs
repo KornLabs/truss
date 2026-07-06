@@ -9,6 +9,7 @@ import {
   parseHeadings, parseIdDefinitions, parseIdReferences, parsePhases,
 } from './md.mjs'
 import { mapMdFilesFromDiskPaths } from './commands/map.mjs'
+import { loadIgnore } from './ignore.mjs'
 
 /**
  * OS / editor junk files that are never part of a Truss workspace and must not
@@ -200,6 +201,7 @@ export async function loadWorkspace(root) {
   // Also add adapter stubs and .gitignore (always part of template)
   for (const stub of ADAPTER_STUBS) managedRelPaths.add(stub);
   managedRelPaths.add('.gitignore');
+  managedRelPaths.add('.trussignore');
   managedRelPaths.add('.prettierrc');
   managedRelPaths.add('.env.example');
 
@@ -275,12 +277,19 @@ export async function loadWorkspace(root) {
     } catch { /* dir may not exist */ }
   }
 
+  // ── Ignore layer ──────────────────────────────────────────────────────────
+  // Single source of scan-exclusion (.trussignore + .gitignore + engine hardcodes),
+  // applied identically to the disk walk and the map so doctor and map agree on
+  // exactly which paths are workspace content.
+  const ignore = await loadIgnore(root);
+  const ignoreStats = { excluded: 0 };
+
   // ── Walk disk for ST-02 ───────────────────────────────────────────────────
-  const diskPaths = await walkWorkspace(root);
+  const diskPaths = await walkWorkspace(root, ignore.isIgnored, ignoreStats);
 
   // Markdown-file subset the map covers (ST-07) — derived from the single walk
   // above so doctor does not walk the whole tree a second time.
-  const mdFiles = mapMdFilesFromDiskPaths(diskPaths);
+  const mdFiles = mapMdFilesFromDiskPaths(diskPaths, ignore.isIgnored);
 
   return {
     root,
@@ -293,6 +302,7 @@ export async function loadWorkspace(root) {
     promptIds,       // Set<string>
     diskPaths,       // Array<string> — all rel paths found on disk (for ST-02)
     mdFiles,         // Array<string> — md files the map covers (for ST-07)
+    ignore: { sources: ignore.sources, excluded: ignoreStats.excluded }, // for the visible report
     agentsMissing: !agentsRaw,
   };
 }
@@ -304,7 +314,7 @@ export async function loadWorkspace(root) {
  *   - .truss/out/ contents
  *   - node_modules
  */
-async function walkWorkspace(root) {
+async function walkWorkspace(root, isIgnored = () => false, stats = { excluded: 0 }) {
   const results = [];
 
   const walkDir = async (dirRel, depth) => {
@@ -321,6 +331,10 @@ async function walkWorkspace(root) {
       if (isOsJunk(entry.name)) continue;   // OS/editor junk (.DS_Store, ._*, …) — never a workspace path
       if (rel === '.git' || rel.startsWith('.git/')) continue;
       if (rel === '.truss/out' || rel.startsWith('.truss/out/')) continue;
+
+      // User-declared / gitignored paths: excluded from the disk walk so ST-02,
+      // ST-07 and the map never treat foreign bulk data as workspace content.
+      if (isIgnored(rel, entry.isDirectory())) { stats.excluded++; continue; }
 
       if (entry.isDirectory()) {
         results.push(rel + '/');
