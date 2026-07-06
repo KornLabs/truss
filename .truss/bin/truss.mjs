@@ -33,7 +33,7 @@ import { runStatus } from '../lib/commands/status.mjs'
 import { runPrompt } from '../lib/commands/prompt.mjs'
 import { runPhase } from '../lib/commands/phase.mjs'
 import { COMMAND_META } from '../lib/command-meta.mjs'
-import { SEV_ORDER, SEV_LABEL, FAMILY_NAMES, col } from '../lib/severity.mjs'
+import { SEV_ORDER, SEV_LABEL, FAMILY_NAMES, col, dedupeFindings } from '../lib/severity.mjs'
 
 const root = resolveRoot(import.meta.url)
 const agentsMdPath = path.join(root, 'AGENTS.md')
@@ -70,11 +70,12 @@ function renderHtmlReport({ root, version, timestamp, gate, summary, registry, f
     ? `<tr><td colspan="4" class="muted center">No findings — workspace is clean.</td></tr>`
     : findings.map(f => {
         const loc = f.line ? `${f.file}:${f.line}` : (f.file || '')
+        const occ = f.occurrences > 1 ? ` <span class="muted">(×${f.occurrences})</span>` : ''
         return `      <tr>
         <td><span class="sev sev-${f.severity}">${SEV_LABEL[f.severity] || f.severity}</span></td>
         <td class="mono">${escapeHtml(f.id)}</td>
         <td class="mono">${escapeHtml(loc)}</td>
-        <td>${escapeHtml(f.message)}${f.fix ? `<div class="fix">${escapeHtml(f.fix)}</div>` : ''}</td>
+        <td>${escapeHtml(f.message)}${occ}${f.fix ? `<div class="fix">${escapeHtml(f.fix)}</div>` : ''}</td>
       </tr>`
       }).join('\n')
 
@@ -82,7 +83,7 @@ function renderHtmlReport({ root, version, timestamp, gate, summary, registry, f
   const firedSevById = new Map()   // highest actual severity a check fired (PH-04/CX-01 can escalate past their nominal severity)
   const SEV_RANK = { I: 0, W: 1, E: 2 }
   for (const f of findings) {
-    firedById.set(f.id, (firedById.get(f.id) || 0) + 1)
+    firedById.set(f.id, (firedById.get(f.id) || 0) + (f.occurrences || 1))
     const prev = firedSevById.get(f.id)
     if (prev === undefined || SEV_RANK[f.severity] > SEV_RANK[prev]) firedSevById.set(f.id, f.severity)
   }
@@ -331,9 +332,14 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
     ((a.line || 0) - (b.line || 0))
   )
 
-  const errors   = allFindings.filter(f => f.severity === 'E')
-  const warnings = allFindings.filter(f => f.severity === 'W')
-  const infos    = allFindings.filter(f => f.severity === 'I')
+  // Collapse identical (id + message) findings so one cause surfaces once with an
+  // occurrence count, instead of N duplicate rows burying the actionable ones.
+  const findings = dedupeFindings(allFindings)
+  const occurrenceTotal = allFindings.length
+
+  const errors   = findings.filter(f => f.severity === 'E')
+  const warnings = findings.filter(f => f.severity === 'W')
+  const infos    = findings.filter(f => f.severity === 'I')
   const exitCode = errors.length > 0 ? 2 : warnings.length > 0 ? 1 : 0
 
   // ── JSON output ─────────────────────────────────────────────────────────
@@ -345,9 +351,10 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       root,
       version: getVersion(),
       gate,
-      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: allFindings.length },
+      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, occurrences: occurrenceTotal },
+      scan: ctx.ignore,        // { sources: [...], excluded: n } — what the ignore layer dropped
       checks: registry,        // full catalog of all checks (A2), independent of what fired
-      findings: allFindings,
+      findings,                // deduped: each carries occurrences + locations
     }
     const outDir  = path.join(root, '.truss', 'out')
     const outFile = path.join(outDir, 'doctor.json')
@@ -360,8 +367,8 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   if (wantHtml) {
     const html = renderHtmlReport({
       root, version: getVersion(), timestamp: new Date().toISOString(), gate,
-      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: allFindings.length },
-      registry, findings: allFindings,
+      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length },
+      registry, findings,
     })
     const outDir  = path.join(root, '.truss', 'out')
     const outFile = path.join(outDir, 'doctor.html')
@@ -372,7 +379,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
 
   // ── Fix-prompt output ────────────────────────────────────────────────────
   if (wantFixPrompt) {
-    if (allFindings.length === 0) {
+    if (findings.length === 0) {
       console.log('No findings — nothing to fix.')
     } else {
       const lines = [
@@ -381,9 +388,10 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
         'After fixing, run:  node .truss/bin/truss.mjs doctor',
         '',
       ]
-      for (const f of allFindings) {
+      for (const f of findings) {
         const loc = f.line ? `${f.file}:${f.line}` : (f.file || '')
-        lines.push(`${f.severity}  ${f.id}  ${loc}`)
+        const occ = f.occurrences > 1 ? `  (×${f.occurrences})` : ''
+        lines.push(`${f.severity}  ${f.id}  ${loc}${occ}`)
         lines.push(`  Problem: ${f.message}`)
         lines.push(`  Fix:     ${f.fix}`)
         lines.push('')
@@ -401,28 +409,37 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   const gateLabel = gate ? ' --gate' : ''
   console.log(`\ntruss doctor${gateLabel} — ${now}\n`)
 
-  if (allFindings.length === 0) {
+  if (findings.length === 0) {
     console.log('  ✓  All checks passed.\n')
   } else {
-    for (const f of allFindings) {
+    for (const f of findings) {
       const loc = f.line ? `${f.file}:${f.line}` : (f.file || '')
+      const occ = f.occurrences > 1 ? `  (×${f.occurrences})` : ''
       console.log(
         `  ${col(f.severity, f.severity)}  ` +
         `${col(f.severity, f.id.padEnd(8))}  ` +
         `${loc.padEnd(38)}  ` +
-        `${f.message}`
+        `${f.message}${occ}`
       )
     }
     console.log('')
+  }
+
+  // Visible scan report: exclusion is never silent (the user must be able to see
+  // that .trussignore/.gitignore dropped paths, and how many).
+  if (ctx.ignore?.excluded > 0) {
+    const via = ctx.ignore.sources.length ? ` via ${ctx.ignore.sources.join(', ')}` : ''
+    console.log(`  ${ctx.ignore.excluded} path${ctx.ignore.excluded !== 1 ? 's' : ''} excluded from scan${via}.\n`)
   }
 
   const parts = []
   if (errors.length)   parts.push(col('E', `${errors.length} error${errors.length !== 1 ? 's' : ''}`))
   if (warnings.length) parts.push(col('W', `${warnings.length} warning${warnings.length !== 1 ? 's' : ''}`))
   if (infos.length)    parts.push(col('I', `${infos.length} info`))
+  const occNote = occurrenceTotal > findings.length ? ` across ${occurrenceTotal} occurrences` : ''
   console.log(
     parts.length
-      ? `  ${allFindings.length} finding${allFindings.length !== 1 ? 's' : ''} (${parts.join(', ')})\n`
+      ? `  ${findings.length} finding${findings.length !== 1 ? 's' : ''}${occNote} (${parts.join(', ')})\n`
       : '  0 findings\n'
   )
   if (errors.length > 0) console.log('  Run with --fix-prompt for a copyable remediation prompt.\n')

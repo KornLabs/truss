@@ -29,6 +29,7 @@ export const meta = [
 const DISK_EXCLUDE = new Set([
   'LICENSE',
   '.gitignore',
+  '.trussignore',
   '.prettierrc',
   '.env.example',
   ...ADAPTER_STUBS,
@@ -113,6 +114,7 @@ export async function run(ctx) {
   knownPaths.add('.github/');       // parent dir of copilot stub
   knownPaths.add('LICENSE');
   knownPaths.add('.gitignore');
+  knownPaths.add('.trussignore');
   knownPaths.add('.prettierrc');
   knownPaths.add('.env.example');
 
