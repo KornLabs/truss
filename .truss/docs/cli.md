@@ -128,7 +128,7 @@ truss set response-style compact
 | `research-agent` | off · on | on |
 | `review-agent` | off · on | on |
 | `source-citation` | off · on | off |
-| `work-style` | off · elegant · systematic | elegant |
+| `scope` | off · minimal · balanced · thorough | off |
 | `auto-commit` | off · suggest · on | suggest |
 | `post-task-check` | off · inline · subagent | off |
 | `gate-advocate` | off · on | on |
@@ -138,7 +138,7 @@ truss set response-style compact
 | `control-word` | `off` or any short word | TRUSS |
 
 Each non-omitted preference renders one directive line into the `AGENTS.md`
-preferences block. `work-style: off` and `control-word: off` render no line.
+preferences block. `scope: off` and `control-word: off` render no line.
 
 ---
 

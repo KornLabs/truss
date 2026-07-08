@@ -13,7 +13,7 @@
 | input-trust | medium | verify key claims |
 | research-agent | off | no research subagents |
 | review-agent | off | no review subagents |
-| work-style | elegant | minimal solutions |
+| scope | balanced | match scope to the problem |
 | auto-commit | suggest | propose commit messages |
 | post-task-check | subagent | run doctor after each task |
 | gate-advocate | on | spawn advocate at phase exit |

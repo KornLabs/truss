@@ -517,7 +517,7 @@ async function runSet(keyArg, valueArg) {
     }
   }
 
-  // Omit-values (e.g. work-style=off) write no directive at all — skip the
+  // Omit-values (e.g. scope=off) write no directive at all — skip the
   // behavior lookup entirely; the row is dropped below.
   const omit = isOmitValue(keyArg, valueArg)
 

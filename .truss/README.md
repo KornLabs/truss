@@ -54,7 +54,7 @@ Ready-made alternative phase lists for project types that need a different lifec
 ### `prefs/`
 
 Contains system preferences, behavioral modifiers, and configuration templates for AI agents.
-These preferences (e.g., `auto-commit`, `orchestration`, `criticality`, `work-style`) dictate how agents should interact, their level of autonomy, communication style, and workflow gates within the project.
+These preferences (e.g., `auto-commit`, `orchestration`, `criticality`, `scope`) dictate how agents should interact, their level of autonomy, communication style, and workflow gates within the project.
 
 ### `prompts/`
 
