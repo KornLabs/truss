@@ -75,7 +75,7 @@ export async function loadBehaviorText(root, key, value) {
 export async function defaultPrefsRows(root) {
   const rows = []
   for (const { key, default: value } of PREFS_CATALOG) {
-    // Omit-values (e.g. work-style=off) render no line — skip entirely.
+    // Omit-values (e.g. scope=off) render no line — skip entirely.
     if (isOmitValue(key, value)) continue
 
     let behavior

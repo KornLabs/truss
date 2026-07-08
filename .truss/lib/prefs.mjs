@@ -10,7 +10,7 @@ export const PREFS_CATALOG = [
   { key: 'research-agent',  values: ['off', 'on'],                   default: 'on'       },
   { key: 'review-agent',    values: ['off', 'on'],                   default: 'on'       },
   { key: 'source-citation', values: ['off', 'on'],                   default: 'off'      },
-  { key: 'work-style',      values: ['off', 'elegant', 'systematic'], default: 'elegant', omit: ['off'] },
+  { key: 'scope',           values: ['off', 'minimal', 'balanced', 'thorough'], default: 'off', omit: ['off'] },
   { key: 'auto-commit',     values: ['off', 'suggest', 'on'],        default: 'suggest'  },
   { key: 'post-task-check', values: ['off', 'inline', 'subagent'],   default: 'off' },
   { key: 'gate-advocate',   values: ['off', 'on'],                   default: 'on'       },
@@ -33,7 +33,7 @@ export function isValidFreeValue(value) {
 
 // Map: key → Set of values that render NO directive in AGENTS.md at all.
 // `set` skips behavior lookup and drops the row; renderPrefsBlock filters them
-// defensively. `work-style=off` means "impose no work style — omit the line".
+// defensively. `scope=off` means "impose no solution-scope bias — omit the line".
 export const OMIT_VALUES = new Map(
   PREFS_CATALOG.filter(e => e.omit).map(e => [e.key, new Set(e.omit)])
 )

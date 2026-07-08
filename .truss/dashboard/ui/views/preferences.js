@@ -21,7 +21,7 @@ const GROUPS = [
     { key: 'review-agent', label: 'Review subagents', values: ['off', 'on'], def: 'on', desc: 'Allow spawning critical-review subagents on its own.' },
   ]},
   { title: 'Git & workflow', items: [
-    { key: 'work-style', label: 'Work style', values: ['elegant', 'systematic'], def: 'elegant', desc: 'Prefer minimal, few-moving-parts solutions, or thorough coverage.' },
+    { key: 'scope', label: 'Solution scope', values: ['off', 'minimal', 'balanced', 'thorough'], def: 'off', desc: 'How much solution to build: the smallest thing that works, matched to the problem, or full edge-case coverage. Off imposes no bias.' },
     { key: 'auto-commit', label: 'Auto-commit', values: ['off', 'suggest', 'on'], def: 'suggest', desc: 'After a logical unit: do nothing, propose a message, or commit.' },
   ]},
   { title: 'Response & session', items: [

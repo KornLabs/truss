@@ -96,7 +96,7 @@ export const PREFS_GROUPS = [
   { title: 'AUTONOMY',               keys: ['orchestration', 'gate-advocate'] },
   { title: 'RIGOR & VERIFICATION',   keys: ['criticality', 'input-trust', 'source-citation', 'review-agent', 'post-task-check'] },
   { title: 'DELEGATION',             keys: ['research-agent'] },
-  { title: 'WORKFLOW',               keys: ['work-style', 'auto-commit'] },
+  { title: 'WORKFLOW',               keys: ['scope', 'auto-commit'] },
   { title: 'RESPONSE',               keys: ['response-style', 'control-word'] },
 ]
 
@@ -112,7 +112,7 @@ export const PREFS_GROUPS = [
  * @returns {string[]}  — lines to place between the markers
  */
 export function renderPrefsBlock(rows) {
-  // Drop values flagged as "omit" (e.g. work-style=off): they render no line.
+  // Drop values flagged as "omit" (e.g. scope=off): they render no line.
   rows = rows.filter(r => !isOmitValue(r.key, r.value))
   const byKey = new Map(rows.map(r => [r.key, r]))
   const used = new Set()
