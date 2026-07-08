@@ -270,7 +270,7 @@ agree on the direction.
 
 ## Status
 
-`1.0.0-alpha`. The engine and its test suite are stable; the API and file
+`1.0.0-alpha.2`. The engine and its test suite are stable; the API and file
 grammar may still change before `1.0.0`.
 
 ## License
