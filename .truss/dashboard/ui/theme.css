@@ -389,8 +389,19 @@ button { font-family: inherit; }
 .accordion-lead-icon svg { width: 16px; height: 16px; }
 .accordion-title { flex: 1; }
 .accordion.open .accordion-icon { transform: rotate(90deg); }
-.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.25, 1, 0.5, 1), padding 0.35s cubic-bezier(0.25, 1, 0.5, 1); padding: 0 14px; }
-.accordion.open .accordion-body { max-height: 800px; padding: 4px 14px 14px; }
+.accordion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.accordion.open .accordion-body { grid-template-rows: 1fr; }
+.accordion-content {
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.accordion.open .accordion-content { opacity: 1; }
+.accordion-content-inner { padding: 4px 14px 14px; }
 
 /* ---------- Sub-tabs (About section) ---------- */
 .sub-tabs { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--r-sm); margin-bottom: 4px; flex-wrap: wrap; }
@@ -402,7 +413,7 @@ button { font-family: inherit; }
 }
 .sub-tab svg { width: 14px; height: 14px; }
 .sub-tab:hover { color: var(--text); background: var(--surface-hover); }
-.sub-tab.active { background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow-sm); }
+.sub-tab.active { background: var(--bg-elev); color: var(--accent); box-shadow: var(--shadow-sm); }
 
 /* ---------- Step list (Getting Started) ---------- */
 .step-list { counter-reset: step; list-style: none; padding: 0; margin: 0; }

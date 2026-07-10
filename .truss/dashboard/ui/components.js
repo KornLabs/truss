@@ -138,7 +138,13 @@ export class Accordion extends Component {
         ${icon && html`<span class="accordion-lead-icon">${icon()}</span>`}
         <span class="accordion-title">${title}</span>
       </button>
-      <div class="accordion-body">${children}</div>
+      <div class="accordion-body">
+        <div class="accordion-content">
+          <div class="accordion-content-inner">
+            ${children}
+          </div>
+        </div>
+      </div>
     </div>`;
   }
 }
