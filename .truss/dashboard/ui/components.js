@@ -125,5 +125,23 @@ export class ToastHost extends Component {
   }
 }
 
+/* ---------- Accordion ---------- */
+export class Accordion extends Component {
+  state = { open: false };
+  toggle = () => this.setState(s => ({ open: !s.open }));
+  render({ title, icon, children, defaultOpen }, { open }) {
+    const isOpen = defaultOpen !== undefined && this.state.open === false && !this._touched ? defaultOpen : open;
+    return html`
+    <div class="accordion ${isOpen ? 'open' : ''}">
+      <button class="accordion-head" onClick=${() => { this._touched = true; this.toggle(); }} aria-expanded=${isOpen}>
+        <span class="accordion-icon">${Icons.ChevronRight()}</span>
+        ${icon && html`<span class="accordion-lead-icon">${icon()}</span>`}
+        <span class="accordion-title">${title}</span>
+      </button>
+      <div class="accordion-body">${children}</div>
+    </div>`;
+  }
+}
+
 export const copyText = (text, msg = 'Copied to clipboard') =>
   navigator.clipboard.writeText(text).then(() => window.toast && window.toast(msg, 'ok')).catch(() => window.toast && window.toast('Copy failed', 'error'));

@@ -372,12 +372,60 @@ button { font-family: inherit; }
 .scroll-y { overflow-y: auto; }
 .divider { height: 1px; background: var(--border); margin: 4px 0; }
 
+/* ---------- Accordion ---------- */
+.accordion { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; transition: border-color var(--transition); }
+.accordion + .accordion { margin-top: 6px; }
+.accordion:hover { border-color: var(--border-strong); }
+.accordion-head {
+  display: flex; align-items: center; gap: 9px; width: 100%; padding: 12px 14px;
+  background: transparent; border: none; cursor: pointer; color: var(--text);
+  font-family: inherit; font-size: 13.5px; font-weight: 500; text-align: left;
+  transition: background var(--transition);
+}
+.accordion-head:hover { background: var(--surface-2); }
+.accordion-icon { display: flex; width: 16px; height: 16px; flex: none; color: var(--text-3); transition: transform var(--transition); }
+.accordion-icon svg { width: 16px; height: 16px; }
+.accordion-lead-icon { display: flex; width: 16px; height: 16px; flex: none; color: var(--text-2); }
+.accordion-lead-icon svg { width: 16px; height: 16px; }
+.accordion-title { flex: 1; }
+.accordion.open .accordion-icon { transform: rotate(90deg); }
+.accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.25, 1, 0.5, 1), padding 0.35s cubic-bezier(0.25, 1, 0.5, 1); padding: 0 14px; }
+.accordion.open .accordion-body { max-height: 800px; padding: 4px 14px 14px; }
+
+/* ---------- Sub-tabs (About section) ---------- */
+.sub-tabs { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--r-sm); margin-bottom: 4px; flex-wrap: wrap; }
+.sub-tab {
+  border: none; background: transparent; color: var(--text-2);
+  padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: var(--transition); white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; font-family: inherit;
+}
+.sub-tab svg { width: 14px; height: 14px; }
+.sub-tab:hover { color: var(--text); background: var(--surface-hover); }
+.sub-tab.active { background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow-sm); }
+
+/* ---------- Step list (Getting Started) ---------- */
+.step-list { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+.step-item { counter-increment: step; display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.step-item:last-child { border-bottom: none; }
+.step-num {
+  flex: none; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-num::before { content: counter(step); }
+.step-body { flex: 1; min-width: 0; }
+.step-body h4 { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+.step-body p { font-size: 12.5px; color: var(--text-2); line-height: 1.6; margin: 0; }
+
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { display: none; }
+  .sub-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
