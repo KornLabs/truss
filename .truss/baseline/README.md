@@ -18,6 +18,10 @@ Scripts check and report — they never decide.
    alias truss='node .truss/bin/truss.mjs'
    ```
 
+No terminal access? Truss still works as Markdown, but `doctor`, `render`,
+`set`, `map`, and the dashboard cannot provide mechanical validation or
+generated updates. Ask the agent to say plainly when CLI validation did not run.
+
 ## Getting started
 
 1. `node .truss/bin/truss.mjs doctor` — check workspace health.

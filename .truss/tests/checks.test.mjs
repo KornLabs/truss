@@ -12,7 +12,7 @@ import { promisify } from 'node:util'
 import * as sy from '../checks/sy.mjs'
 import * as cx from '../checks/cx.mjs'
 import * as hy from '../checks/hy.mjs'
-import { makeRoot, read } from './helpers.mjs'
+import { makeRoot, read, runChecks } from './helpers.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 
 const execFileP = promisify(execFile)
@@ -93,9 +93,17 @@ describe('SY-02 open-decisions.md', () => {
 describe('SY-03 entry grammar', () => {
   it('flags a D-NNN entry with incorrect heading format, passes a correct one', async () => {
     const bad  = `# Decisions\n\n## Pick a stack\n\nDecision: Node.\n`
-    const good = `# Decisions\n\n## D-001 — Pick a stack\n\nDecision: Node.\n`
+    const good = `# Decisions\n\n## D-001 — Pick a stack\n\nDate: 2026-06-01\nDecision: Node.\nRationale: small runtime\nConsequences: use node --test\n`
     assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(bad) })), 'SY-03').length, 1)
     assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(good) })), 'SY-03').length, 0)
+  })
+  it('warns when D-NNN fields are missing, while accepting legacy Why as rationale', async () => {
+    const missing = `# Decisions\n\n## D-001 — Pick a stack\n\nDate: 2026-06-01\nDecision: Node.\n`
+    const legacy = `# Decisions\n\n## D-001 — Pick a stack\n\nDate: 2026-06-01\nDecision: Node.\nWhy: already installed\nConsequences: no install step\n`
+    const f = ids(await sy.run(ctxOf({ 'state/decisions.md': file(missing) })), 'SY-03')
+    assert.equal(f.length, 1)
+    assert.match(f[0].message, /Rationale, Consequences/)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(legacy) })), 'SY-03').length, 0)
   })
   it('flags a malformed HT entry, ignores doc/comment lines', async () => {
     const bad  = `# Human ToDos\n\n> Format: \`- [x] HT-NNN — description\`\n\n## HT-001 — wrong form\n`
@@ -104,12 +112,30 @@ describe('SY-03 entry grammar', () => {
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(good) })), 'SY-03').length, 0)
   })
   it('flags an OD entry missing Opened and an unnumbered entry, passes a complete one', async () => {
-    const good        = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: 2026-06-01\nLeaning: a\n`
+    const good        = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: 2026-06-01\nOptions:\n- A: a\n- B: b\nTrade-offs: x\nLeaning: a\n`
     const missingF    = `# Open Decisions\n\n## OD-001 — Should we X?\n\nLeaning: a\n`
     const unnumbered  = `# Open Decisions\n\n## Should we X?\n\nOpened: 2026-06-01\nLeaning: a\n`
     assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(good) })), 'SY-03').length, 0)
     assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(missingF) })), 'SY-03').length, 1)
     assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(unnumbered) })), 'SY-03').length, 1)
+  })
+  it('warns when OD Opened is not a parseable YYYY-MM-DD date', async () => {
+    const badDate = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: soon\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    const f = ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(badDate) })), 'SY-03')
+    assert.equal(f.length, 1)
+    assert.match(f[0].message, /Opened/)
+  })
+  it('warns when R-NNN and L-NNN required fields are missing, and keeps empty files clean', async () => {
+    const emptyRisks = `# Risks\n\n<!-- entries go here -->\n`
+    const goodRisk = `# Risks\n\n## R-001 — Launch slip\n\nOpened: 2026-06-01\nSeverity: medium\nStatus: open\nTrigger: beta date moves\nMitigation: cut scope\nOwner: shared\n`
+    const badRisk = `# Risks\n\n## R-001 — Launch slip\n\nSeverity: medium\n`
+    const goodLearning = `# Learnings\n\n## L-001 — Context drift\n\nTrigger: missed canonical file\nSystemic cause: load rule was vague\nAdjustment: tightened routing\n`
+    const badLearning = `# Learnings\n\n## L-001 — Context drift\n\nTrigger: missed canonical file\n`
+    assert.equal(ids(await sy.run(ctxOf({ 'state/risks.md': file(emptyRisks) })), 'SY-03').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/risks.md': file(goodRisk) })), 'SY-03').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/risks.md': file(badRisk) })), 'SY-03').length, 1)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/learnings.md': file(goodLearning) })), 'SY-03').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/learnings.md': file(badLearning) })), 'SY-03').length, 1)
   })
   it('ignores OD entries shown inside fenced code blocks', async () => {
     const od = '# Open Decisions\n\n```\n## OD-009 — example, no fields\n```\n\n## OD-001 — real\n\nOpened: 2026-06-01\nOptions: a\nTrade-offs: x\nLeaning: a\n'
@@ -148,28 +174,40 @@ describe('CX-01 context size', () => {
 
 // ── HY-01 ────────────────────────────────────────────────────────────────────
 describe('HY-01 archive candidate', () => {
-  it('flags an old root domain file; skips template, whitelist and nested files', async () => {
+  it('flags an old context domain file; skips template and docs files', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-hy-'))
-    await fs.writeFile(path.join(root, 'market.md'), '# Market\n')
+    await fs.mkdir(path.join(root, 'context'), { recursive: true })
+    await fs.writeFile(path.join(root, 'context', 'market.md'), '# Market\n')
     await fs.writeFile(path.join(root, 'AGENTS.md'), '# A\n')
     await fs.writeFile(path.join(root, 'VISION.md'), '# V\n')
     await fs.mkdir(path.join(root, 'docs'), { recursive: true })
     await fs.writeFile(path.join(root, 'docs', 'conventions.md'), '# C\n')
     const old = new Date(Date.now() - 100 * DAY)
-    for (const rel of ['market.md', 'AGENTS.md', 'VISION.md', 'docs/conventions.md']) {
+    for (const rel of ['context/market.md', 'AGENTS.md', 'VISION.md', 'docs/conventions.md']) {
       await fs.utimes(path.join(root, rel), old, old)
     }
-    const diskPaths = ['market.md', 'AGENTS.md', 'VISION.md', 'docs/', 'docs/conventions.md']
+    const diskPaths = ['context/', 'context/market.md', 'AGENTS.md', 'VISION.md', 'docs/', 'docs/conventions.md']
     const h = ids(await hy.run(ctxOf({}, { diskPaths, root })), 'HY-01')
     assert.equal(h.length, 1, JSON.stringify(h))
-    assert.equal(h[0].file, 'market.md')
+    assert.equal(h[0].file, 'context/market.md')
     await fs.rm(root, { recursive: true, force: true })
   })
-  it('is silent on a fresh root domain file', async () => {
+  it('is silent on a fresh context domain file', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-hy2-'))
-    await fs.writeFile(path.join(root, 'market.md'), '# Market\n')
-    const f = await hy.run(ctxOf({}, { diskPaths: ['market.md'], root }))
+    await fs.mkdir(path.join(root, 'context'), { recursive: true })
+    await fs.writeFile(path.join(root, 'context', 'market.md'), '# Market\n')
+    const f = await hy.run(ctxOf({}, { diskPaths: ['context/', 'context/market.md'], root }))
     assert.equal(ids(f, 'HY-01').length, 0)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  it('still nudges old root-level domain files for migration', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-hy-legacy-'))
+    await fs.writeFile(path.join(root, 'market.md'), '# Market\n')
+    const old = new Date(Date.now() - 100 * DAY)
+    await fs.utimes(path.join(root, 'market.md'), old, old)
+    const h = ids(await hy.run(ctxOf({}, { diskPaths: ['market.md'], root })), 'HY-01')
+    assert.equal(h.length, 1)
+    assert.equal(h[0].file, 'market.md')
     await fs.rm(root, { recursive: true, force: true })
   })
 })
@@ -203,6 +241,33 @@ describe('doctor report output', () => {
     for (const id of ['SY-01', 'SY-02', 'SY-03', 'CX-01', 'HY-01']) {
       assert.ok(catalogIds.includes(id), `JSON catalog should include ${id}`)
     }
+  })
+})
+
+describe('risk migration bridge', () => {
+  it('loads state/risks.md when present even if an old AGENTS.md table omits it', async () => {
+    const root = await makeRoot('truss-risk-bridge-')
+    await runInit(root, ['--name', 'Risk Bridge', '--lang', 'English'])
+    const agentsPath = path.join(root, 'AGENTS.md')
+    const agents = await fs.readFile(agentsPath, 'utf8')
+    await fs.writeFile(
+      agentsPath,
+      agents.replace(/\| state\/risks\.md \|[^\n]+\n/, '')
+    )
+    await fs.appendFile(
+      path.join(root, 'VISION.md'),
+      '\n\nThis launch depends on R-001.\n'
+    )
+    await fs.writeFile(
+      path.join(root, 'state', 'risks.md'),
+      '# Risks\n\n## R-001 — Launch slip\n\nSeverity: medium\nStatus: open\nTrigger: beta moves\nMitigation: cut scope\n'
+    )
+    const findings = await runChecks(root)
+    assert.equal(
+      findings.filter(f => f.id === 'RF-02' && /R-001/.test(f.message)).length,
+      0
+    )
+    await fs.rm(root, { recursive: true, force: true })
   })
 })
 

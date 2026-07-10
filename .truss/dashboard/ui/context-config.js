@@ -43,7 +43,9 @@ export function budgetStatus(tokens) {
 export const CLEANUP_PROMPT =
   `The mandatory per-session reading (AGENTS.md §1 load order) has grown large and ` +
   `risks crowding out working context. Review AGENTS.md, state/current.md, VISION.md, ` +
-  `state/decisions.md and state/profile.md. Identify completed, obsolete, or duplicated ` +
-  `instructions and propose a safe compaction: move superseded material to archive/ with a ` +
-  `one-line invalidation note, tighten verbose passages, and keep each file lean. Do not ` +
-  `delete decided decisions — supersede them. Show a diff before writing anything.`;
+  `state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's ` +
+  `read: targets. Identify what is stale, duplicated, in the wrong canonical file, too large, ` +
+  `bulk data that belongs in .trussignore, or archive-worthy. Propose a safe compaction: move ` +
+  `superseded material to archive/ with a one-line invalidation note, tighten verbose passages, ` +
+  `split oversized domain files, and keep each file lean. Do not delete decided decisions — ` +
+  `supersede them. Show a diff before writing anything.`;

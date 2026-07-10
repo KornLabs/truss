@@ -16,7 +16,7 @@ List all significant files and folders. For each, decide:
 | Core idea / README | VISION.md |
 | Past decisions (in docs, Notion, Slack) | state/decisions.md (D-NNN) |
 | Open questions | state/open-decisions.md (OD-NNN) |
-| Tasks / backlog | state/current.md next list, or pm/ |
+| Tasks / backlog | local domain `## Tasks`, `pm/`, `HUMAN-TODOS.md`, or `state/open-decisions.md` |
 | Code repository | repo/ (or symlink) |
 | Research notes | research.md or research/ |
 | Meeting notes | domain file (e.g. meetings.md) |
@@ -33,7 +33,8 @@ An overlay starts in `ingest` (import the system), then moves to `operate` (run 
 
 - `state/profile.md`: fill in name, language, tools, style from existing docs.
 - `state/decisions.md`: create D-NNN entries for significant past decisions. Use the date they were made if known; today's date otherwise.
-- `state/current.md`: set the actual current focus and next actions.
+- `state/current.md`: set the actual current focus and next actions; do not copy a long imported backlog here.
+- Imported TODOs: route small domain-bound tasks to the owning domain's optional `## Tasks`, project-wide planning to `pm/`, human-only work to `HUMAN-TODOS.md`, and unresolved choices to `state/open-decisions.md`.
 
 ## Step 4 — Place the existing codebase
 

@@ -21,7 +21,7 @@
 5. `state/profile.md` — project language, tools, style.
 6. The phase block's read list, then the one domain file your task belongs to (§2).
 
-Stop as soon as your task is unambiguous. Load `docs/*` or other domains only when triggered (§6). Never auto-load: `archive/`, `repo/` history, `.truss/` internals.
+Load the smallest context that can answer the task. Stop as soon as it is unambiguous; do not open archives, history, bulk data, engine internals, or unrelated domains unless the task explicitly requires them.
 
 ## 2 Structure & routing
 
@@ -37,7 +37,8 @@ This table lists core system files. Domain (topic) files live under `context/` a
 | state/current.md | A | focus · next (≤5) · blockers · recently done (≤7 days); update every session end |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
 | state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN, remove here |
-| state/learnings.md | A | repository of systemic agent weaknesses and structural fixes; triggers L-NNN |
+| state/risks.md | A | risks R-NNN; load for risk, Go/No-Go, strategy, launch, safety, or blocker work |
+| state/learnings.md | A | systemic agent/framework weaknesses and structural fixes; not a product bug log |
 | state/phases.md | H pointer · H+A definitions | phase definitions and `current:` pointer |
 | state/profile.md | H+A | project name/language, PM method, tools and subscriptions, style and moral notes |
 | docs/conventions.md | A | ID schemes, entry grammars, file templates |
@@ -66,10 +67,10 @@ Scan scope: the map and doctor only cover workspace content. Foreign or bulk dat
 
 Consistency — a change is complete only after its follow-ups:
 
-1. Human decided something → D-NNN entry + update affected files + remove the open-decisions entry.
+1. Human decided something → create D-NNN, update affected canonical files, close the matching OD-NNN, refresh current.md if focus changed.
 2. New undecided question that blocks or shapes work → open-decisions briefing.
 3. New fact learned → its one canonical file; contradicted content gets an invalidation note.
-4. Task finished → remove it from its task list; reflect in state/current.md.
+4. Task finished → update the owning task list; reflect active focus/next changes in state/current.md.
 5. Same number/name in several files → fix the canonical file, then grep and sync the copies.
 6. Superseded content → archive/ plus one-line invalidation note — never silent drift.
 7. Session ends → state/current.md current, loose ends routed.
@@ -82,13 +83,13 @@ Quality flags — never knowingly pass a problem by:
 
 Conflict tie-breaker — if two files contradict each other: AGENTS.md §2 table governs structure · state/decisions.md governs decided facts · domain files govern domain content · flag all others via state/open-decisions.md.
 
-IDs: D-NNN decisions · HT-NNN human todos · OD-NNN open decisions · L-NNN learnings · R-NNN risks (state/risks.md once needed). Sequential, never reused. Entry grammars: docs/conventions.md.
+IDs: D-NNN decisions · HT-NNN human todos · OD-NNN open decisions · L-NNN learnings · R-NNN risks. Sequential, never reused. Entry grammars: docs/conventions.md.
 
 ## 4 Session protocol
 
 Start: load §1; state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If a `repo/` overlay exists, confirm its checked-out branch matches `state/current.md` `branch:` before working — run `node .truss/bin/truss.mjs status`; resolve a mismatch per `branch-guard`.
 During: respect the phase block; flag instead of drifting; if a task would violate `forbidden`, stop and ask (phase-lock).
-End — mandatory: update state/current.md (incl. `branch:` if a `repo/` overlay is in use); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; at phase exits use the procedure below (`doctor --gate`).
+End — mandatory: update state/current.md (incl. `branch:` if a `repo/` overlay is in use); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; if CLI is unavailable, manually check the touched files and say that mechanical validation did not run. At phase exits use the procedure below (`doctor --gate`).
 
 Phase exit — when exit criteria appear met (never self-declare a phase change):
 1. Run `node .truss/bin/truss.mjs doctor --gate` — collect all exit findings.

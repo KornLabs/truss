@@ -2,7 +2,7 @@
 //
 // SY-01  W  state/current.md missing a required key OR stale (> 7 days)
 // SY-02  I  state/open-decisions.md holds an entry open > 30 days (per-entry Opened: date)
-// SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / HUMAN-TODOS list form)
+// SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 //
 // Grammar is grounded in the *baseline* the `init` command renders, which is the
@@ -27,7 +27,7 @@ import path from 'node:path'
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key or stale (> 7 days)' },
   { id: 'SY-02', severity: 'I', title: 'open-decisions.md holds an entry open > 30 days', description: 'Per-entry Opened: date when present, else file mtime' },
-  { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / learnings / HUMAN-TODOS)' },
+  { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / HUMAN-TODOS)' },
   { id: 'SY-05', severity: 'W', title: 'overlay repo/ checkout present but no branch: declared in current.md' },
 ]
 
@@ -120,6 +120,7 @@ export async function run(ctx) {
   checkProfileGrammar(ctx.files.get('state/profile.md'), findings)
   checkDecisionsGrammar(ctx.files.get('state/decisions.md'), findings)
   checkOpenDecisionsGrammar(ctx.files.get('state/open-decisions.md'), findings)
+  checkRisksGrammar(ctx.files.get('state/risks.md'), findings)
   checkLearningsGrammar(ctx.files.get('state/learnings.md'), findings)
   checkHumanTodosGrammar(ctx.files.get('HUMAN-TODOS.md'), findings)
 
@@ -163,7 +164,40 @@ function fencedLines(lines) {
   return inside
 }
 
-// ── decisions.md: check heading format only ──
+function entryBody(lines, startIdx, fenced) {
+  const body = []
+  for (let j = startIdx + 1; j < lines.length; j++) {
+    if (/^##\s/.test(lines[j]) && !fenced.has(j)) break
+    if (!fenced.has(j)) body.push(lines[j])
+  }
+  return body
+}
+
+function hasField(body, field) {
+  const re = new RegExp(`^\\s*${field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`, 'i')
+  return body.some(l => re.test(l))
+}
+
+function missingFields(body, fields) {
+  return fields
+    .filter(field => {
+      const options = Array.isArray(field) ? field : [field]
+      return !options.some(option => hasField(body, option))
+    })
+    .map(field => Array.isArray(field) ? field[0] : field)
+}
+
+function warnMissingFields(findings, file, line, entryId, missing) {
+  if (!missing.length) return
+  findings.push({
+    id: 'SY-03', severity: 'W',
+    file, line,
+    message: `${entryId} is missing recommended field${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}`,
+    fix: `Add ${missing.map(f => `'${f}:'`).join(', ')} under ${entryId}. See docs/conventions.md.`,
+  })
+}
+
+// ── decisions.md: check heading format + migration-friendly fields ──
 function checkDecisionsGrammar(file, findings) {
   if (!file) return
   const { lines } = file
@@ -182,11 +216,21 @@ function checkDecisionsGrammar(file, findings) {
         message: `decision entry must be numbered '## D-NNN — title'`,
         fix: `Number the entry '## D-NNN — title'. See docs/conventions.md.`,
       })
+      continue
     }
+
+    const body = entryBody(lines, i, fenced)
+    warnMissingFields(
+      findings,
+      'state/decisions.md',
+      i + 1,
+      m[1],
+      missingFields(body, ['Date', 'Decision', ['Rationale', 'Why'], 'Consequences'])
+    )
   }
 }
 
-// ── learnings.md: check heading format only ──
+// ── learnings.md: check heading format + migration-friendly fields ──
 function checkLearningsGrammar(file, findings) {
   if (!file) return
   const { lines } = file
@@ -205,7 +249,50 @@ function checkLearningsGrammar(file, findings) {
         message: `learning entry must be numbered '## L-NNN — title'`,
         fix: `Number the entry '## L-NNN — title'. See docs/conventions.md.`,
       })
+      continue
     }
+
+    const body = entryBody(lines, i, fenced)
+    warnMissingFields(
+      findings,
+      'state/learnings.md',
+      i + 1,
+      m[1],
+      missingFields(body, ['Trigger', 'Systemic cause', 'Adjustment'])
+    )
+  }
+}
+
+// ── risks.md: check heading format + migration-friendly fields ──
+function checkRisksGrammar(file, findings) {
+  if (!file) return
+  const { lines } = file
+  const fenced = fencedLines(lines)
+
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i)) continue
+    // Only check level-2 headings that aren't the file title.
+    if (!/^##\s+\S/.test(lines[i])) continue
+
+    const m = lines[i].match(/^##\s+(R-\d{3})\b/)
+    if (!m) {
+      findings.push({
+        id: 'SY-03', severity: 'W',
+        file: 'state/risks.md', line: i + 1,
+        message: `risk entry must be numbered '## R-NNN — title'`,
+        fix: `Number the entry '## R-NNN — title'. See docs/conventions.md.`,
+      })
+      continue
+    }
+
+    const body = entryBody(lines, i, fenced)
+    warnMissingFields(
+      findings,
+      'state/risks.md',
+      i + 1,
+      m[1],
+      missingFields(body, ['Severity', 'Status', 'Trigger', 'Mitigation'])
+    )
   }
 }
 
@@ -258,21 +345,25 @@ function checkOpenDecisionsGrammar(file, findings) {
       continue
     }
 
-    const body = []
-    for (let j = i + 1; j < lines.length; j++) {
-      if (/^##\s/.test(lines[j]) && !fenced.has(j)) break
-      body.push(lines[j])
-    }
-    const hasOpened = body.some(l => l.trim().toLowerCase().startsWith('opened:'))
-    if (!hasOpened) {
-      findings.push({
-        id: 'SY-03', severity: 'W',
-        file: 'state/open-decisions.md', line: i + 1,
-        message: `${m[1]} is missing required field: Opened`,
-        fix: `Add 'Opened: YYYY-MM-DD' under ${m[1]} so its age can be tracked accurately.`,
-      })
-    }
+    const body = entryBody(lines, i, fenced)
+    const missing = missingFields(body, ['Options', 'Trade-offs', 'Leaning'])
+    if (!parseOpenedDate(body)) missing.unshift('Opened')
+    warnMissingFields(
+      findings,
+      'state/open-decisions.md',
+      i + 1,
+      m[1],
+      missing
+    )
   }
+}
+
+function parseOpenedDate(body) {
+  const opened = body.find(l => /^\s*opened:\s*/i.test(l))
+  const m = opened?.match(/^\s*opened:\s*(\d{4})-(\d{2})-(\d{2})\s*$/i)
+  if (!m) return null
+  const parsed = Date.parse(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`)
+  return Number.isNaN(parsed) ? null : parsed
 }
 
 // ── HUMAN-TODOS.md: entries must be the checkbox list form ───────────────────
