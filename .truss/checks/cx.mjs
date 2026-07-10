@@ -77,7 +77,7 @@ export async function run(ctx) {
       file: 'AGENTS.md',
       message: `mandatory read-context ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold. Heaviest: ${heaviest}`,
       // Cleanup prompt (S-08) with the protection clause for system-relevant sections.
-      fix: `Trim the boot context: move long-form material out of the always-loaded files (AGENTS.md, state/current.md, VISION.md, state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's read: targets) into on-demand docs/ or domain files that load only when triggered. Do NOT remove system-relevant parts: the §2 structure table, the §1 load order, the generated preference/phase blocks, or canonical D-NNN decisions. Re-run doctor afterwards — the ST/BL/RF checks confirm nothing essential was lost.`,
+      fix: `Trim the boot context: review stale, duplicated, wrongly routed, oversized, bulk, or archive-worthy material in the always-loaded files (AGENTS.md, state/current.md, VISION.md, state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's read: targets). Move long-form material into on-demand docs/ or domain files, move bulk data to .trussignore, and archive superseded material with a one-line invalidation note. Do NOT remove system-relevant parts: the §2 structure table, the §1 load order, the generated preference/phase blocks, or canonical D-NNN decisions. Re-run doctor afterwards — the ST/BL/RF checks confirm nothing essential was lost.`,
     })
   }
 

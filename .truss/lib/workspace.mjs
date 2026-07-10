@@ -204,6 +204,9 @@ export async function loadWorkspace(root) {
   managedRelPaths.add('.trussignore');
   managedRelPaths.add('.prettierrc');
   managedRelPaths.add('.env.example');
+  // Migration bridge: older AGENTS.md structure tables may not list risks.md,
+  // but if the file exists its R-NNN definitions must still be visible to RF/SY.
+  managedRelPaths.add('state/risks.md');
 
   const files = new Map();
 

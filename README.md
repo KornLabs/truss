@@ -184,6 +184,16 @@ validation and generated blocks will not update automatically.
 > **Tip:** Allow auto-run for `node .truss/bin/truss.mjs` commands to get the
 > smoothest experience. The CLI never writes outside the workspace.
 
+### No terminal access?
+
+Truss still works as plain Markdown: an agent can read `AGENTS.md`, update
+state files, and follow the phase rules by hand. What you lose is mechanical
+validation and generated updates: `doctor` cannot catch drift, `render` cannot
+refresh generated blocks, `set` cannot safely change preferences, and `map`
+cannot rebuild the domain overview. In that mode, treat the workspace as
+manually maintained and ask the agent to say explicitly when CLI validation did
+not run.
+
 ## Session-health marker
 
 By default, Truss sets a **control word** (`TRUSS`) that the agent prepends

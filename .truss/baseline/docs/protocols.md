@@ -1,7 +1,6 @@
 # Protocols
 
-> Load when: unsure about session ritual or archiving procedure.
-> Defines the session ritual and controlled forgetting.
+> Load when: unsure about session ritual or archiving procedure. Defines the session ritual and controlled forgetting.
 
 ## Session ritual
 
@@ -17,6 +16,7 @@
 - Respect the phase block (allowed/forbidden). If a task would violate `forbidden`, state the conflict and ask before proceeding (`phase-lock` preference).
 - Flag instead of drifting: if something is wrong or suboptimal, name it.
 - Route facts, decisions, and todos as they arise — don't batch at the end.
+- If terminal/CLI access is unavailable, keep working in Markdown but say that `doctor`, `render`, `set`, or `map` validation could not run and suggest to run them manually or inspect the touched files.
 
 ### End (mandatory, in order)
 
@@ -34,6 +34,15 @@ The goal: keep the active workspace scannable in one pass. Archive is not deleti
 - A domain file exceeds ~500 lines → split the oldest / least-active section to `archive/<domain>/<topic>.md`
 - A decision is superseded (see D-NNN grammar in docs/conventions.md) → the old entry stays in state/decisions.md with `superseded-by` status; no archiving needed
 - A task is fully done and has been in recently-done for >14 days → remove from state/current.md (it's in git history)
+
+**When to clean up active files:**
+
+- stale: focus, tasks, notes, or assumptions no longer match the current project state
+- duplicated: the same truth appears in more than one canonical file
+- wrong place: content belongs in a domain file, `pm/`, `HUMAN-TODOS.md`, `state/open-decisions.md`, `state/risks.md`, or `.trussignore`
+- too large: a file is hard to scan, especially domain files over ~450 lines or five distinct themes
+- bulk data: copied logs, exports, generated files, datasets, or foreign repo content should be ignored or moved out of active context
+- archive-worthy: superseded material still useful as history should move to `archive/` with a pointer
 
 **How to archive:**
 

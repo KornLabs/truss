@@ -49,6 +49,7 @@ hand — `truss set` and `truss render` are their only writers.
 | `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`) |
 | `phases.md` | the phase definitions and the `current:` pointer |
 | `profile.md` | project name, language, tools, PM method, style notes |
+| `risks.md` | project, launch, safety, strategy, or blocker risks (`R-NNN`); loaded on demand |
 | `learnings.md` | recurring agent weaknesses and structural fixes (`L-NNN`) |
 | `map.md` | a script-generated overview of domain files (on demand) |
 
@@ -114,11 +115,23 @@ has a severity — **E**rror, **W**arning, or **I**nfo — and an ID like `ST-02
 | `SY` State | the state files have the required keys and aren't stale |
 | `PH` Phase | the phase grammar is valid; `--gate` adds exit-criteria checks |
 | `CX` Context | the mandatory per-session reading stays under the token budget |
-| `HY` Hygiene | flags root domain files untouched for >90 days (archive nudge) |
+| `HY` Hygiene | flags `context/` domain files untouched for >90 days (archive nudge) |
 
 `doctor` is read-only. It reports; it never edits your files. `--fix-prompt`
 emits an instruction block you can hand to an agent, `--json` is for tooling, and
 `--html` writes a report. `--gate` is the phase-exit check.
+
+Without terminal access, Truss degrades to manual Markdown operation: agents can
+still follow the structure, but `doctor`, `render`, `set`, and `map` cannot
+provide mechanical validation or generated updates. Say that plainly when a
+workspace was changed without running the CLI.
+
+| Missing command | Manual fallback |
+|---|---|
+| `doctor` | inspect touched files and disclose that mechanical validation did not run |
+| `render` | edit `state/phases.md` only; generated blocks may be stale until CLI returns |
+| `set` | do not hand-edit generated preferences; leave the change as a human todo |
+| `map` | use existing domain files directly; `state/map.md` may be stale |
 
 ## 7. Preferences
 

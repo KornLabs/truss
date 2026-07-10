@@ -11,7 +11,7 @@ IDs are sequential integers, zero-padded to three digits. Never reused. Issued i
 |---|---|---|---|
 | D-NNN | state/decisions.md | A | Decided decision |
 | HT-NNN | HUMAN-TODOS.md | A | Human-only todo |
-| R-NNN | state/risks.md | A | Risk (create file when first needed) |
+| R-NNN | state/risks.md | A | Risk |
 | OD-NNN | state/open-decisions.md | A | Open decision briefing |
 | L-NNN | state/learnings.md | A | Learning from systemic agent weakness |
 
@@ -22,7 +22,11 @@ IDs are sequential integers, zero-padded to three digits. Never reused. Issued i
 ```markdown
 ## D-NNN — [short decision title]
 
-[What was decided, why, and consequences. Format is flexible.]
+Date: YYYY-MM-DD
+Decision: [what was decided]
+Rationale: [why this path]
+Consequences: [what changes because of this]
+Supersedes: [D-MMM or omit when none]
 ```
 
 Superseding: add a `Superseded-by: D-MMM` line under the entry and a `> Superseded by D-MMM (YYYY-MM-DD): [reason]` note below. Never delete the original entry.
@@ -41,7 +45,13 @@ Check off with `[x]` when done. Never delete.
 ## OD-NNN — [question title]
 
 Opened: YYYY-MM-DD
-[Options, trade-offs, and leanings. Format is flexible.]
+Context: [why this matters now]
+Options:
+- A: [option]
+- B: [option]
+Trade-offs: [costs, risks, reversibility]
+Leaning: [current recommendation or none]
+Needed from human: [decision/input needed]
 ```
 
 `OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` lets doctor age each entry individually (SY-02). When decided: create a D-NNN in state/decisions.md, then remove the entry here. doctor checks numbering via SY-03.
@@ -51,19 +61,34 @@ Opened: YYYY-MM-DD
 ```markdown
 ## R-NNN — [risk title]
 
-[Severity, status, description, mitigation, trigger. Format is flexible.]
+Opened: YYYY-MM-DD
+Severity: low|medium|high
+Status: open|mitigated|accepted|closed
+Trigger: [what would make this real]
+Mitigation: [what reduces likelihood or impact]
+Owner: human|agent|shared
 ```
 
+Use for project, launch, safety, strategy, or blocker risks. Do not turn every
+minor uncertainty into an R-entry; lightweight notes can stay in the owning
+domain until they affect a decision or gate.
 
 ### L-NNN — Learning (Agent System Weakness)
 
 ```markdown
 ## L-NNN — [short learning title]
 
-[Trigger, systemic cause, and adjustment. Format is flexible.]
+Date: YYYY-MM-DD
+Trigger: [what exposed the weakness]
+Systemic cause: [why the framework allowed it]
+Adjustment: [what changed in files/process/checks]
+Follow-up: [optional]
 ```
 
-Added when a systemic failure is identified and structurally fixed. doctor checks for proper ID sequencing.
+Added only when a systemic agent/framework weakness is identified and
+structurally fixed. Ordinary product bugs go to the repo issue tracker, a test,
+a local domain task, or `pm/`. If a bug exposes a technical decision, record a
+D-NNN; if it creates project, launch, or safety exposure, record an R-NNN.
 
 ## File templates
 
@@ -74,10 +99,22 @@ Added when a systemic failure is identified and structurally fixed. doctor check
 ```markdown
 # [Domain name]
 
-> [One sentence: what belongs here and what does not.]
+> Belongs here: [short positive scope]. Not here: [only ambiguous exclusions with pointer].
 
-[Content begins here. No sub-headings needed until the file grows beyond ~150 lines.]
+## Tasks
+
+- [ ] [Small local task tied to this domain.]
+
+[Content begins here. Omit ## Tasks when there are no local tasks.]
 ```
+
+Domain tasks are optional. Use them only for small tasks tied to that domain.
+Project-wide planning belongs in `pm/` or the project's planning convention;
+human-only tasks belong in `HUMAN-TODOS.md`; undecided questions belong in
+`state/open-decisions.md`. Remove or check off completed local tasks and clean
+them up promptly. Keep the first blockquote one line so `truss map` can use it.
+When a domain file grows beyond ~450 lines or five distinct themes, split it
+into a folder or separate domain files.
 
 
 ### N-1 Table Overview (Snippets)

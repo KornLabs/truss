@@ -244,7 +244,7 @@ export class OverviewView extends Component {
 
 function singleHandoffPrompt(item) {
   return `Decision on ${item.odId} — "${item.title}": ${item.decision}.\n\n`
-    + `Record it in Truss: add a D-NNN entry to state/decisions.md (Date, Decision, Why, Consequences), `
+    + `Record it in Truss: add a D-NNN entry to state/decisions.md (Date, Decision, Rationale, Consequences), `
     + `remove the ${item.odId} briefing from state/open-decisions.md, update any files it affects, then continue. `
     + `Show a diff before writing.`;
 }
@@ -253,7 +253,7 @@ function combinedHandoffPrompt(items) {
   if (items.length === 1) return singleHandoffPrompt(items[0]);
   const list = items.map(i => `- ${i.odId} "${i.title}": ${i.decision}`).join('\n');
   return `I've made the following decisions:\n\n${list}\n\n`
-    + `For each: add a D-NNN entry to state/decisions.md (Date, Decision, Why, Consequences), remove its briefing from `
+    + `For each: add a D-NNN entry to state/decisions.md (Date, Decision, Rationale, Consequences), remove its briefing from `
     + `state/open-decisions.md, and update any files it affects. Then continue. Show a diff before writing.`;
 }
 
