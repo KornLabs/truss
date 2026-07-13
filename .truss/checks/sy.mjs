@@ -29,11 +29,14 @@ export const meta = [
   { id: 'SY-02', severity: 'I', title: 'open-decisions.md holds an entry open > 30 days', description: 'Per-entry Opened: date when present, else file mtime' },
   { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / HUMAN-TODOS)' },
   { id: 'SY-05', severity: 'W', title: 'overlay repo/ checkout present but no branch: declared in current.md' },
+  { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
+  { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
 ]
 
 const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done', 'updated']
 const CURRENT_STALE_DAYS    = 7
 const OPEN_DECISIONS_DAYS   = 30
+const HT_DONE_MAX           = 5
 const DAY_MS = 86_400_000
 
 const ageInDays = (sinceMs) => (Date.now() - sinceMs) / DAY_MS
@@ -129,7 +132,64 @@ export async function run(ctx) {
   // branch the work belongs to so `truss status` / branch-guard can compare.
   await checkOverlayBranchDeclared(ctx, findings)
 
+  // ── SY-06: decided OD entries left as tombstones ────────────────────────────
+  checkDecidedTombstones(ctx.files.get('state/open-decisions.md'), findings)
+
+  // ── SY-07: HUMAN-TODOS.md piling up checked-off entries ─────────────────────
+  checkHumanTodosDonePile(ctx.files.get('HUMAN-TODOS.md'), findings)
+
   return findings
+}
+
+// ── SY-06 — an OD entry that records its own decision is a tombstone: the
+//    convention (docs/conventions.md) is to remove the entry when the D-NNN
+//    (with `Closes: OD-NNN`) is written. Detected via a `Decided:` field in the
+//    body or a DECIDED / "→ D-NNN" marker in the heading. Warning, not error:
+//    old workspaces migrate at their own pace. ────────────────────────────────
+function checkDecidedTombstones(file, findings) {
+  if (!file) return
+  const { lines } = file
+  const fenced = fencedLines(lines)
+
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i)) continue
+    const m = lines[i].match(/^##\s+(OD-\d{3})\b(.*)$/)
+    if (!m) continue
+
+    const headingDecided = /\bDECIDED\b/i.test(m[2]) || /(?:→|->)\s*D-\d{3}\b/.test(m[2])
+    const body = entryBody(lines, i, fenced)
+    const bodyDecided = body.some(l => /^\s*decided:\s*\S/i.test(l))
+
+    if (headingDecided || bodyDecided) {
+      findings.push({
+        id: 'SY-06', severity: 'W',
+        file: 'state/open-decisions.md', line: i + 1,
+        message: `${m[1]} is decided but still parked here as a tombstone`,
+        fix: `Ensure the resolving D-NNN carries 'Closes: ${m[1]}', point any references at that D-NNN, then delete the ${m[1]} entry. The Closes: line is the permanent trace (docs/conventions.md).`,
+      })
+    }
+  }
+}
+
+// ── SY-07 — HUMAN-TODOS.md is working memory, not history: settled [x] entries
+//    move to archive/human-todos.md (docs/protocols.md). Info-level nudge once
+//    more than HT_DONE_MAX checked-off entries have piled up. ─────────────────
+function checkHumanTodosDonePile(file, findings) {
+  if (!file) return
+  const fenced = fencedLines(file.lines)
+  const done = []
+  for (let i = 0; i < file.lines.length; i++) {
+    if (fenced.has(i)) continue
+    if (/^[-*]\s+\[[xX]\]\s+HT-\d{3}\b/.test(file.lines[i].trimStart())) done.push(i + 1)
+  }
+  if (done.length > HT_DONE_MAX) {
+    findings.push({
+      id: 'SY-07', severity: 'I',
+      file: 'HUMAN-TODOS.md', line: done[0],
+      message: `${done.length} checked-off HT entries have piled up (> ${HT_DONE_MAX})`,
+      fix: `Move settled [x] lines verbatim to archive/human-todos.md (create on demand); keep only recently checked-off entries here. The HT counter continues across archived entries (docs/protocols.md).`,
+    })
+  }
 }
 
 /** SY-05 — repo/.git exists but current.md has no non-empty `branch:` line. */

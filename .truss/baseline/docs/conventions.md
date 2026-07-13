@@ -26,10 +26,22 @@ Date: YYYY-MM-DD
 Decision: [what was decided]
 Rationale: [why this path]
 Consequences: [what changes because of this]
+Closes: [OD-MMM or omit when none]
 Supersedes: [D-MMM or omit when none]
 ```
 
 Superseding: add a `Superseded-by: D-MMM` line under the entry and a `> Superseded by D-MMM (YYYY-MM-DD): [reason]` note below. Never delete the original entry.
+
+Keep `Decision:`/`Rationale:`/`Consequences:` to roughly one line each —
+state/decisions.md is boot context, read every session; design detail belongs in
+the owning domain file, linked from the entry. Once a superseded entry's full
+text no longer informs current work, compress it in place to its heading plus
+the supersede note and move the body to `archive/decisions.md` — the ID and its
+trace never leave state/decisions.md.
+
+`Closes:` is the durable trace of a resolved open decision. Because the OD entry
+is removed on decision (see below), anything that referenced the OD finds its
+resolution here — never leave a "DECIDED" tombstone in open-decisions.md instead.
 
 ### HT-NNN — Human todo
 
@@ -37,7 +49,13 @@ Superseding: add a `Superseded-by: D-MMM` line under the entry and a `> Supersed
 - [ ] HT-NNN — [what the human needs to do] — [context or deadline if relevant]
 ```
 
-Check off with `[x]` when done. Never delete.
+Keep it one line, two at most; details live in the owning domain file or OD entry —
+link, don't inline. Check off with `[x]` when done; never delete an open entry.
+Checked-off entries are working memory, not history: once a `[x]` entry is clearly
+settled (rule of thumb: the next session no longer needs it), move its line verbatim
+to `archive/human-todos.md` (create on demand). IDs stay sequential and are never
+reused — the counter continues across archived entries. doctor nudges when done
+entries pile up (SY-07).
 
 ### OD-NNN — Open decision briefing
 
@@ -54,7 +72,7 @@ Leaning: [current recommendation or none]
 Needed from human: [decision/input needed]
 ```
 
-`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` lets doctor age each entry individually (SY-02). When decided: create a D-NNN in state/decisions.md, then remove the entry here. doctor checks numbering via SY-03.
+`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` lets doctor age each entry individually (SY-02). When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
 
 ### R-NNN — Risk
 

@@ -9,6 +9,7 @@ For each exit criterion, state met / partial / unmet:
 Then:
 - Name the single assumption from this phase most likely to break in the next.
 - Flag any human sign-off (HT-NNN) that looks like a rubber-stamp rather than a real review.
+- Tag every finding: **[FIX-AGENT]** an agent can close it (missing D-/OD-entries, doc drift, files contradicting each other, unamended artifacts) or **[NEEDS-HUMAN]** it takes judgment, sign-off, or action outside the workspace.
 - Verdict: ADVANCE / HOLD / REVISIT [item].
 
-Be specific — name files, D-NNN, line numbers. Add a ≤5-line HT-NNN to HUMAN-TODOS.md: "Gate advocate for [phase] — [date]: [finding]. [recommendation]." The phase transition stays a human decision.
+Be specific — name files, D-NNN, line numbers. Return the verdict and tagged findings to the agent that spawned you; do NOT write to HUMAN-TODOS.md yourself — the caller folds your verdict into the single phase-exit HT entry. If this is a confirmation pass after remediation, judge only whether each earlier finding is genuinely closed — a cosmetic edit is not a fix, and criteria weakened to pass are a HOLD. The phase transition stays a human decision.

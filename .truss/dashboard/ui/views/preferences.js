@@ -7,7 +7,7 @@ const GROUPS = [
   { title: 'Autonomy & safety', items: [
     { key: 'orchestration', label: 'Orchestration', values: ['low', 'medium', 'high'], def: 'medium', desc: 'How freely the agent orchestrates multi-step tasks (build, analyze) without checking in.' },
     { key: 'phase-lock', label: 'Phase lock', values: ['off', 'advisory'], def: 'advisory', desc: 'If an action violates the phase forbidden list: ignore, or stop and ask.' },
-    { key: 'gate-advocate', label: 'Gate advocate', values: ['off', 'on'], def: 'on', desc: 'At phase exit, spawn a review subagent with the gate prompt first.' },
+    { key: 'gate-advocate', label: 'Gate advocate', values: ['off', 'on', 'agentic'], def: 'agentic', desc: 'Adversarial review at phase exit: report only (on), or fix agent-fixable findings and re-verify before the single exit HT (agentic).' },
   ]},
   { title: 'Rigor & verification', items: [
     { key: 'criticality', label: 'Criticality', values: ['low', 'medium', 'high'], def: 'high', desc: 'How aggressively it names weaknesses in inputs and plans before executing.' },

@@ -36,8 +36,9 @@ With no flags in a TTY, `init` asks interactively. With no TTY and missing
 required answers it errors instead of hanging.
 
 For the full existing-project flow, see
-[overlay.md](overlay.md). Switching to a different lifecycle (e.g. the `software`
-profile's `operate` phase) is a human-only phase change made *after* init — see
+[overlay.md](overlay.md). The installed phases are a seed: the kickoff tailors
+them to the project, and agents may restructure the plan later (D-NNN + telling
+the human; advancing `current:` stays human-only) — see
 [../phase-profiles/README.md](../phase-profiles/README.md).
 
 ---
@@ -131,7 +132,7 @@ truss set response-style compact
 | `scope` | off · minimal · balanced · thorough | off |
 | `auto-commit` | off · suggest · on | suggest |
 | `post-task-check` | off · inline · subagent | off |
-| `gate-advocate` | off · on | on |
+| `gate-advocate` | off · on · agentic | agentic |
 | `phase-lock` | off · advisory | advisory |
 | `branch-guard` | off · warn · strict | warn |
 | `response-style` | normal · compact · maxcompact | normal |

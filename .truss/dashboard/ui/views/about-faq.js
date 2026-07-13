@@ -93,14 +93,16 @@ const FAQ_DATA = [
         ${code('truss phase <next-phase>')}.</p>` },
     { q: 'What is a phase profile?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        An alternative lifecycle. The default is <strong>discover → validate → plan → build</strong>.
-        The ${code('software')} profile adds an ${code('operate')} phase for post-launch work;
-        ${code('founders-thinking')} is for conceptual exploration. You can also define custom profiles.</p>` },
+        An alternative seed lifecycle. The default seed is <strong>discover → validate → plan → build</strong>;
+        the ${code('software')} profile adds an ${code('operate')} phase, ${code('founders-thinking')} is for
+        conceptual exploration. Whatever the seed, the kickoff tailors it into a project-specific plan, and
+        agents restructure it later when requirements change (with a D-NNN and a note to you).</p>` },
     { q: 'What does the gate advocate do?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        When ${code('gate-advocate')} is on, the agent spawns a <strong>review subagent</strong> at phase exit.
-        This subagent challenges whether exit criteria are truly met before recommending the phase transition —
-        an adversarial check that catches overlooked gaps.</p>` },
+        At phase exit the agent spawns an adversarial <strong>review subagent</strong> that challenges whether
+        exit criteria are truly met. In ${code('agentic')} mode (the default) the agent then fixes the
+        agent-fixable findings itself, re-runs the gate, and writes one exit summary — only genuinely
+        human-only items land in your todos. ${code('on')} reports without remediation.</p>` },
   ]},
 
   { title: 'Decisions & State', icon: Icons.Edit, items: [

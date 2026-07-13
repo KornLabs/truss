@@ -13,7 +13,7 @@ export const PREFS_CATALOG = [
   { key: 'scope',           values: ['off', 'minimal', 'balanced', 'thorough'], default: 'off', omit: ['off'] },
   { key: 'auto-commit',     values: ['off', 'suggest', 'on'],        default: 'suggest'  },
   { key: 'post-task-check', values: ['off', 'inline', 'subagent'],   default: 'off' },
-  { key: 'gate-advocate',   values: ['off', 'on'],                   default: 'on'       },
+  { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],        default: 'agentic'  },
   { key: 'phase-lock',      values: ['off', 'advisory'],             default: 'advisory' },
   { key: 'branch-guard',    values: ['off', 'warn', 'strict'],       default: 'warn'     },
   { key: 'response-style',  values: ['normal', 'compact', 'maxcompact'], default: 'normal' },

@@ -21,10 +21,11 @@ export class OverviewView extends Component {
     const change = this.state.phaseChange.trim() || '{{DESCRIBE THE CHANGE}}';
     return `I want to adjust the phase definitions in state/phases.md.\n`
       + `Current phase: ${cur}.\nChange: ${change}\n\n`
-      + `Please edit state/phases.md accordingly. Do NOT change the \`current:\` pointer — phase changes are human-only `
-      + `and I will do that via the exit procedure. Keep the grammar valid (label / purpose / behavior / allowed / `
-      + `forbidden / forbidden-globs / read / exit / prompts). Then run \`node .truss/bin/truss.mjs render\` to update `
-      + `AGENTS.md and \`doctor\` to verify. Show a diff before writing anything.`;
+      + `Please edit state/phases.md accordingly (use the phase-replan prompt for non-trivial restructurings). `
+      + `Do NOT change the \`current:\` pointer — phase changes are human-only and I will do that via the exit `
+      + `procedure. Keep the grammar valid (label / purpose / behavior / allowed / forbidden / forbidden-globs / `
+      + `read / exit / prompts), record the restructuring as a D-NNN, then run \`node .truss/bin/truss.mjs render\` `
+      + `to update AGENTS.md and \`doctor\` to verify. Show a diff before writing anything.`;
   };
 
   // Combine the chosen option and the free-text note into one decision statement.
