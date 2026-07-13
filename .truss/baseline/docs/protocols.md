@@ -32,8 +32,10 @@ The goal: keep the active workspace scannable in one pass. Archive is not deleti
 **When to archive:**
 
 - A domain file exceeds ~500 lines → split the oldest / least-active section to `archive/<domain>/<topic>.md`
-- A decision is superseded (see D-NNN grammar in docs/conventions.md) → the old entry stays in state/decisions.md with `superseded-by` status; no archiving needed
+- A decision is superseded (see D-NNN grammar in docs/conventions.md) → the entry stays in state/decisions.md with `Superseded-by:`; once its full text no longer informs current work, compress it in place to heading + supersede note and move the body to `archive/decisions.md` — decisions.md is boot context, dead prose there costs every session
 - A task is fully done and has been in recently-done for >14 days → remove from state/current.md (it's in git history)
+- A HUMAN-TODOS.md entry is checked `[x]` and clearly settled (the next session no longer needs it) → move the line verbatim to `archive/human-todos.md`; the HT counter continues across archived entries
+- An open-decisions.md entry was decided → it is removed the moment the D-NNN (with `Closes: OD-NNN`) is written — never park a "DECIDED" tombstone; update references to point at the D-NNN instead
 
 **When to clean up active files:**
 

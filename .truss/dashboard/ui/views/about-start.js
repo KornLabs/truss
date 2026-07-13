@@ -55,8 +55,9 @@ export class AboutStartView extends Component {
             <div style="font-weight:600;margin-bottom:4px">New project</div>
             <div style="margin-bottom:8px">${code('truss init')}</div>
             <p class="muted" style="margin:0;font-size:12.5px;line-height:1.55">
-              Scaffolds the core lifecycle <strong>discover → validate → plan → build</strong>. Use when
-              starting something fresh and you want to think before you build.
+              Scaffolds the seed lifecycle <strong>discover → validate → plan → build</strong> — the
+              kickoff then tailors it to your project. Use when starting something fresh
+              and you want to think before you build.
             </p>
           </div>
           <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">

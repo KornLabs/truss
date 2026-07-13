@@ -149,6 +149,44 @@ describe('SY-03 entry grammar', () => {
   })
 })
 
+// ── SY-06 ────────────────────────────────────────────────────────────────────
+describe('SY-06 decided OD tombstones', () => {
+  it('flags a DECIDED marker in the heading and a Decided: field in the body', async () => {
+    const headingTomb = `# Open Decisions\n\n## OD-001 — Pick a source — DECIDED → D-008\n\nOpened: 2026-06-01\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    const bodyTomb    = `# Open Decisions\n\n## OD-002 — Gateway mode?\n\nOpened: 2026-06-01\nDecided: 2026-06-09 → D-010\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    const arrowTomb   = `# Open Decisions\n\n## OD-003 — Account dimension? -> D-011\n\nOpened: 2026-06-01\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(headingTomb) })), 'SY-06').length, 1)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(bodyTomb) })), 'SY-06').length, 1)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(arrowTomb) })), 'SY-06').length, 1)
+  })
+  it('stays silent for genuinely open entries and fenced examples', async () => {
+    const open = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: 2026-06-01\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    const fenced = '# Open Decisions\n\n```\n## OD-009 — example — DECIDED → D-001\n```\n\n## OD-001 — real\n\nOpened: 2026-06-01\nOptions: a\nTrade-offs: x\nLeaning: a\n'
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(open) })), 'SY-06').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(fenced) })), 'SY-06').length, 0)
+  })
+})
+
+// ── SY-07 ────────────────────────────────────────────────────────────────────
+describe('SY-07 checked-off HT pile-up', () => {
+  const htFile = (open, done) => '# Human ToDos\n\n'
+    + Array.from({ length: open }, (_, i) => `- [ ] HT-${String(i + 1).padStart(3, '0')} — open thing ${i + 1}`).join('\n')
+    + (open && done ? '\n' : '')
+    + Array.from({ length: done }, (_, i) => `- [x] HT-${String(open + i + 1).padStart(3, '0')} — done thing ${i + 1}`).join('\n')
+    + '\n'
+  it('nudges once more than 5 checked-off entries pile up', async () => {
+    const f = ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(htFile(2, 6)) })), 'SY-07')
+    assert.equal(f.length, 1)
+    assert.match(f[0].message, /6 checked-off/)
+    assert.match(f[0].fix, /archive\/human-todos\.md/)
+  })
+  it('stays silent at or below the threshold and ignores fenced examples', async () => {
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(htFile(3, 5)) })), 'SY-07').length, 0)
+    const fenced = '# Human ToDos\n\n```\n- [x] HT-001 — a\n- [x] HT-002 — b\n- [x] HT-003 — c\n- [x] HT-004 — d\n- [x] HT-005 — e\n- [x] HT-006 — f\n```\n\n- [ ] HT-007 — real\n'
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(fenced) })), 'SY-07').length, 0)
+  })
+})
+
 // ── CX-01 ────────────────────────────────────────────────────────────────────
 describe('CX-01 context size', () => {
   const big = (words) => '# Big\n\n' + Array(words).fill('lorem').join(' ') + '\n'

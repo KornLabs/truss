@@ -51,14 +51,14 @@ export class MapView extends Component {
         <p class="muted" style="font-size:12.5px;margin-bottom:4px">Auto-generated from <span class="mono">state/map.md</span>. One canonical home per topic.</p>
       <//>
 
-    <div class="grid cols-auto-lg grid-fill">
+    <div class="grid cols-auto-fill-lg" style="align-items:start">
       ${cats.map(cat => html`
-        <${Card} key=${cat.name} className="card-fill">
+        <${Card} key=${cat.name} className="map-card">
           <div class="row" style="gap:8px;margin-bottom:14px">
             <span class="badge accent" style="font-family:var(--font-mono)">${catLabel(cat.name)}</span>
             <span class="dim" style="font-size:12px;margin-left:auto">${cat.files.length} file${cat.files.length !== 1 ? 's' : ''}</span>
           </div>
-          <div class="col" style="gap:8px; padding-right: 8px;">
+          <div class="col map-files">
             ${cat.files.map(f => {
               const parts = f.file.split('/');
               const base = parts.pop();

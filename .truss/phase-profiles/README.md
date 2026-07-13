@@ -5,6 +5,11 @@ different lifecycle than the core four phases. The core flow
 (**discover → validate → plan → build**) ships in `.truss/baseline/state/phases.md`
 and is what a fresh `truss init` installs. Profiles here are the alternatives.
 
+All of them — core flow and profiles alike — are **seeds, not the plan**: the
+project-kickoff tailors the installed phases to the project (rename, drop, split,
+add), and agents keep maintaining the plan as requirements change (D-NNN + telling
+the human; see AGENTS.md §5). Only advancing `current:` stays human-only.
+
 | Profile | Phases | Use it when |
 |---|---|---|
 | `software.md` | discover → validate → plan → build → **operate** | The project ships and then runs in production: the extra `operate` phase covers monitoring, fixes, and incident-driven iteration after launch. |
@@ -18,7 +23,9 @@ under `context/`, not in a separate phase list.
 
 ## Adopting a profile
 
-Phase changes are human-only (AGENTS.md §4). To switch a workspace to a profile:
+An agent may perform the switch (it's a phase-plan restructuring: D-NNN + telling
+the human, AGENTS.md §5) — but setting `current:` stays human-only (§4). To switch
+a workspace to a profile:
 
 ```bash
 # 1. Copy the profile over the active phase list (review the diff first).

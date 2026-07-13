@@ -223,9 +223,12 @@ An agent's loop is always the same: read `AGENTS.md`, load the few state files i
 points to, do the work, update `state/current.md`, stop. The CLI's `doctor`
 command checks that the files still agree with each other and flags any drift.
 
-A project moves through four **phases** — `discover → validate → plan → build` —
-that widen or narrow what an agent is allowed to do at each stage. Phase changes
-are deliberately human-only. (Alternative lifecycles ship as
+A project moves through **phases** that widen or narrow what an agent is allowed
+to do at each stage. `discover → validate → plan → build` is the seed a fresh
+workspace starts from; the kickoff tailors it into a project-specific plan, and
+agents restructure the plan when requirements change (always with a decision
+entry and a note to you). Advancing the phase itself stays deliberately
+human-only. (Alternative seeds ship as
 [phase profiles](.truss/phase-profiles/README.md).)
 
 ## Commands

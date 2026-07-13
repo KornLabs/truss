@@ -72,31 +72,37 @@ The `RF` checks verify that every referenced ID is defined exactly once.
 
 ## 5. Phases
 
-A project moves through a fixed lifecycle. The core flow is four phases:
+Every project gets its **own phase plan** — a linear lifecycle tailored to the
+project, drafted at kickoff from the vision and maintained by agents as the
+project evolves. What `init` installs is the seed:
 
 ```
 discover  →  validate  →  plan  →  build
 ```
 
-Each phase narrows or widens what an agent may do. `discover` is divergent
-(generate options, no code yet); `validate` seeks disconfirming evidence;
-`plan` is convergent (every open question gets a `D-NNN`); `build` ships. Each
+`discover` is divergent (generate options, no code yet); `validate` seeks
+disconfirming evidence; `plan` is convergent (every open question gets a
+`D-NNN`); `build` ships. The kickoff renames, drops, splits, or adds phases so
+the plan fits the project (e.g. a launch, migration, or operate phase). Each
 phase declares its `allowed`, `forbidden`, `forbidden-globs`, the files to
 `read`, and the `exit` criteria that must be met to leave it.
 
-Two rules make phases trustworthy:
+Three rules make phases trustworthy:
 
 1. **Phase changes are human-only.** An agent never edits `current:` in
    `state/phases.md` or declares a phase done. When exit criteria look met, it
    runs `doctor --gate`, writes an `HT-NNN` summary, and stops. The human decides.
-   The phase *model* itself — the definitions, order, and set of phases — can be
-   reshaped by an agent, but only when the human explicitly asks; never on its own
-   initiative, and never silently.
-2. **The phase block is generated.** `state/phases.md` is the source; running
+2. **The plan is agent-maintained, never silently.** When requirements change,
+   an agent restructures the future phases on its own (the `phase-replan`
+   prompt) — but every restructuring requires a `D-NNN`, an explicit mention to
+   the human, then `truss render` + `doctor`. Loosening the *current* phase's
+   `forbidden`/`forbidden-globs` or `exit` criteria requires explicit human
+   confirmation first: an agent must not remove its own active guardrails.
+3. **The phase block is generated.** `state/phases.md` is the source; running
    `truss render` writes the human-readable phase block into `AGENTS.md` so an
    agent always sees the active rules without loading the whole phase file.
 
-Projects that need a different lifecycle adopt a **phase profile** (e.g.
+**Phase profiles** are alternative seeds for the kickoff tailoring (e.g.
 `software` adds an `operate` phase; `founders-thinking` ends in a concept/park
 call). See [phase-profiles/README.md](../phase-profiles/README.md).
 An existing codebase uses the **overlay** flow (`ingest → operate`) via

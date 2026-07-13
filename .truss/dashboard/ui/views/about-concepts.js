@@ -4,6 +4,8 @@ import { Card, CardHead, Badge, Icons, Accordion } from '../components.js';
 const code = (t) => html`<code class="mono" style="font-size:12px;padding:2px 6px;background:var(--surface-2);border-radius:5px">${t}</code>`;
 const bold = (lead, rest) => html`<li style="margin-bottom:7px"><strong>${lead}</strong> ${rest}</li>`;
 
+// The default seed lifecycle — what a fresh init installs before the kickoff
+// tailors it to the project.
 const PHASES = [
   { id: 'discover', label: 'Discover', desc: 'Divergent — generate options, no code' },
   { id: 'validate', label: 'Validate', desc: 'Seek disconfirming evidence' },
@@ -106,7 +108,9 @@ export class AboutConceptsView extends Component {
         <${CardHead} icon=${Icons.Play} title="Phases" />
         <div style="font-size:13px;line-height:1.65;color:var(--text)">
           <p class="measure" style="margin:0 0 16px">
-            A project moves through a fixed lifecycle. Each phase narrows or widens what an agent may do:
+            Every project gets its <strong>own phase plan</strong> — a linear lifecycle tailored to the project.
+            The kickoff drafts it from the vision; agents keep it in sync with reality as requirements change.
+            This is the default seed a fresh workspace starts from:
           </p>
           <div style="display:flex;gap:6px;align-items:stretch;flex-wrap:wrap;margin-bottom:16px">
             ${PHASES.map((p, i) => html`
@@ -118,8 +122,9 @@ export class AboutConceptsView extends Component {
             `)}
           </div>
           <ul class="measure" style="margin:0;padding-left:18px">
-            ${bold('Phase changes are human-only.', html`The agent runs ${code('doctor --gate')}, writes an HT-NNN summary, and stops. You decide.`)}
-            ${bold('Phase profiles:', 'Alternative lifecycles — software (adds operate), founders-thinking (concept/park), overlay (ingest → operate).')}
+            ${bold('Phase changes are human-only.', html`The agent runs ${code('doctor --gate')}, writes an HT-NNN summary, and stops. You decide when to advance ${code('current:')}.`)}
+            ${bold('The plan is agent-maintained — never silently.', html`When requirements change, an agent restructures the future phases (rename, add, split, drop) with a mandatory D-NNN and tells you. Loosening the <em>current</em> phase's guardrails or exit criteria needs your explicit ok first.`)}
+            ${bold('Phase profiles are alternative seeds:', 'software (adds operate), founders-thinking (concept/park), overlay (ingest → operate).')}
           </ul>
         </div>
       <//>

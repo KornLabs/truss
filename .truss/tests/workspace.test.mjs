@@ -704,7 +704,7 @@ describe('renderPhaseBlock — no double period (B2)', () => {
     }
     const lines = renderPhaseBlock(phaseDef, 'discover', 1, 4, '2026-06-13T13:00')
     const expected = [
-      '> Rendered 2026-06-13T13:00 from `state/phases.md` — edit there, then run `truss render`. Advancing `current:` is human-only (propose via HUMAN-TODOS.md); change the phase model only on the human\'s explicit instruction.',
+      '> Rendered 2026-06-13T13:00 from `state/phases.md` — edit there, then run `truss render`. Advancing `current:` is human-only (propose via HUMAN-TODOS.md); phase definitions are agent-maintained — restructure with a D-NNN and tell the human (AGENTS.md §5).',
       '',
       '**Phase 1/4 — discover (Discovery)**',
       'Purpose: explore the idea, collect raw research, map the problem space.',

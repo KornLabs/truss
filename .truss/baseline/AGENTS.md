@@ -32,11 +32,11 @@ This table lists core system files. Domain (topic) files live under `context/` a
 | AGENTS.md | A body · S blocks | router, this table, rules |
 | README.md | H | human onboarding — not agent context |
 | VISION.md | H+A | problem, idea, principles, constraints |
-| HUMAN-TODOS.md | A→H | everything only a human can do (HT-NNN); humans check off |
+| HUMAN-TODOS.md | A→H | everything only a human can do (HT-NNN, ≤2 lines each); humans check off; settled `[x]` entries move to archive/human-todos.md |
 | state/map.md (on demand) | S | auto-generated domain map; read-only |
 | state/current.md | A | focus · next (≤5) · blockers · recently done (≤7 days); update every session end |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
-| state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN, remove here |
+| state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN with `Closes:`, remove here (no tombstones) |
 | state/risks.md | A | risks R-NNN; load for risk, Go/No-Go, strategy, launch, safety, or blocker work |
 | state/learnings.md | A | systemic agent/framework weaknesses and structural fixes; not a product bug log |
 | state/phases.md | H pointer · H+A definitions | phase definitions and `current:` pointer |
@@ -67,7 +67,7 @@ Scan scope: the map and doctor only cover workspace content. Foreign or bulk dat
 
 Consistency — a change is complete only after its follow-ups:
 
-1. Human decided something → create D-NNN, update affected canonical files, close the matching OD-NNN, refresh current.md if focus changed.
+1. Human decided something → create D-NNN (with `Closes: OD-NNN`), update affected canonical files, remove the OD entry (no tombstone), refresh current.md if focus changed.
 2. New undecided question that blocks or shapes work → open-decisions briefing.
 3. New fact learned → its one canonical file; contradicted content gets an invalidation note.
 4. Task finished → update the owning task list; reflect active focus/next changes in state/current.md.
@@ -93,14 +93,15 @@ End — mandatory: update state/current.md (incl. `branch:` if a `repo/` overlay
 
 Phase exit — when exit criteria appear met (never self-declare a phase change):
 1. Run `node .truss/bin/truss.mjs doctor --gate` — collect all exit findings.
-2. If `gate-advocate: on` — spawn a review subagent with the phase's gate prompt from `.truss/prompts/`.
-3. Write `HT-NNN — Phase [X] exit: [exit criteria status + findings summary]` — include doctor output and advocate findings.
-4. STOP. Do not touch `current:` in state/phases.md. The human decides.
+2. If `gate-advocate` is not `off` — spawn the gate prompt subagent; it returns a verdict plus findings tagged [FIX-AGENT] / [NEEDS-HUMAN].
+3. If `gate-advocate: agentic` — close the [FIX-AGENT] findings, re-run `doctor --gate`, fresh advocate pass confirms (max 2 rounds; never weaken criteria or guardrails to pass).
+4. Write ONE `HT-NNN — Phase [X] exit: [verdict · fixed · remaining human items]` — the advocate never writes HTs.
+5. STOP. Do not touch `current:` in state/phases.md. The human decides.
 
 ## 5 Hard limits
 
 - Never change `current:` in state/phases.md, declare a phase change, or proceed past exit criteria — human act only; use the phase exit procedure (§4).
-- Never restructure the phase model on your own initiative — the phase definitions, their order, and the set of phases in state/phases.md are edited only when the human explicitly asks for it; then run `truss render` and `doctor`. It reshapes every downstream guardrail, so treat it as a sensitive change and confirm the shape with the human before writing.
+- Phase definitions in state/phases.md are yours to maintain: when requirements change, restructure future phases on your own — always with a D-NNN, an explicit mention to the human, then `truss render` + `doctor` (`phase-replan` prompt). Never change `current:` (see above), and never loosen the CURRENT phase's `forbidden`/`forbidden-globs`/`exit` without explicit human confirmation — don't remove your own active guardrails.
 - Never edit the generated blocks by hand; `truss set` / `truss render` are the only writers.
 - Never write or commit secrets/API keys to files tracked by git. Always store them in a local `.env` file (which must be gitignored) and document the required key names in a tracked `.env.example` file.
 - Never store the same truth twice, create empty folders, or add per-folder index files.
