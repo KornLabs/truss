@@ -5,6 +5,7 @@
 # Truss
 
 **A layer that sits on top of your project and holds everything an AI agent needs to work on it — vision, plans, phases, current state, decisions, and docs — as plain Markdown.**
+**Work-oriented by design: the agent loads only the context a task needs and always knows where to find the rest, so the window stays light instead of drowning in the whole repo.**
 **No API keys, no metered bills: it runs on the AI subscription you already pay for.**
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml)
@@ -43,8 +44,17 @@ zero-dependency CLI checks the structure and surfaces open decisions for you.
 - **Tool-agnostic.** Built on the open [AGENTS.md](https://agents.md) convention;
   one-line adapter stubs point Claude, Gemini, Cursor, and Copilot at the same
   boot file.
-- **Lightweight context.** The mandatory per-session reading is ~3,000 tokens by
-  design — the agent loads everything else on demand.
+- **Work-oriented, task-scoped context.** This is the core design goal, not a
+  side effect. Every session boots from `AGENTS.md`, which hands the agent an
+  ordered load list and one instruction: _load the smallest context that can
+  answer the task, then stop._ A routing table (§2) plus a generated
+  `state/map.md` tell it exactly where anything else lives, so it reads on
+  demand instead of ingesting the repo. The payoff is a window that stays light
+  and on-task: cheaper, faster sessions and less drift from irrelevant context.
+  The mandatory read is ~3,000 tokens at scaffold; the `doctor` context check
+  (`CX`) keeps it honest, warning only if a real workspace's boot context grows
+  past ~9k, and the `TRUSS` control word acts as a live canary if context starts
+  to degrade mid-session.
 
 ## How it compares
 
@@ -283,7 +293,7 @@ agree on the direction.
 
 ## Status
 
-`1.0.0-alpha.2`. The engine and its test suite are stable; the API and file
+`1.0.0-alpha.3`. The engine and its test suite are stable; the API and file
 grammar may still change before `1.0.0`.
 
 ## License
