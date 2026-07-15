@@ -3,4 +3,4 @@ key: branch-guard
 value: off
 ---
 
-repo/ branch state is not tracked; do not block on a branch mismatch
+configured code-root branch state is not tracked; do not block on a branch mismatch

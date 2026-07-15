@@ -135,7 +135,7 @@ The engine has its own suite under `tests/` (plus dashboard tests under
 
 ```bash
 cd .truss
-node --test          # discovers all suites recursively (132 tests)
+node --test          # discovers all suites recursively
 ```
 
 Tests use fixtures in `tests/fixture/` and temporary directories

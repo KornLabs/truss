@@ -108,6 +108,13 @@ structurally fixed. Ordinary product bugs go to the repo issue tracker, a test,
 a local domain task, or `pm/`. If a bug exposes a technical decision, record a
 D-NNN; if it creates project, launch, or safety exposure, record an R-NNN.
 
+## Current snapshot
+
+Keep `focus:`, each `next:` item, and each `recently-done:` item to one concise
+line. `state/current.md` is a boot snapshot, not a progress essay or changelog;
+route rationale, evidence, implementation detail, and history to the owning
+domain file, decision, or git.
+
 ## File templates
 
 ### Domain file (`context/<domain>.md`)

@@ -1,35 +1,9 @@
 import { html, Component } from '../../vendor/preact-htm.mjs';
 import { Card, CardHead, Badge, Button, Icons, Spinner } from '../components.js';
 import { api } from '../api.js';
+import { PREFERENCE_GROUPS } from '../catalog-data.js';
 
-// Mirror of .truss/lib/prefs.mjs catalog (values + defaults) + human framing, grouped.
-const GROUPS = [
-  { title: 'Autonomy & safety', items: [
-    { key: 'orchestration', label: 'Orchestration', values: ['low', 'medium', 'high'], def: 'medium', desc: 'How freely the agent orchestrates multi-step tasks (build, analyze) without checking in.' },
-    { key: 'phase-lock', label: 'Phase lock', values: ['off', 'advisory'], def: 'advisory', desc: 'If an action violates the phase forbidden list: ignore, or stop and ask.' },
-    { key: 'gate-advocate', label: 'Gate advocate', values: ['off', 'on', 'agentic'], def: 'agentic', desc: 'Adversarial review at phase exit: report only (on), or fix agent-fixable findings and re-verify before the single exit HT (agentic).' },
-  ]},
-  { title: 'Rigor & verification', items: [
-    { key: 'criticality', label: 'Criticality', values: ['low', 'medium', 'high'], def: 'high', desc: 'How aggressively it names weaknesses in inputs and plans before executing.' },
-    { key: 'input-trust', label: 'Input trust', values: ['open', 'medium', 'critical'], def: 'medium', desc: 'How much it verifies the claims and figures you hand it.' },
-    { key: 'clarify', label: 'Clarify', values: ['ask', 'infer'], def: 'ask', desc: 'When intent is unclear: ask first, or infer and state assumptions.' },
-    { key: 'source-citation', label: 'Source citation', values: ['off', 'on'], def: 'off', desc: 'Whether the agent cites the sources and references it used.' },
-    { key: 'post-task-check', label: 'Post-task check', values: ['off', 'inline', 'subagent'], def: 'off', desc: 'Run doctor after tasks: never, inline, or via a subagent.' },
-  ]},
-  { title: 'Subagents & delegation', items: [
-    { key: 'research-agent', label: 'Research subagents', values: ['off', 'on'], def: 'on', desc: 'Allow spawning research subagents without an explicit instruction.' },
-    { key: 'review-agent', label: 'Review subagents', values: ['off', 'on'], def: 'on', desc: 'Allow spawning critical-review subagents on its own.' },
-  ]},
-  { title: 'Git & workflow', items: [
-    { key: 'scope', label: 'Solution scope', values: ['off', 'minimal', 'balanced', 'thorough'], def: 'off', desc: 'How much solution to build: the smallest thing that works, matched to the problem, or full edge-case coverage. Off imposes no bias.' },
-    { key: 'auto-commit', label: 'Auto-commit', values: ['off', 'suggest', 'on'], def: 'suggest', desc: 'After a logical unit: do nothing, propose a message, or commit.' },
-  ]},
-  { title: 'Response & session', items: [
-    { key: 'response-style', label: 'Verbosity', values: ['normal', 'compact', 'maxcompact'], def: 'normal', desc: 'How terse responses are: normal prose, compact (no filler), or maxcompact (telegraphic — form compressed, never content). Emojis are always off.' },
-    { key: 'control-word', label: 'Control word', free: true, def: 'TRUSS', suggestions: ['TRUSS'],
-      desc: 'Have the agent open every response with `<WORD> — …`. If the marker goes missing, the session may be losing context. Pick Off, a preset, or your own word.' },
-  ]},
-];
+const GROUPS = PREFERENCE_GROUPS;
 const ALL = GROUPS.flatMap(g => g.items);
 
 export class PreferencesView extends Component {

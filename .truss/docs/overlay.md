@@ -39,6 +39,25 @@ A single `repo/` folder is the unit even if you have several codebases: put them
 in as `repo/<name>/`. The `.gitignore` rule (`repo/`) and the phase glob
 (`repo/**`) stay correct for one repo or five.
 
+If the workspace already contains one code directory that must keep its name
+(for example a tracked submodule), use `--code-root <dir>` with `--overlay`.
+Truss records that relative path in `state/profile.md` and does not move or
+gitignore it:
+
+```bash
+node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English \
+  --code-root product
+```
+
+`repo/` remains the default and the only destination managed by `--repo`.
+Exactly one code root is supported; use a directory containing multiple
+checkouts when a project genuinely needs several.
+
+Engine upgrades preserve old overlays: a profile without `code-root:` still
+recognises an existing `repo/`. If you replace the whole profile from a newer
+template, keep `code-root: repo`; an explicitly blank value means that the
+workspace has no separate code root.
+
 ## Step 1 — Create the workspace and drop the engine in
 
 ```bash

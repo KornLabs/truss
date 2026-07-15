@@ -32,6 +32,7 @@ truss init --name "My Project" --lang English
 | `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
 | `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore` |
 | `--repo <path\|url>` | (overlay only) bring the existing code in under `repo/`: a local path is symlinked, a URL is `git clone`d. Best-effort — a failure is reported, never fatal |
+| `--code-root <dir>` | (overlay only) use one existing relative directory as the code root instead of `repo/`; the directory must exist and is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 
 With no flags in a TTY, `init` asks interactively. With no TTY and missing
@@ -48,14 +49,27 @@ the human; advancing `current:` stays human-only) — see
 ## `status`
 
 Print a compact, read-only summary of the workspace — current phase and health.
-The quickest "where am I?" command. In an overlay with a `repo/`
-checkout it also prints a **Branch** line: the live `repo/` branch against the
+The quickest "where am I?" command. When `state/profile.md` configures a
+`code-root`, it also prints a **Branch** line: the live code-root branch against the
 `branch:` declared in `state/current.md` (`✓` when they match, `✗ MISMATCH` with a
 switch hint when they don't). This is the live branch check — `doctor` itself
 stays purely file-based and never reads the live branch (see `branch-guard`).
 
 ```bash
 truss status
+```
+
+---
+
+## `repo-map`
+
+Print a compact, read-only orientation map for the configured code root.
+It respects the workspace `.trussignore` and the code checkout's own
+`.gitignore`/`.trussignore`, and has fixed limits: depth 3, 500 files scanned,
+200 output lines. It never writes a map file.
+
+```bash
+truss repo-map
 ```
 
 ---

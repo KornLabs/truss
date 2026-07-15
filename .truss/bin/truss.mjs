@@ -29,6 +29,7 @@ import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitV
 import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { runMap } from '../lib/commands/map.mjs'
+import { runRepoMap } from '../lib/commands/repo-map.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
 import { runPrompt } from '../lib/commands/prompt.mjs'
 import { runPhase } from '../lib/commands/phase.mjs'
@@ -203,6 +204,8 @@ Init flags:
   --name <name>     project name (skips the interactive prompt)
   --lang <lang>     primary language for agent output (e.g. English)
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
+  --repo <path|url> place existing code under repo/ (overlay only)
+  --code-root <dir> use an existing relative code directory (overlay only)
 
 Doctor flags:
   --gate        also run PH-04 phase-exit checks
@@ -640,13 +643,14 @@ const HANDLERS = {
   phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
+  'repo-map': (args) => runRepoMap(root, args),
   init:      (args) => runInit(root, args),
   dashboard: (args) => runDashboard(args),
 }
 
 // init/phase surface user-facing fatals as a throw → exit code 2 (dashboard
 // handles its own errors internally).
-const THROWS_TO_EXIT_2 = new Set(['init', 'phase'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'phase', 'repo-map'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); process.exit(0)

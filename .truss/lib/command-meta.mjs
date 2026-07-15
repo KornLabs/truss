@@ -19,6 +19,7 @@ export const COMMAND_META = [
   { name: 'set',       display: 'set <key> <val>',   summary: 'update a preference in the preferences block',      dashboardSafe: true },
   { name: 'init',      display: 'init [flags]',      summary: 'configure a fresh workspace (flags or interactive)', dashboardSafe: false },
   { name: 'map',       display: 'map',               summary: 'regenerate the state/map.md domain file overview',  dashboardSafe: true },
+  { name: 'repo-map',  display: 'repo-map',          summary: 'print a bounded read-only map of the configured code root', dashboardSafe: false },
   { name: 'dashboard', display: 'dashboard [flags]', summary: 'start the local web dashboard',                     dashboardSafe: false },
   { name: 'prompt',    display: 'prompt <cmd> <id>', summary: 'manage custom prompts (save, reset, delete)',       dashboardSafe: true },
   { name: 'help',      display: 'help',              summary: 'show this message',                                 dashboardSafe: false },

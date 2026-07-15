@@ -153,7 +153,7 @@ export async function run(ctx) {
     // Skip .truss internals (dir itself is table-managed)
     if (diskRel.startsWith('.truss/') && diskRel !== '.truss/') continue;
 
-    // Skip contents of summary-row dirs (archive/, repo/, etc., plus user-defined)
+    // Skip contents of summary-row dirs (archive/, code root, etc., plus user-defined)
     if (dynamicSummaryDirs.has(topDir) && relNoSlash.includes('/')) continue;
 
     // Check against known paths (with and without trailing slash)

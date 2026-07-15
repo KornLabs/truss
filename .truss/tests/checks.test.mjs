@@ -395,6 +395,44 @@ describe('risk migration bridge', () => {
         await fs.rm(src, { recursive: true, force: true })
       }
     })
+
+    it('checks changed paths inside a custom configured code root', async () => {
+      const priorNoGit = process.env.TRUSS_NO_GIT
+      delete process.env.TRUSS_NO_GIT
+      const root = await makeRoot('truss-code-root-phase-')
+      const product = path.join(root, 'product')
+      try {
+        await fs.mkdir(product)
+        await execFileP('git', ['init'], { cwd: product })
+        await fs.writeFile(path.join(product, 'blocked.js'), 'export const value = 1\n')
+        await execFileP('git', ['add', '.'], { cwd: product })
+        await execFileP(
+          'git',
+          ['-c', 'user.name=Truss Test', '-c', 'user.email=truss@example.invalid', 'commit', '-m', 'baseline'],
+          { cwd: product },
+        )
+        await runInit(root, [
+          '--name', 'Custom', '--lang', 'English', '--overlay',
+          '--code-root', 'product',
+        ])
+        const phasesPath = path.join(root, 'state', 'phases.md')
+        const phases = await fs.readFile(phasesPath, 'utf8')
+        await fs.writeFile(
+          phasesPath,
+          phases.replaceAll('repo/**', 'product/**'),
+        )
+        await fs.writeFile(path.join(product, 'blocked.js'), 'export const value = 2\n')
+
+        const ctx = await loadWorkspace(root)
+        const findings = await ph.run(ctx)
+        const violation = findings.find(f => f.id === 'PH-03')
+        assert.match(violation?.message || '', /product\/blocked\.js/)
+      } finally {
+        if (priorNoGit == null) delete process.env.TRUSS_NO_GIT
+        else process.env.TRUSS_NO_GIT = priorNoGit
+        await fs.rm(root, { recursive: true, force: true })
+      }
+    })
   })
 })
 

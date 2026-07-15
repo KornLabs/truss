@@ -53,18 +53,19 @@ export async function runStatus(root, argv) {
   console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
   console.log(`  Health:  ${doctorSummary}`)
 
-  // Branch line — only for an overlay with a readable repo/ checkout. The live
+  // Branch line — only for a configured code root with a readable checkout. The live
   // git read lives here (and in the dashboard), keeping the doctor checks pure.
   const br = await branchReport(root)
   if (br.present) {
+    const codeRoot = br.codeRoot || 'code-root'
     const red = useColorGlobal ? '\x1b[31m' : '', grn = useColorGlobal ? '\x1b[32m' : '', rst = useColorGlobal ? '\x1b[0m' : ''
     let line
     if (br.info.detached) {
       line = `(detached at ${br.info.sha || '?'})` + (br.declared ? ` ${red}✗ declared '${br.declared}'${rst}` : '')
     } else if (!br.info.ok) {
-      line = `repo/ branch unreadable (${br.info.reason})`
+      line = `${codeRoot}/ branch unreadable (${br.info.reason})`
     } else if (br.mismatch) {
-      line = `${br.info.branch} ${red}✗ MISMATCH — declared '${br.declared}'${rst}; switch with: git -C repo switch ${br.declared}`
+      line = `${br.info.branch} ${red}✗ MISMATCH — declared '${br.declared}'${rst}; switch with: git -C ${codeRoot} switch ${br.declared}`
     } else if (br.match) {
       line = `${br.info.branch} ${grn}✓${rst} (declared)`
     } else {

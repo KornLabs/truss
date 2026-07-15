@@ -5,8 +5,8 @@
 focus:
 
 branch:
-<!-- overlay only: the repo/ branch this focus belongs to. Keep in sync with the
-     checked-out branch; `truss status` flags a mismatch (see branch-guard). -->
+<!-- When profile.md configures a code-root: the branch this focus belongs to.
+     Keep in sync with that checkout; `truss status` flags a mismatch. -->
 
 next:
 <!-- format: "  - action description", one per line, ≤ 5 -->
@@ -14,7 +14,8 @@ next:
 blockers: none
 
 recently-done:
-<!-- format: "  - completed item", one per line, drop after 7 days -->
+<!-- format: "  - concise completed item", one line each; details belong in the
+     owning domain. Drop after 7 days. -->
 
 updated:
 <!-- format: YYYY-MM-DD -->

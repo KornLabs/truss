@@ -11,6 +11,7 @@ import { parseExitItems, globToRegex } from '../lib/render.mjs'
 import { parseHeadings, headingToAnchor, parsePhaseList } from '../lib/md.mjs'
 import { loadIgnore } from '../lib/ignore.mjs'
 import { gitChangedPaths } from '../lib/git.mjs'
+import { resolveCodeRoot } from '../lib/code-root.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 export const meta = [
@@ -37,6 +38,7 @@ const REQUIRED_KEYS = ['purpose', 'behavior', 'exit']
 export async function run(ctx) {
   const findings = []
   const { phases, root, gate } = ctx
+  const codeRootRel = ctx.codeRoot?.rel ?? (await resolveCodeRoot(root)).rel
 
   if (!phases) {
     findings.push({
@@ -130,7 +132,12 @@ export async function run(ctx) {
     if (globsStr) {
       const globs = parsePhaseList(globsStr)
       const { isIgnored } = await loadIgnore(root, { respectGitignore: false })
-      const evidence = await changedPathEvidence(root, globs, isIgnored)
+      const evidence = await changedPathEvidence(
+        root,
+        globs,
+        isIgnored,
+        codeRootRel,
+      )
       for (const { glob, hits } of evidence.matches) {
         if (hits.length > 0) {
           const shown = hits.slice(0, 3).join(', ')
@@ -174,7 +181,12 @@ export async function run(ctx) {
           break
         }
         case 'glob': {
-          const hits = await findGlobHits(root, item.pattern, isIgnored)
+          const hits = await findGlobHits(
+            root,
+            item.pattern,
+            isIgnored,
+            codeRootRel,
+          )
           if (hits.length === 0) {
             machineFailures.push({ item, reason: `no files match: ${item.pattern}` })
           }
@@ -256,9 +268,14 @@ export async function run(ctx) {
 
 /**
  * Recursively find all non-ignored files matching globPattern.
- * The official root-level repo symlink is followed; other symlinks are skipped.
+ * The configured code-root symlink is followed; other symlinks are skipped.
  */
-async function findGlobHits(root, globPattern, isIgnored = () => false) {
+async function findGlobHits(
+  root,
+  globPattern,
+  isIgnored = () => false,
+  codeRootRel = null,
+) {
   const re = globToRegex(globPattern)
   const hits = []
   const visited = new Set()
@@ -281,7 +298,7 @@ async function findGlobHits(root, globPattern, isIgnored = () => false) {
       const relPath = relDir ? `${relDir}/${name}` : name
       const absPath = path.join(dir, name)
       let isDir = entry.isDirectory()
-      if (entry.isSymbolicLink() && relPath === 'repo') {
+      if (entry.isSymbolicLink() && relPath === codeRootRel) {
         try { isDir = (await fs.stat(absPath)).isDirectory() }
         catch { isDir = false }
       }
@@ -299,9 +316,14 @@ async function findGlobHits(root, globPattern, isIgnored = () => false) {
   return hits
 }
 
-async function changedPathEvidence(root, globs, isIgnored) {
-  const rootGlobs = globs.filter(glob => !glob.startsWith('repo/'))
-  const repoGlobs = globs.filter(glob => glob.startsWith('repo/'))
+async function changedPathEvidence(root, globs, isIgnored, codeRootRel = null) {
+  const codePrefix = codeRootRel ? `${codeRootRel}/` : null
+  const rootGlobs = codePrefix
+    ? globs.filter(glob => !glob.startsWith(codePrefix))
+    : globs
+  const codeGlobs = codePrefix
+    ? globs.filter(glob => glob.startsWith(codePrefix))
+    : []
   const matches = globs.map(glob => ({ glob, hits: [] }))
   const byGlob = new Map(matches.map(item => [item.glob, item]))
   const limited = []
@@ -310,7 +332,7 @@ async function changedPathEvidence(root, globs, isIgnored) {
     if (relevantGlobs.length === 0) return
     const report = await gitChangedPaths(checkout)
     if (!report.ok) {
-      if (report.reason !== 'disabled' && !(report.reason === 'not-a-checkout' && prefix === 'repo/' && !await pathExists(checkout))) {
+      if (report.reason !== 'disabled' && !(report.reason === 'not-a-checkout' && prefix === codePrefix && !await pathExists(checkout))) {
         limited.push(`${prefix || 'workspace'} git changes unavailable (${report.reason})`)
       }
       return
@@ -327,7 +349,13 @@ async function changedPathEvidence(root, globs, isIgnored) {
   }
 
   await inspect(root, rootGlobs)
-  await inspect(path.join(root, 'repo'), repoGlobs, 'repo/')
+  if (codeRootRel) {
+    await inspect(
+      path.join(root, ...codeRootRel.split('/')),
+      codeGlobs,
+      codePrefix,
+    )
+  }
   return { matches, limited: [...new Set(limited)] }
 }
 
