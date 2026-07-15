@@ -2,22 +2,25 @@
 //
 // PH-01  E  phases.md grammar violated (unknown key, missing required, bad exit item)
 // PH-02  E  current: pointer doesn't match any defined phase id
-// PH-03  W  forbidden-globs of current phase have hits on disk
+// PH-03  W  forbidden-globs match uncommitted git paths
 // PH-04  E/W  --gate only: machine exit items unmet; human checklist output
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseExitItems, globToRegex } from '../lib/render.mjs'
-import { parseHeadings, headingToAnchor } from '../lib/md.mjs'
+import { parseHeadings, headingToAnchor, parsePhaseList } from '../lib/md.mjs'
+import { loadIgnore } from '../lib/ignore.mjs'
+import { gitChangedPaths } from '../lib/git.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 export const meta = [
   { id: 'PH-01', severity: 'E', title: 'phases.md grammar violated' },
   { id: 'PH-02', severity: 'E', title: 'current: points to an unknown phase' },
-  { id: 'PH-03', severity: 'W', title: 'forbidden-globs of current phase have hits' },
+  { id: 'PH-03', severity: 'W', title: 'forbidden-globs match changed paths' },
   { id: 'PH-04', severity: 'E', title: 'Phase exit criteria unmet', description: '--gate only; also lists the human checklist' },
   { id: 'PH-05', severity: 'E', title: 'phases.md present but defines no phases', description: 'Guards against silent degradation (A4): a file that parses to zero phases' },
   { id: 'PH-06', severity: 'W', title: 'Exit file:/section: target unresolved (any phase)', description: 'Static check across all phases (A5); glob: stays gate-only' },
+  { id: 'PH-07', severity: 'I', title: 'Forbidden-path evidence is incomplete', description: 'Reports when PH-03 cannot inspect a checkout or can only see uncommitted changes' },
 ]
 
 const KNOWN_KEYS = new Set([
@@ -125,19 +128,28 @@ export async function run(ctx) {
     const def = defs.get(current)
     const globsStr = def['forbidden-globs']
     if (globsStr) {
-      const globs = globsStr.split(';').map(g => g.trim()).filter(Boolean)
-      for (const glob of globs) {
-        const hits = await findGlobHits(root, glob)
+      const globs = parsePhaseList(globsStr)
+      const { isIgnored } = await loadIgnore(root, { respectGitignore: false })
+      const evidence = await changedPathEvidence(root, globs, isIgnored)
+      for (const { glob, hits } of evidence.matches) {
         if (hits.length > 0) {
-          const shown = hits.slice(0, 3).map(h => path.relative(root, h)).join(', ')
+          const shown = hits.slice(0, 3).join(', ')
           const more = hits.length > 3 ? ` (+${hits.length - 3} more)` : ''
           findings.push({
             id: 'PH-03', severity: 'W',
             file: 'state/phases.md',
-            message: `forbidden-glob '${glob}' has ${hits.length} hit${hits.length !== 1 ? 's' : ''} in phase '${current}': ${shown}${more}`,
-            fix: `Remove or move those files — they should not exist in the '${current}' phase. Narrow the pattern if it's too broad.`,
+            message: `forbidden-glob '${glob}' matches ${hits.length} uncommitted path${hits.length !== 1 ? 's' : ''} in phase '${current}': ${shown}${more}`,
+            fix: `Revert or move those changes before leaving '${current}', or narrow the pattern if it is too broad.`,
           })
         }
+      }
+      if (evidence.limited.length > 0) {
+        findings.push({
+          id: 'PH-07', severity: 'I',
+          file: 'state/phases.md',
+          message: `forbidden-path coverage is limited: ${evidence.limited.join('; ')}`,
+          fix: 'Treat phase path rules as advisory. PH-03 can inspect uncommitted git paths, not changes already committed during this phase.',
+        })
       }
     }
   }
@@ -146,6 +158,7 @@ export async function run(ctx) {
   if (gate && current && defs.has(current)) {
     const def = defs.get(current)
     const items = parseExitItems(def.exit || '')
+    const { isIgnored } = await loadIgnore(root, { respectGitignore: false })
 
     const humanItems = []
     const machineFailures = []
@@ -161,7 +174,7 @@ export async function run(ctx) {
           break
         }
         case 'glob': {
-          const hits = await findGlobHits(root, item.pattern)
+          const hits = await findGlobHits(root, item.pattern, isIgnored)
           if (hits.length === 0) {
             machineFailures.push({ item, reason: `no files match: ${item.pattern}` })
           }
@@ -242,14 +255,21 @@ export async function run(ctx) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Recursively find all files under root matching globPattern.
- * Skips .git, .truss, node_modules.
+ * Recursively find all non-ignored files matching globPattern.
+ * The official root-level repo symlink is followed; other symlinks are skipped.
  */
-async function findGlobHits(root, globPattern) {
+async function findGlobHits(root, globPattern, isIgnored = () => false) {
   const re = globToRegex(globPattern)
   const hits = []
+  const visited = new Set()
 
   async function walk(dir, relDir) {
+    let realDir
+    try { realDir = await fs.realpath(dir) }
+    catch { return }
+    if (visited.has(realDir)) return
+    visited.add(realDir)
+
     let entries
     try { entries = await fs.readdir(dir, { withFileTypes: true }) }
     catch { return }
@@ -259,17 +279,61 @@ async function findGlobHits(root, globPattern) {
       if (name === '.git' || name === '.truss' || name === 'node_modules') continue
 
       const relPath = relDir ? `${relDir}/${name}` : name
+      const absPath = path.join(dir, name)
+      let isDir = entry.isDirectory()
+      if (entry.isSymbolicLink() && relPath === 'repo') {
+        try { isDir = (await fs.stat(absPath)).isDirectory() }
+        catch { isDir = false }
+      }
+      if (isIgnored(relPath, isDir)) continue
 
-      if (entry.isDirectory()) {
-        await walk(path.join(dir, name), relPath)
+      if (isDir) {
+        await walk(absPath, relPath)
       } else if (re.test(relPath)) {
-        hits.push(path.join(dir, name))
+        hits.push(absPath)
       }
     }
   }
 
   await walk(root, '')
   return hits
+}
+
+async function changedPathEvidence(root, globs, isIgnored) {
+  const rootGlobs = globs.filter(glob => !glob.startsWith('repo/'))
+  const repoGlobs = globs.filter(glob => glob.startsWith('repo/'))
+  const matches = globs.map(glob => ({ glob, hits: [] }))
+  const byGlob = new Map(matches.map(item => [item.glob, item]))
+  const limited = []
+
+  const inspect = async (checkout, relevantGlobs, prefix = '') => {
+    if (relevantGlobs.length === 0) return
+    const report = await gitChangedPaths(checkout)
+    if (!report.ok) {
+      if (report.reason !== 'disabled' && !(report.reason === 'not-a-checkout' && prefix === 'repo/' && !await pathExists(checkout))) {
+        limited.push(`${prefix || 'workspace'} git changes unavailable (${report.reason})`)
+      }
+      return
+    }
+
+    for (const glob of relevantGlobs) {
+      const re = globToRegex(glob)
+      const hits = report.paths
+        .map(rel => prefix + rel)
+        .filter(rel => !isIgnored(rel, false) && re.test(rel))
+      byGlob.get(glob).hits.push(...hits)
+    }
+    limited.push(`${prefix || 'workspace'} coverage includes uncommitted git paths only`)
+  }
+
+  await inspect(root, rootGlobs)
+  await inspect(path.join(root, 'repo'), repoGlobs, 'repo/')
+  return { matches, limited: [...new Set(limited)] }
+}
+
+async function pathExists(absPath) {
+  try { await fs.access(absPath); return true }
+  catch { return false }
 }
 
 /**

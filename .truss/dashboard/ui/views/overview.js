@@ -195,12 +195,12 @@ export class OverviewView extends Component {
 
       <div class="grid cols-auto-lg">
         <${Card} onClick=${() => go('context')}>
-          <${CardHead} icon=${Icons.Gauge} title="Context budget">
+          <${CardHead} icon=${Icons.Gauge} title="Boot metadata">
             <${Badge} variant=${bStat.tone}>${bStat.label}<//>
           <//>
           ${budget ? html`
             <div class="row" style="align-items:baseline;gap:7px;margin-bottom:12px">
-              <span class="stat-val">${bTokens.toLocaleString()}</span><span class="stat-unit">tokens mandatory reading</span></div>
+              <span class="stat-val">${bTokens.toLocaleString()}</span><span class="stat-unit">estimated tokens · mandatory Truss files</span></div>
             <${StackedBar} segments=${segs} />
             <div class="row wrap" style="gap:10px;margin-top:10px">${segs.slice(0, 5).map(s => html`
               <span class="dim" style="font-size:11.5px;display:inline-flex;align-items:center;gap:5px">

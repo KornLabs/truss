@@ -34,9 +34,14 @@ adapter stubs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`,
   must do at the start and end of a session, and the things it may never do
   (e.g. change the phase, edit a generated block by hand, commit secrets).
 
+Those limits are portable agent instructions, not a file-system sandbox. Truss
+can report evidence after the fact; it cannot prove who invoked a command or
+intercept writes made by an arbitrary agent host.
+
 Two regions of `AGENTS.md` are **generated** and marked with `truss:begin/end`
 comments: the *preferences* block and the *phase* block. You never edit these by
-hand — `truss set` and `truss render` are their only writers.
+hand — `truss set`, `truss render`, `truss phase`, and init route updates through
+the block writer.
 
 ## 3. The state layer
 
@@ -68,7 +73,8 @@ traced to one place:
 - `L-NNN` — a learning
 - `R-NNN` — a risk
 
-The `RF` checks verify that every referenced ID is defined exactly once.
+The `RF` checks verify links and structured IDs across Truss operational files,
+including every non-ignored Markdown file under `context/`.
 
 ## 5. Phases
 
@@ -87,7 +93,7 @@ the plan fits the project (e.g. a launch, migration, or operate phase). Each
 phase declares its `allowed`, `forbidden`, `forbidden-globs`, the files to
 `read`, and the `exit` criteria that must be met to leave it.
 
-Three rules make phases trustworthy:
+Three rules define the phase protocol:
 
 1. **Phase changes are human-only.** An agent never edits `current:` in
    `state/phases.md` or declares a phase done. When exit criteria look met, it
@@ -101,6 +107,14 @@ Three rules make phases trustworthy:
 3. **The phase block is generated.** `state/phases.md` is the source; running
    `truss render` writes the human-readable phase block into `AGENTS.md` so an
    agent always sees the active rules without loading the whole phase file.
+
+The protocol is advisory. PH-03 reports forbidden globs only when they match
+uncommitted paths visible through git; it does not detect changes committed
+since the phase began because Truss stores no phase-start revision. PH-07 makes
+that coverage limit visible. `truss phase <id>` runs the current phase's exit
+gate first and refuses the transition unless it passes or a human deliberately
+uses `--override-gate`; the flag is explicit confirmation, not actor
+authentication.
 
 **Phase profiles** are alternative seeds for the kickoff tailoring (e.g.
 `software` adds an `operate` phase; `founders-thinking` ends in a concept/park
@@ -117,10 +131,10 @@ has a severity — **E**rror, **W**arning, or **I**nfo — and an ID like `ST-02
 |---|---|
 | `ST` Structure | the structure table matches what's actually on disk |
 | `BL` Block | the generated preference/phase blocks haven't drifted |
-| `RF` Reference | every link resolves and every ID is defined exactly once |
+| `RF` Reference | operational links resolve and D/OD/HT/R/L IDs are defined exactly once, including under `context/` |
 | `SY` State | the state files have the required keys and aren't stale |
-| `PH` Phase | the phase grammar is valid; `--gate` adds exit-criteria checks |
-| `CX` Context | the mandatory per-session reading stays under the token budget |
+| `PH` Phase | grammar, uncommitted forbidden-path evidence, and `--gate` exit criteria |
+| `CX` Context | mandatory Truss boot metadata stays under the configured estimate |
 | `HY` Hygiene | flags `context/` domain files untouched for >90 days (archive nudge) |
 
 `doctor` is read-only. It reports; it never edits your files. `--fix-prompt`
@@ -161,7 +175,7 @@ house rules already live in `AGENTS.md`. Details:
 ## 9. The dashboard
 
 `truss dashboard` starts a local-only web view of the workspace — status,
-phases, decisions, the context budget, and drift warnings — and can trigger the
+phases, decisions, boot metadata, and drift warnings — and can trigger the
 safe, read-only/confined CLI actions. It binds to `127.0.0.1` only and never
 writes files directly. See
 [dashboard/README.md](../dashboard/README.md) and
@@ -170,5 +184,5 @@ writes files directly. See
 ---
 
 Put together: **files hold the truth, `AGENTS.md` boots the agent, the state
-layer is the memory, phases gate the work, and the doctor keeps it all
-consistent.** Everything else in the repo is an implementation of these ideas.
+layer is the memory, phases guide the work, and the doctor reports detectable
+drift.** Everything else in the repo is an implementation of these ideas.

@@ -1,15 +1,16 @@
 // checks/cx.mjs — Context-size check (CX-01)
 //
-// CX-01  W/E  the mandatory read-context exceeds the token budget
+// CX-01  W/E  mandatory Truss boot metadata exceeds the token budget
 //             (warn ≥ 9000, error ≥ 15000 token-equivalent; words × 1.5 heuristic)
 //
-// "Mandatory read-context" = the files an agent must load every session per the
+// "Mandatory Truss boot metadata" = the deterministic files an agent loads per the
 // AGENTS.md §1 load order, anchored to file *identities* (not the literal step
 // numbers, which a project may renumber): AGENTS.md (incl. both generated blocks)
 // + current.md + VISION.md + decisions.md + open-decisions.md + profile.md, plus
 // the current phase's `read:` targets (load-order step 6). open-decisions.md is
 // counted unconditionally (it is only conditionally loaded in §1, but a check
-// cannot know the task, so we count conservatively).
+// cannot know the task, so we count conservatively). Task-selected domain files,
+// source files, and agent-tool additions are outside this metric.
 //
 // Token factor 1.5 (not 1.35): truss files are markdown dense with tables, IDs,
 // paths and backticks, which tokenize into more sub-tokens than prose — 1.35 would
@@ -24,7 +25,7 @@ import path from 'node:path'
 import { CONTEXT_FILES, TOKENS_PER_WORD, wordCount, toTokens, phaseReadTargets } from '../lib/context-budget.mjs'
 
 export const meta = [
-  { id: 'CX-01', severity: 'W', title: 'mandatory read-context exceeds the token budget', description: 'W ≥ 9000, E ≥ 15000 token-equivalent (words × 1.5); emits a cleanup prompt (S-08)' },
+  { id: 'CX-01', severity: 'W', title: 'mandatory Truss boot metadata exceeds the token budget', description: 'Excludes task-selected domain/source context; W ≥ 9000, E ≥ 15000 token-equivalent (words × 1.5)' },
 ]
 
 const WARN_TOKENS      = 9000
@@ -75,7 +76,7 @@ export async function run(ctx) {
     findings.push({
       id: 'CX-01', severity,
       file: 'AGENTS.md',
-      message: `mandatory read-context ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold. Heaviest: ${heaviest}`,
+      message: `mandatory Truss boot metadata ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold. Task-selected domain/source context is not counted. Heaviest: ${heaviest}`,
       // Cleanup prompt (S-08) with the protection clause for system-relevant sections.
       fix: `Trim the boot context: review stale, duplicated, wrongly routed, oversized, bulk, or archive-worthy material in the always-loaded files (AGENTS.md, state/current.md, VISION.md, state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's read: targets). Move long-form material into on-demand docs/ or domain files, move bulk data to .trussignore, and archive superseded material with a one-line invalidation note. Do NOT remove system-relevant parts: the §2 structure table, the §1 load order, the generated preference/phase blocks, or canonical D-NNN decisions. Re-run doctor afterwards — the ST/BL/RF checks confirm nothing essential was lost.`,
     })

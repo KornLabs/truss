@@ -15,7 +15,7 @@ import { promisify } from 'node:util'
 import {
   parseFrontmatter, parseTableRow, parseTrussMarker,
   parseLinks, parseBlocks, parsePhases, parseIdReferences, parseIdDefinitions,
-  headingToAnchor, parseHeadings,
+  headingToAnchor, parseHeadings, parsePhaseList,
 } from '../lib/md.mjs'
 
 import { parseStructureTable, loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
@@ -44,6 +44,14 @@ describe('parseFrontmatter', () => {
     assert.equal(data.current, 'discover')
     assert.equal(data.profile, 'software')
     assert.equal(bodyStart, 4)
+  })
+
+  describe('parsePhaseList', () => {
+    it('accepts comma and semicolon separators consistently', () => {
+      assert.deepEqual(parsePhaseList('repo/**, pm/**; context/tmp/**'), [
+        'repo/**', 'pm/**', 'context/tmp/**',
+      ])
+    })
   })
 
   it('returns empty when no frontmatter', () => {
@@ -909,9 +917,16 @@ describe('BL-02: phase block drift (T1)', () => {
 // ── T3: checks fire correctly (PH-03, RF-04, ST-02/03/05) ─────────────────────
 
 describe('PH-03: forbidden-glob hit fires (T3)', () => {
-  it('flags a file that matches the current phase forbidden-glob', async () => {
+  it('flags a changed path, not a pre-existing clean file', async () => {
     const tmp = await mkTmp('ph03')
     await writeFileIn(tmp, 'repo/src/index.js', 'console.log(1)\n')
+    await execFileP('git', ['init'], { cwd: path.join(tmp, 'repo') })
+    await execFileP('git', ['add', '.'], { cwd: path.join(tmp, 'repo') })
+    await execFileP(
+      'git',
+      ['-c', 'user.name=Truss Test', '-c', 'user.email=truss@example.invalid', 'commit', '-m', 'baseline'],
+      { cwd: path.join(tmp, 'repo') }
+    )
     const defs = new Map([['build', {
       purpose: 'p.', behavior: 'b.', exit: 'done (human)', 'forbidden-globs': 'repo/**',
     }]])
@@ -919,6 +934,10 @@ describe('PH-03: forbidden-glob hit fires (T3)', () => {
       root: tmp, gate: false,
       phases: { ordered: ['build'], defs, frontmatter: { current: 'build' } },
     }
+    const cleanFindings = await ph.run(ctx)
+    assert.equal(cleanFindings.filter(f => f.id === 'PH-03').length, 0,
+      'pre-existing committed files must not be treated as phase violations')
+    await writeFileIn(tmp, 'repo/src/index.js', 'console.log(2)\n')
     const findings = await ph.run(ctx)
     assert(findings.some(f => f.id === 'PH-03' && f.message.includes('repo/**')),
       `should flag forbidden-glob hit; got ${JSON.stringify(findings)}`)

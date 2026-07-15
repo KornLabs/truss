@@ -15,7 +15,7 @@ import { AboutView } from './ui/views/about.js';
 const NAV = [
   { id: 'overview', label: 'Overview', icon: Icons.Overview, sub: 'Status at a glance', view: OverviewView },
   { id: 'control', label: 'Control center', icon: Icons.Terminal, sub: 'Run checks and scripts', view: ControlView },
-  { id: 'context', label: 'Context budget', icon: Icons.Gauge, sub: 'Mandatory-reading footprint', view: ContextView },
+  { id: 'context', label: 'Boot metadata', icon: Icons.Gauge, sub: 'Mandatory Truss footprint', view: ContextView },
   { id: 'map', label: 'Project map', icon: Icons.Map, sub: 'Architecture overview', view: MapView },
   { id: 'prompts', label: 'Prompt library', icon: Icons.Star, sub: 'Base and custom prompts', view: PromptsView },
   { id: 'preferences', label: 'Preferences', icon: Icons.Sliders, sub: 'Agent directives (AGENTS.md)', view: PreferencesView },

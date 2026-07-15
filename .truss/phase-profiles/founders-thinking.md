@@ -18,7 +18,7 @@ purpose: explore the idea, map the problem space, and sketch the market and cust
 behavior: divergent — generate options, defer judgment, no premature convergence.
 allowed: domain notes, market and customer research, open questions, sketches, VISION.md sections.
 forbidden: code in repo/, final decisions without D-entry, spec documents, committing to a single solution.
-forbidden-globs: repo/**, pm/**
+forbidden-globs: repo/**; pm/**
 read: state/profile.md
 exit: section: VISION.md#Problem; glob: context/market*.md; glob: context/customer*.md; pursue/park leaning noted (human)
 prompts: discover-kickoff, phase-recap
@@ -30,7 +30,7 @@ purpose: test the riskiest assumptions with external evidence before shaping a c
 behavior: empirical — seek disconfirming evidence; a failed assumption is a success.
 allowed: user interviews, competitor analysis, willingness-to-pay probes, assumption logs, survey notes.
 forbidden: code in repo/, treating the idea as proven, ignoring contrary signals, locking scope.
-forbidden-globs: repo/**, pm/**
+forbidden-globs: repo/**; pm/**
 read: state/profile.md, VISION.md
 exit: glob: context/customer*.md; section: VISION.md#Principles; key assumptions tested with external evidence (human)
 prompts: validate-kickoff, phase-recap
@@ -42,7 +42,7 @@ purpose: synthesize discovery and validation into a concept dossier and a pursue
 behavior: convergent and honest — make the strongest case, then test it; a park is a valid outcome.
 allowed: concept dossier, value proposition, assumption status, risk list, decision briefings.
 forbidden: code in repo/, building or scaffolding the solution, deferring the pursue/park decision.
-forbidden-globs: repo/**, pm/**
+forbidden-globs: repo/**; pm/**
 read: state/profile.md, VISION.md, state/decisions.md
 exit: glob: context/concept*.md; section: context/concept.md#Recommendation; pursue/park decision recorded as D-entry (human)
 prompts: concept-kickoff, concept-recap

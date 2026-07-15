@@ -12,7 +12,10 @@ import { promisify } from 'node:util'
 import * as sy from '../checks/sy.mjs'
 import * as cx from '../checks/cx.mjs'
 import * as hy from '../checks/hy.mjs'
-import { makeRoot, read, runChecks } from './helpers.mjs'
+import * as ph from '../checks/ph.mjs'
+import * as rf from '../checks/rf.mjs'
+import { loadWorkspace } from '../lib/workspace.mjs'
+import { makeRoot, read, runChecks, ENGINE_DIR } from './helpers.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 
 const execFileP = promisify(execFile)
@@ -306,6 +309,92 @@ describe('risk migration bridge', () => {
       0
     )
     await fs.rm(root, { recursive: true, force: true })
+  })
+
+  describe('RF operational context coverage', () => {
+    it('checks duplicate IDs, undefined learnings, and broken links in context/', async () => {
+      const root = await makeRoot('truss-rf-context-')
+      await runInit(root, ['--name', 'RF Context', '--lang', 'English'])
+      await fs.mkdir(path.join(root, 'context'), { recursive: true })
+      await fs.appendFile(
+        path.join(root, 'state', 'decisions.md'),
+        '\n## D-001 — Canonical choice\n\nDate: 2026-07-15\nDecision: Use A.\nWhy: evidence.\nConsequences: proceed.\n'
+      )
+      await fs.writeFile(
+        path.join(root, 'context', 'domain.md'),
+        '# Domain\n\n## D-001 — Duplicate choice\n\nSee L-999 and [missing](missing.md).\n'
+      )
+      const findings = await runChecks(root)
+      assert.ok(findings.some(f => f.id === 'RF-03' && /D-001/.test(f.message)))
+      assert.ok(findings.some(f => f.id === 'RF-02' && /L-999/.test(f.message)))
+      assert.ok(findings.some(f => f.id === 'RF-01' && f.file === 'context/domain.md'))
+      await fs.rm(root, { recursive: true, force: true })
+    })
+  })
+
+  describe('bundled phase fixtures', () => {
+    it('parses every bundled profile with the same list grammar', async () => {
+      for (const name of ['software', 'founders-thinking']) {
+        const root = await makeRoot(`truss-profile-${name}-`)
+        await runInit(root, ['--name', name, '--lang', 'English'])
+        const profile = await fs.readFile(path.join(ENGINE_DIR, 'phase-profiles', `${name}.md`), 'utf8')
+        await fs.writeFile(path.join(root, 'state', 'phases.md'), profile)
+        const ctx = await loadWorkspace(root)
+        const findings = [...await ph.run(ctx), ...await rf.run(ctx)]
+        assert.equal(findings.filter(f => f.id === 'PH-01').length, 0, name)
+        assert.equal(findings.filter(f => f.id === 'RF-04').length, 0, name)
+        await fs.rm(root, { recursive: true, force: true })
+      }
+    })
+
+    it('accepts the artifact produced by the official overlay onboarding ritual', async () => {
+      const root = await makeRoot('truss-overlay-gate-')
+      await runInit(root, ['--name', 'Overlay', '--lang', 'English', '--overlay'])
+      await fs.mkdir(path.join(root, 'context'), { recursive: true })
+      await fs.writeFile(path.join(root, 'context', 'import-log.md'), '# Import log\n')
+      const ctx = await loadWorkspace(root)
+      ctx.gate = true
+      const findings = await ph.run(ctx)
+      assert.equal(
+        findings.filter(f => f.id === 'PH-04' && f.severity === 'E').length,
+        0,
+        JSON.stringify(findings)
+      )
+      await fs.rm(root, { recursive: true, force: true })
+    })
+
+    it('checks a symlinked overlay checkout and honors .trussignore', async () => {
+      const priorNoGit = process.env.TRUSS_NO_GIT
+      delete process.env.TRUSS_NO_GIT
+      const src = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-overlay-src-'))
+      const root = await makeRoot('truss-overlay-symlink-')
+      try {
+        await execFileP('git', ['init'], { cwd: src })
+        await fs.writeFile(path.join(src, 'blocked.js'), 'export const value = 1\n')
+        await fs.writeFile(path.join(src, 'ignored.js'), 'export const ignored = 1\n')
+        await execFileP('git', ['add', '.'], { cwd: src })
+        await execFileP(
+          'git',
+          ['-c', 'user.name=Truss Test', '-c', 'user.email=truss@example.invalid', 'commit', '-m', 'baseline'],
+          { cwd: src }
+        )
+        await runInit(root, ['--name', 'Overlay', '--lang', 'English', '--overlay', '--repo', src])
+        await fs.writeFile(path.join(src, 'blocked.js'), 'export const value = 2\n')
+        await fs.writeFile(path.join(src, 'ignored.js'), 'export const ignored = 2\n')
+        await fs.writeFile(path.join(root, '.trussignore'), 'repo/ignored.js\n')
+
+        const ctx = await loadWorkspace(root)
+        const findings = await ph.run(ctx)
+        const violation = findings.find(f => f.id === 'PH-03')
+        assert.match(violation?.message || '', /repo\/blocked\.js/)
+        assert.doesNotMatch(violation?.message || '', /ignored\.js/)
+      } finally {
+        if (priorNoGit == null) delete process.env.TRUSS_NO_GIT
+        else process.env.TRUSS_NO_GIT = priorNoGit
+        await fs.rm(root, { recursive: true, force: true })
+        await fs.rm(src, { recursive: true, force: true })
+      }
+    })
   })
 })
 

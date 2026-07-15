@@ -1,8 +1,8 @@
 // lib/writer.mjs — The single block writer for AGENTS.md (GE-9)
 //
 // AGENTS.md has exactly two generated blocks (preferences, phase).
-// This is the ONLY module that writes to AGENTS.md.
-// All commands (render, set) go through writeBlock().
+// This is the only writer of generated AGENTS.md block contents.
+// Commands that render blocks (init, render, set, phase) go through writeBlock().
 
 import fs from 'node:fs/promises'
 import path from 'node:path'

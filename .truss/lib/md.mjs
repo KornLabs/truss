@@ -22,8 +22,21 @@ export function parseFrontmatter(lines) {
     } else if (currentKey) {
       data[currentKey] += '\n' + line.trim();
     }
+
   }
   return { data, bodyStart: i };
+}
+
+/**
+ * Parse a list-valued phase field. Commas are the documented form; semicolons
+ * remain accepted so older profiles and hand-written phase files stay valid.
+ */
+export function parsePhaseList(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/[;,]/)
+    .map(item => item.trim())
+    .filter(Boolean);
 }
 
 /**

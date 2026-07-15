@@ -100,11 +100,11 @@ export class AboutOverviewView extends Component {
               <tr><td style="font-weight:500">Cost to run</td><td><strong>None</strong> — your existing subscription</td><td>None</td><td>Often metered API keys</td></tr>
               <tr><td style="font-weight:500">Memory</td><td>Structured Markdown: context, decisions, phases</td><td>One flat file you curate</td><td>Framework DB or vendor store</td></tr>
               <tr><td style="font-weight:500">Drift detection</td><td>${code('doctor')} checks the files agree</td><td>None</td><td>Varies</td></tr>
-              <tr><td style="font-weight:500">Guardrails</td><td>Human-gated phases narrow allowed actions</td><td>None</td><td>Often fully autonomous</td></tr>
+              <tr><td style="font-weight:500">Guardrails</td><td>Advisory phases + changed-path and exit reports</td><td>None</td><td>Often fully autonomous</td></tr>
               <tr><td style="font-weight:500">Who decides</td><td>Humans & agents; scripts only report</td><td>You</td><td>Framework may act alone</td></tr>
               <tr><td style="font-weight:500">Tool-agnostic</td><td>Yes — AGENTS.md standard</td><td>Yes</td><td>Usually one runtime</td></tr>
               <tr><td style="font-weight:500">Lock-in</td><td><strong>None</strong> — plain, git-diffable files</td><td>None</td><td>Framework + sometimes hosted state</td></tr>
-              <tr><td style="font-weight:500">Context load</td><td>~3k tokens</td><td>Whatever you put in</td><td>Can be heavy</td></tr>
+              <tr><td style="font-weight:500">Boot metadata</td><td>~3.8k estimated tokens</td><td>Whatever you put in</td><td>Can be heavy</td></tr>
             </tbody>
           </table>
         </div>

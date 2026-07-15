@@ -17,9 +17,10 @@ text can never drift from what is actually dispatched.
 
 ## `init`
 
-Scaffold a **fresh** workspace from the core baseline. It only ever *writes*
-whole files that don't exist yet — it never overwrites a live workspace, so it is
-safe to re-run.
+Preflight and scaffold a workspace from the core baseline. Fatal write failures
+roll back files created by that run. Existing files are preserved unless the
+user explicitly adopts `AGENTS.md` or overlay init adds `repo/` to an existing
+`.gitignore`.
 
 ```bash
 truss init --name "My Project" --lang English
@@ -31,6 +32,7 @@ truss init --name "My Project" --lang English
 | `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
 | `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore` |
 | `--repo <path\|url>` | (overlay only) bring the existing code in under `repo/`: a local path is symlinked, a URL is `git clone`d. Best-effort — a failure is reported, never fatal |
+| `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 
 With no flags in a TTY, `init` asks interactively. With no TTY and missing
 required answers it errors instead of hanging.
@@ -95,16 +97,19 @@ Show the phases, or set the current one. With no argument it lists every defined
 phase and marks where you are. With an `<id>` it validates the id against
 `state/phases.md`, updates the `current:` pointer, and re-renders the `AGENTS.md`
 phase block — the supported alternative to hand-editing `current:` and remembering
-to `render`.
+to `render`. Before changing `current:`, the command runs the active phase's exit
+gate.
 
 ```bash
 truss phase            # list phases, show the current one
-truss phase operate    # switch to a defined phase and re-render
+truss phase operate                    # switch only when the exit gate is clear
+truss phase operate --override-gate    # explicit human confirmation/override
 ```
 
-Phase changes stay **human-only** (AGENTS.md §4): this is your deliberate
-set/override, not something the agent runs to self-advance. It does not bypass the
-phase-exit ritual — confirm the previous phase's exit criteria were met first.
+Phase changes stay **human-only** by protocol (AGENTS.md §4). The CLI cannot
+authenticate the caller, but it refuses unmet machine or human gate results
+unless `--override-gate` is present. That flag records explicit intent; it is not
+proof that a human invoked the command.
 
 ---
 
@@ -156,8 +161,8 @@ truss map
 
 ## `dashboard`
 
-Start the local web dashboard — a browser view of status, phases, decisions, the
-context budget, and drift warnings. Binds to `127.0.0.1` only.
+Start the local web dashboard — a browser view of status, phases, decisions,
+mandatory Truss boot metadata, and drift warnings. Binds to `127.0.0.1` only.
 
 ```bash
 truss dashboard

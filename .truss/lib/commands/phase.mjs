@@ -8,10 +8,9 @@
 //                           `current:` frontmatter line, and re-render the
 //                           AGENTS.md phase block so the two never drift.
 //
-// This does NOT bypass the phase-exit ritual (AGENTS.md §4): it is the human's
-// deliberate set/override, and prints a reminder to confirm the previous phase's
-// exit criteria were met. Phase changes stay human-only — the agent never calls
-// this to self-advance.
+// A transition runs the active phase's PH-04 gate first. Uncleared machine or
+// human criteria require --override-gate. This records explicit intent but does
+// not authenticate that the caller is human.
 //
 // runPhase RETURNS a result object (testable in-process) and THROWS PhaseError on
 // a fatal user error; the dispatcher maps that to a non-zero exit.
@@ -22,6 +21,8 @@ import { parsePhases } from '../md.mjs'
 import { renderPhaseBlock } from '../render.mjs'
 import { writeBlock } from '../writer.mjs'
 import { loadWorkspace } from '../workspace.mjs'
+import { writeFileAtomic } from '../scaffold.mjs'
+import * as phaseChecks from '../../checks/ph.mjs'
 
 export class PhaseError extends Error {}
 
@@ -45,7 +46,13 @@ export function setCurrentInFrontmatter(raw, id) {
  * @returns {Promise<object>} Result summary (also printed). Throws PhaseError on fatal error.
  */
 export async function runPhase(root, argv) {
-  const target = argv[0]
+  const overrideGate = argv.includes('--override-gate')
+  const positional = argv.filter(arg => !arg.startsWith('--'))
+  const unknownFlags = argv.filter(arg => arg.startsWith('--') && arg !== '--override-gate')
+  if (unknownFlags.length > 0 || positional.length > 1) {
+    throw new PhaseError("phase: usage: phase [<id>] [--override-gate]")
+  }
+  const target = positional[0]
   const phasesPath = path.join(root, 'state', 'phases.md')
 
   let raw
@@ -76,19 +83,46 @@ export async function runPhase(root, argv) {
     return { changed: false, current: currentId }
   }
 
+  const gateCtx = await loadWorkspace(root)
+  gateCtx.gate = true
+  const gateFindings = (await phaseChecks.run(gateCtx)).filter(f => f.id === 'PH-04')
+  if (gateFindings.length > 0 && !overrideGate) {
+    const details = gateFindings.map(f => `       - ${f.message}`).join('\n')
+    throw new PhaseError(
+      `phase: exit gate for '${currentId}' is not cleared:\n${details}\n` +
+      "       A human may confirm or override these results with --override-gate."
+    )
+  }
+
   // Write the new current:, then re-render the AGENTS.md phase block. Render
   // through loadWorkspace (identical to `truss render` and the BL-02 drift
   // check) so the written block is byte-identical to the canonical render.
-  await fs.writeFile(phasesPath, setCurrentInFrontmatter(raw, target), 'utf8')
-  const ctx = await loadWorkspace(root)
-  const cp = ctx.phases
-  const def = cp.defs.get(target)
+  const agentsPath = path.join(root, 'AGENTS.md')
+  const agentsRaw = await fs.readFile(agentsPath, 'utf8')
+  await writeFileAtomic(phasesPath, setCurrentInFrontmatter(raw, target))
+  let cp
+  try {
+    const ctx = await loadWorkspace(root)
+    cp = ctx.phases
+    const def = cp.defs.get(target)
+    const pos = cp.ordered.indexOf(target) + 1
+    const total = cp.ordered.length
+    await writeBlock(agentsPath, 'phase', renderPhaseBlock(def, target, pos, total))
+  } catch (err) {
+    const rollbackErrors = []
+    try { await writeFileAtomic(phasesPath, raw) }
+    catch (rollbackErr) { rollbackErrors.push(`state/phases.md: ${rollbackErr.message}`) }
+    try { await writeFileAtomic(agentsPath, agentsRaw) }
+    catch (rollbackErr) { rollbackErrors.push(`AGENTS.md: ${rollbackErr.message}`) }
+    const rollbackMessage = rollbackErrors.length === 0
+      ? 'transition was rolled back'
+      : `rollback was incomplete (${rollbackErrors.join('; ')})`
+    throw new PhaseError(`phase: render failed; ${rollbackMessage}: ${err.message}`)
+  }
+
   const pos = cp.ordered.indexOf(target) + 1
   const total = cp.ordered.length
-  await writeBlock(path.join(root, 'AGENTS.md'), 'phase', renderPhaseBlock(def, target, pos, total))
-
   console.log(`truss phase: ${currentId ?? '(none)'} → ${target} (${pos}/${total}) — AGENTS.md re-rendered.`)
-  console.log('  Reminder: phase changes are a human action — confirm the previous phase\'s')
-  console.log('  exit criteria were met before working (AGENTS.md §4).')
-  return { changed: true, from: currentId, current: target, position: pos, total }
+  console.log(`  Gate: ${gateFindings.length === 0 ? 'passed mechanically' : 'overridden by explicit human action'}.`)
+  return { changed: true, from: currentId, current: target, position: pos, total, gateOverridden: gateFindings.length > 0 }
 }

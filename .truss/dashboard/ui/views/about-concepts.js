@@ -49,7 +49,7 @@ export class AboutConceptsView extends Component {
           </ul>
           <p class="muted" style="margin:10px 0 0;font-size:12.5px">
             Two regions are generated (${code('truss:begin/end')} markers): the preferences block and the phase block.
-            Never edit these by hand — ${code('truss set')} and ${code('truss render')} are their only writers.
+            Never edit these by hand — Truss commands route updates through the generated-block writer.
           </p>
         </div>
       <//>
@@ -145,7 +145,7 @@ export class AboutConceptsView extends Component {
                 <tr><td>Reference</td><td>${code('RF')}</td><td>Every link resolves, every ID is unique</td></tr>
                 <tr><td>State</td><td>${code('SY')}</td><td>State files have required keys, aren't stale</td></tr>
                 <tr><td>Phase</td><td>${code('PH')}</td><td>Phase grammar valid; ${code('--gate')} checks exit criteria</td></tr>
-                <tr><td>Context</td><td>${code('CX')}</td><td>Mandatory reading under token budget</td></tr>
+                <tr><td>Context</td><td>${code('CX')}</td><td>Mandatory Truss boot metadata under budget</td></tr>
                 <tr><td>Hygiene</td><td>${code('HY')}</td><td>Flags domain files untouched >90 days</td></tr>
               </tbody>
             </table>
