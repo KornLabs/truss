@@ -1,19 +1,19 @@
-// lib/git.mjs — read-only git helpers for the nested overlay repo/.
+// lib/git.mjs — read-only git helpers for the configured code root.
 //
 // The doctor checks stay pure file reads by design (see checks/sy.mjs). The
-// branch awareness for an overlay lives OUTSIDE the check engine — in `truss
+// branch awareness for a code root lives OUTSIDE the check engine — in `truss
 // status` and the dashboard — and that is what this module powers. It only ever
 // READS git state (never mutates), shells out with execFile (no shell), short
 // timeouts, and degrades gracefully so a missing git binary or a non-overlay
-// project is a quiet skip, never an error.
+// workspace without a code root is a quiet skip, never an error.
 //
-// `repo/` may be a clone, a symlink to a checkout, or (advanced) a tracked
-// submodule — in every case `repo/.git` resolves, so the same calls work.
+// The configured directory may be a clone, a symlink, or a tracked submodule.
 
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { resolveCodeRoot } from './code-root.mjs'
 
 const execFileP = promisify(execFile)
 
@@ -109,7 +109,7 @@ export async function declaredBranch(root) {
 }
 
 /**
- * Compare the overlay's checked-out branch against the declared `branch:`.
+ * Compare the configured code root's checked-out branch against `branch:`.
  * The single source of truth for status + the dashboard. Never throws.
  * @returns {Promise<{
  *   present:boolean, info:object, declared:string|null,
@@ -120,12 +120,22 @@ export async function declaredBranch(root) {
  *      can surface that state.
  */
 export async function branchReport(root) {
-  const repoDir = path.join(root, 'repo')
-  const info = await repoBranchInfo(repoDir)
+  const codeRoot = await resolveCodeRoot(root)
+  if (!codeRoot.rel || codeRoot.error) {
+    return {
+      present: false,
+      info: { ok: false, branch: null, detached: false, sha: null, reason: 'no-code-root' },
+      declared: await declaredBranch(root),
+      match: false,
+      mismatch: false,
+      codeRoot: codeRoot.rel,
+    }
+  }
+  const info = await repoBranchInfo(codeRoot.abs)
   const declared = await declaredBranch(root)
   const present = info.ok || (info.reason !== 'not-a-checkout' && info.reason !== 'disabled')
   const onBranch = info.ok && !info.detached && info.branch
   const match = !!(onBranch && declared && info.branch === declared)
   const mismatch = !!(declared && ((onBranch && info.branch !== declared) || info.detached))
-  return { present, info, declared, match, mismatch }
+  return { present, info, declared, match, mismatch, codeRoot: codeRoot.rel }
 }

@@ -195,6 +195,17 @@ starts an `ingest` phase that first asks you the context the code can't reveal,
 then surveys the code. Full walkthrough:
 [.truss/docs/overlay.md](.truss/docs/overlay.md).
 
+Already have one code directory inside the workspace (for example a tracked
+submodule)? Keep it where it is and select it explicitly:
+
+```bash
+node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English \
+  --code-root product
+```
+
+Truss records `code-root: product` in `state/profile.md`; checks, branch status,
+phase evidence, `map`, and `repo-map` then share that single boundary.
+
 ## Agent setup
 
 Truss needs the AI tool to have **terminal/command execution** permission in

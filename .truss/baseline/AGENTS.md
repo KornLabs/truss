@@ -34,13 +34,13 @@ This table lists core system files. Domain (topic) files live under `context/` a
 | VISION.md | H+A | problem, idea, principles, constraints |
 | HUMAN-TODOS.md | A→H | everything only a human can do (HT-NNN, ≤2 lines each); humans check off; settled `[x]` entries move to archive/human-todos.md |
 | state/map.md (on demand) | S | auto-generated domain map; read-only |
-| state/current.md | A | focus · next (≤5) · blockers · recently done (≤7 days); update every session end |
+| state/current.md | A | concise focus · next (≤5) · blockers · recently done (≤7 days); one line per item, details in owning domain |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
 | state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN with `Closes:`, remove here (no tombstones) |
 | state/risks.md | A | risks R-NNN; load for risk, Go/No-Go, strategy, launch, safety, or blocker work |
 | state/learnings.md | A | systemic agent/framework weaknesses and structural fixes; not a product bug log |
 | state/phases.md | H pointer · H+A definitions | phase definitions and `current:` pointer |
-| state/profile.md | H+A | project name/language, PM method, tools and subscriptions, style and moral notes |
+| state/profile.md | H+A | project name/language, optional code-root, PM method, tools/subscriptions, style and moral notes |
 | docs/conventions.md | A | ID schemes, entry grammars, file templates |
 | docs/protocols.md | A | session ritual detail, controlled forgetting |
 | docs/git.md | A | commit discipline, overlay git mechanics |
@@ -87,9 +87,9 @@ IDs: D-NNN decisions · HT-NNN human todos · OD-NNN open decisions · L-NNN lea
 
 ## 4 Session protocol
 
-Start: load §1; state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If a `repo/` overlay exists, confirm its checked-out branch matches `state/current.md` `branch:` before working — run `node .truss/bin/truss.mjs status`; resolve a mismatch per `branch-guard`.
+Start: load §1; state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If profile.md configures a code-root, confirm its checked-out branch matches `state/current.md` `branch:` before working — run `node .truss/bin/truss.mjs status`; resolve a mismatch per `branch-guard`.
 During: respect the phase block; flag instead of drifting; if a task would violate `forbidden`, stop and ask (phase-lock).
-End — mandatory: update state/current.md (incl. `branch:` if a `repo/` overlay is in use); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; if CLI is unavailable, manually check the touched files and say that mechanical validation did not run. At phase exits use the procedure below (`doctor --gate`).
+End — mandatory: update state/current.md (incl. `branch:` when a code-root is configured); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; if CLI is unavailable, manually check the touched files and say that mechanical validation did not run. At phase exits use the procedure below (`doctor --gate`).
 
 Phase exit — when exit criteria appear met (never self-declare a phase change):
 1. Run `node .truss/bin/truss.mjs doctor --gate` — collect all exit findings.
@@ -107,7 +107,7 @@ Phase exit — when exit criteria appear met (never self-declare a phase change)
 - Never store the same truth twice, create empty folders, or add per-folder index files.
 - Never delete a decision — supersede it.
 - Never ignore a known problem — fix it if no human input is needed, otherwise flag it explicitly (open-decisions or HT entry).
-- Any subagent you spawn inherits your active preferences (`phase-lock`, `branch-guard`, `auto-commit`, …) and the current phase's forbidden list / `forbidden-globs`. Before any write to a forbidden path (e.g. `repo/**`) a subagent MUST re-check the phase gate and refuse if the phase forbids it — recursively for subagents it spawns in turn. This is the canonical inheritance rule; spawn prompts reference it rather than restating it.
+- Any subagent you spawn inherits your active preferences (`phase-lock`, `branch-guard`, `auto-commit`, …) and the current phase's forbidden list / `forbidden-globs`. Before any write to a forbidden path (including configured code-root paths) a subagent MUST re-check the phase gate and refuse if the phase forbids it — recursively for subagents it spawns in turn. This is the canonical inheritance rule; spawn prompts reference it rather than restating it.
 
 ## 6 On-demand docs
 

@@ -12,6 +12,8 @@
 //                       a local path is symlinked, a URL is `git clone`d (best-effort).
 //                       The nested repo/ keeps its own git history; the workspace
 //                       gitignores it, so the two never share commits.
+//   --code-root <dir> → (overlay only) use an existing relative directory instead
+//                       of repo/; no placement or .gitignore mutation.
 // Missing required answers + TTY → interactive readline; no TTY → error (no hang).
 //
 // A project that needs a different lifecycle (software's +operate, the
@@ -47,6 +49,11 @@ import { renderPrefsBlock, renderPhaseBlock } from "../render.mjs";
 import { parsePhases, parseBlocks } from "../md.mjs";
 import { defaultPrefsRows } from "../defaults.mjs";
 import { generateMapContent } from "./map.mjs";
+import {
+  assertExistingCodeRoot,
+  CodeRootError,
+  normalizeCodeRoot,
+} from "../code-root.mjs";
 
 const execFileP = promisify(execFile);
 
@@ -72,6 +79,7 @@ export function parseInitArgs(argv) {
     lang: null,
     overlay: false,
     repo: null,
+    codeRoot: null,
     adoptAgents: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -91,18 +99,37 @@ export function parseInitArgs(argv) {
     else if (a === "--name") opts.name = value("--name");
     else if (a === "--lang") opts.lang = value("--lang");
     else if (a === "--repo") opts.repo = value("--repo");
+    else if (a === "--code-root") opts.codeRoot = value("--code-root");
     else if (a.startsWith("--name=")) opts.name = a.slice("--name=".length);
     else if (a.startsWith("--lang=")) opts.lang = a.slice("--lang=".length);
     else if (a.startsWith("--repo=")) opts.repo = a.slice("--repo=".length);
+    else if (a.startsWith("--code-root=")) opts.codeRoot = a.slice("--code-root=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo --adopt-agents`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo --code-root --adopt-agents`,
       );
   }
   if (opts.repo && !opts.overlay) {
     throw new InitError(
       "init: --repo only applies with --overlay (it places existing code under repo/).",
     );
+  }
+  if (opts.codeRoot && !opts.overlay) {
+    throw new InitError(
+      "init: --code-root only applies with --overlay (it selects existing code inside the workspace).",
+    );
+  }
+  if (opts.repo && opts.codeRoot) {
+    throw new InitError(
+      "init: --repo and --code-root are mutually exclusive; place code under repo/ or select an existing directory.",
+    );
+  }
+  if (opts.codeRoot) {
+    try { opts.codeRoot = normalizeCodeRoot(opts.codeRoot); }
+    catch (err) {
+      if (err instanceof CodeRootError) throw new InitError(`init: ${err.message}`);
+      throw err;
+    }
   }
   return opts;
 }
@@ -128,7 +155,7 @@ async function resolveInteractive(opts) {
         .toLowerCase();
       if (o === "y" || o === "yes") opts.overlay = true;
     }
-    if (opts.overlay && !opts.repo) {
+    if (opts.overlay && !opts.repo && !opts.codeRoot) {
       opts.repo =
         (
           await rl.question(
@@ -214,10 +241,15 @@ function assertRenderMarkers(content) {
 }
 
 /** Resolve the single phase-source content for state/phases.md. */
-async function resolvePhasesContent(baselineDir, overlay) {
-  if (overlay)
-    return fs.readFile(path.join(baselineDir, "overlay", "phases.md"), "utf8");
-  return fs.readFile(path.join(baselineDir, "state", "phases.md"), "utf8");
+async function resolvePhasesContent(baselineDir, overlay, codeRoot = null) {
+  const source = overlay
+    ? path.join(baselineDir, "overlay", "phases.md")
+    : path.join(baselineDir, "state", "phases.md");
+  const raw = await fs.readFile(source, "utf8");
+  if (overlay && codeRoot && codeRoot !== "repo") {
+    return raw.replaceAll("repo/**", `${codeRoot}/**`);
+  }
+  return raw;
 }
 
 async function gitInitMaybe(root, report) {
@@ -293,6 +325,14 @@ export async function runInit(root, argv) {
       "init: --name and --lang are required (or run in a TTY to answer interactively).",
     );
   }
+  if (opts.codeRoot) {
+    try { await assertExistingCodeRoot(root, opts.codeRoot); }
+    catch (err) {
+      if (err instanceof CodeRootError) throw new InitError(`init: ${err.message}`);
+      throw err;
+    }
+  }
+  const codeRoot = opts.overlay ? (opts.codeRoot || "repo") : null;
 
   const trussDir = path.join(root, ".truss");
   const baselineDir = path.join(trussDir, "baseline");
@@ -303,7 +343,11 @@ export async function runInit(root, argv) {
   }
 
   // Resolve and validate every prerequisite before the first workspace write.
-  const phasesContent = await resolvePhasesContent(baselineDir, opts.overlay);
+  const phasesContent = await resolvePhasesContent(
+    baselineDir,
+    opts.overlay,
+    codeRoot,
+  );
   const parsed = parsePhases(phasesContent.split("\n"));
   const currentId = parsed.frontmatter.current;
   const def = parsed.defs.get(currentId);
@@ -320,6 +364,12 @@ export async function runInit(root, argv) {
     );
   }
   const agentsPlan = await prepareAgents(root, baselineDir, opts.adoptAgents);
+  if (codeRoot && codeRoot !== "repo") {
+    agentsPlan.content = agentsPlan.content.replaceAll(
+      "| repo/ (on demand) |",
+      `| ${codeRoot}/ (on demand) |`,
+    );
+  }
   const inventory = await inventoryTree(baselineDir, root);
   const mapPath = path.join(root, "state", "map.md");
   try {
@@ -410,7 +460,10 @@ export async function runInit(root, argv) {
     await prewrite("state/phases.md", phasesContent);
     for (const rel of ["VISION.md", "README.md", "state/profile.md"]) {
       const raw = await fs.readFile(path.join(baselineDir, rel), "utf8");
-      await prewrite(rel, subst(raw));
+      const configured = rel === "state/profile.md"
+        ? subst(raw).replace(/^code-root:.*$/m, `code-root: ${codeRoot || ""}`)
+        : subst(raw);
+      await prewrite(rel, configured);
     }
 
     const agentsMd = path.join(root, "AGENTS.md");
@@ -422,7 +475,7 @@ export async function runInit(root, argv) {
       await writeFileAtomic(agentsMd, agentsPlan.content);
     }
 
-    if (opts.overlay) {
+    if (opts.overlay && codeRoot === "repo") {
       const giPath = path.join(root, ".gitignore");
       const baselineGi = await fs.readFile(path.join(baselineDir, ".gitignore"), "utf8");
       const existingGi = await readMaybe(giPath);
@@ -485,6 +538,9 @@ export async function runInit(root, argv) {
 
   // 6b. (overlay) Place the existing code under repo/ if --repo was given.
   await placeRepoMaybe(root, opts.repo, report);
+  const codeRootReady = codeRoot
+    ? await exists(path.join(root, ...codeRoot.split("/")))
+    : false;
 
   // 7. Build + print the bundled report.
   const baselineConflicts = baseRes.skipped.filter(
@@ -495,6 +551,8 @@ export async function runInit(root, argv) {
     name: opts.name,
     lang: opts.lang,
     overlay: opts.overlay,
+    codeRoot,
+    codeRootReady,
     currentPhase: currentId,
     baselineWritten: baseRes.written.length,
     conflicts,
@@ -519,6 +577,7 @@ function printReport(root, r) {
   L.push(`  Baseline files written: ${r.baselineWritten}`);
   L.push(`  Current phase:          ${r.currentPhase}`);
   L.push(`  Git:                    ${r.git}`);
+  if (r.codeRoot) L.push(`  Code root:              ${r.codeRoot}/`);
   if (r.repo) L.push(`  Repo:                   ${r.repo}`);
   if (r.conflicts.length) {
     L.push("");
@@ -535,10 +594,10 @@ function printReport(root, r) {
   // Numbered steps are built in a list so the dashboard step renumbers itself
   // whether or not the overlay "bring code in" step is present.
   const steps = [];
-  if (r.overlay && !r.repo) {
+  if (r.overlay && !r.codeRootReady) {
     steps.push([
-      "Bring your existing code in under repo/ (it stays gitignored, keeps its own history):",
-      "     git clone <your-repo-url> repo/      # or: ln -s /path/to/code repo",
+      `Bring your existing code in under ${r.codeRoot}/ (it keeps its own history):`,
+      `     git clone <your-repo-url> ${r.codeRoot}/      # or: ln -s /path/to/code ${r.codeRoot}`,
       "     (or re-run init with --repo <path|url> next time)",
     ]);
   }
@@ -575,7 +634,7 @@ function printReport(root, r) {
  * A fresh project points the agent at the vision intake (fill VISION.md +
  * profile.md by interviewing the human) and carries the raw idea inline; an
  * overlay points the agent straight at the overlay-onboard ritual (the ingest
- * phase's one prompt), and the no-repo variant defers it until repo/ holds the code.
+ * phase's one prompt), and a missing code root defers it until the directory exists.
  *
  * Deliberately English regardless of --lang: the boot prompt is part of the
  * canonical (English) skeleton. Content language is enforced where agents
@@ -595,14 +654,14 @@ function bootPromptLines(r) {
   const ritual =
     "run the overlay-onboard ritual (.truss/prompts/base/overlay-onboard.md, " +
     "also on the dashboard's Setup shelf) to onboard";
-  if (!r.repo) {
+  if (!r.codeRootReady) {
     return [
-      '"Once repo/ holds your code, read AGENTS.md fully, then follow §1 load',
+      `"Once ${r.codeRoot}/ holds your code, read AGENTS.md fully, then follow §1 load`,
       `  order. You are in the ingest phase: ${ritual} it."`,
     ];
   }
   return [
     '"Read AGENTS.md fully, then follow §1 load order. You are in the ingest',
-    `  phase: ${ritual} the existing code under repo/."`,
+    `  phase: ${ritual} the existing code under ${r.codeRoot}/."`,
   ];
 }

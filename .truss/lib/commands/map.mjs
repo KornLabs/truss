@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { loadIgnore } from '../ignore.mjs';
+import { resolveCodeRoot } from '../code-root.mjs';
 
 // Directories the map skips entirely (engine-internal or summary-managed). A dir
 // with one of these names is skipped at any depth. Exported as the single source
 // of truth so doctor can reproduce the same file set without a second walk.
-export const MAP_SKIP_DIRS = new Set(['.truss', '.git', '.github', 'node_modules', 'packages', 'archive', 'repo']);
+export const MAP_SKIP_DIRS = new Set(['.truss', '.git', '.github', 'node_modules', 'packages', 'archive']);
 
 // Files the map skips (AI-agent adapter stubs), matched by lowercase basename.
 export const MAP_SKIP_FILES = new Set(['claude.md', 'gemini.md', 'roo_code.md', 'cursor.md']);
@@ -35,7 +36,8 @@ export function collapsedTopLevels(mdFiles) {
 // the pre-write guard and generation, avoiding a second tree walk).
 export async function scanMapTree(root) {
   const { isIgnored } = await loadIgnore(root);
-  return walkMdFiles(root, isIgnored);
+  const codeRoot = await resolveCodeRoot(root);
+  return walkMdFiles(root, isIgnored, codeRoot.rel);
 }
 
 // Standalone recursive walk for the markdown files the map covers. Used by
@@ -43,7 +45,7 @@ export async function scanMapTree(root) {
 // `isIgnored` (from lib/ignore.mjs) is loaded once here and applied per entry so
 // user-excluded / gitignored trees never reach the map. When omitted (tests,
 // legacy callers) it is loaded from `root`.
-async function walkMdFiles(root, isIgnored) {
+async function walkMdFiles(root, isIgnored, codeRootRel = null) {
   if (!isIgnored) isIgnored = (await loadIgnore(root)).isIgnored;
   const mdFiles = [];
   async function walk(dirRel) {
@@ -58,7 +60,9 @@ async function walkMdFiles(root, isIgnored) {
     for (const entry of entries) {
       const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
-        if (MAP_SKIP_DIRS.has(entry.name)) continue;
+        if (rel === codeRootRel) continue;
+        const isCodeRootParent = codeRootRel?.startsWith(`${rel}/`);
+        if (MAP_SKIP_DIRS.has(entry.name) && !isCodeRootParent) continue;
         if (isIgnored(rel, true)) continue; // user-declared / gitignored tree
         // Sequential traversal avoids EMFILE limits from massive directory trees
         await walk(rel);
@@ -76,9 +80,12 @@ async function walkMdFiles(root, isIgnored) {
 // Reduce a precomputed disk-path list (from loadWorkspace's single tree walk)
 // to the EXACT md-file set walkMdFiles would produce, so doctor/ST-07 can reuse
 // that walk instead of running a second one. Same SKIP rules, per path segment.
-export function mapMdFilesFromDiskPaths(diskPaths, isIgnored) {
+export function mapMdFilesFromDiskPaths(diskPaths, isIgnored, codeRootRel = null) {
   return diskPaths.filter(rel => {
     if (rel.endsWith('/') || !rel.endsWith('.md')) return false;
+    if (codeRootRel && (rel === codeRootRel || rel.startsWith(`${codeRootRel}/`))) {
+      return false;
+    }
     const segs = rel.split('/');
     if (segs.some(s => MAP_SKIP_DIRS.has(s))) return false;
     if (MAP_SKIP_FILES.has(segs[segs.length - 1].toLowerCase())) return false;
@@ -96,7 +103,13 @@ export function mapMdFilesFromDiskPaths(diskPaths, isIgnored) {
  * Output is identical either way — files are grouped and sorted deterministically.
  */
 export async function generateMapContent(root, mdFilesInput) {
-  const mdFiles = mdFilesInput ? [...mdFilesInput] : await walkMdFiles(root);
+  let mdFiles;
+  if (mdFilesInput) {
+    mdFiles = [...mdFilesInput];
+  } else {
+    const codeRoot = await resolveCodeRoot(root);
+    mdFiles = await walkMdFiles(root, undefined, codeRoot.rel);
+  }
 
   if (!mdFiles.includes('state/map.md')) {
     mdFiles.push('state/map.md');

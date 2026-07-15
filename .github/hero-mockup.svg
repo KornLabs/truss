@@ -1,0 +1,109 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#2b5cd9"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="900" fill="#ffffff"/>
+
+  <!-- header -->
+  <text x="800" y="66" text-anchor="middle" font-family="DejaVu Sans Mono" font-size="24" letter-spacing="6" fill="#2b5cd9">ONE STRUCTURE · ANY AGENT</text>
+  <text x="800" y="122" text-anchor="middle" font-family="DejaVu Sans" font-weight="bold" font-size="44" fill="#111a2e">Every session starts warm.</text>
+
+  <!-- ============ LEFT CARD : the files ============ -->
+  <g>
+    <rect x="70" y="170" width="680" height="590" rx="14" fill="#f7f9fd" stroke="#d7deea" stroke-width="2"/>
+    <rect x="70" y="170" width="680" height="54" rx="14" fill="#eef2fa"/>
+    <rect x="70" y="210" width="680" height="14" fill="#eef2fa"/>
+    <circle cx="104" cy="197" r="7" fill="#f26d6d"/><circle cx="128" cy="197" r="7" fill="#f2c94c"/><circle cx="152" cy="197" r="7" fill="#5fc98e"/>
+    <text x="180" y="205" font-family="DejaVu Sans Mono" font-size="21" fill="#4a5670">my-project/ — plain Markdown state</text>
+
+    <!-- file tree -->
+    <g font-family="DejaVu Sans Mono" font-size="20" fill="#4a5670">
+      <text x="104" y="272" fill="#111a2e" font-weight="bold">my-project/</text>
+      <text x="104" y="308">├ AGENTS.md</text>
+      <text x="104" y="344">├ VISION.md</text>
+      <text x="104" y="380">├ state/</text>
+      <rect x="120" y="392" width="200" height="32" rx="6" fill="#dbe6fb"/>
+      <text x="130" y="416" fill="#2b5cd9" font-weight="bold">current.md</text>
+      <text x="130" y="452">decisions.md</text>
+      <text x="130" y="488">phases.md</text>
+      <text x="130" y="524">profile.md</text>
+      <text x="104" y="560">├ docs/</text>
+      <text x="104" y="596">└ .truss/</text>
+      
+    </g>
+
+    <!-- divider -->
+    <line x1="360" y1="240" x2="360" y2="610" stroke="#d7deea" stroke-width="2"/>
+
+    <!-- current.md content -->
+    <g font-family="DejaVu Sans Mono" font-size="20">
+      <text x="392" y="276" fill="#8593ab"># Current</text>
+      <text x="392" y="330" fill="#2b5cd9">focus:</text>
+      <text x="392" y="358" fill="#111a2e">  OD-007 — onboarding polish</text>
+      <text x="392" y="412" fill="#2b5cd9">next:</text>
+      <text x="392" y="440" fill="#111a2e">  - empty-state copy</text>
+      <text x="392" y="468" fill="#111a2e">  - soften ST-02 nudges</text>
+      <text x="392" y="522" fill="#2b5cd9">blockers:<tspan fill="#111a2e"> none</tspan></text>
+      <text x="392" y="576" fill="#2b5cd9">updated:<tspan fill="#111a2e"> 2026-07-02</tspan></text>
+      
+    </g>
+  <g font-family="DejaVu Sans Mono" font-size="18" fill="#8593ab">
+      <text x="104" y="668">git-diffable, no lock-in · scripts check,</text>
+      <text x="104" y="698">never decide:  <tspan fill="#2b5cd9">$ truss doctor</tspan>  →  0 findings</text>
+    </g>
+  </g>
+
+  <!-- connector -->
+  <g>
+    <path d="M 758 430 C 800 430 800 430 842 430" stroke="#2b5cd9" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+    <text x="800" y="404" text-anchor="middle" font-family="DejaVu Sans Mono" font-size="17" fill="#2b5cd9">boots</text>
+    <text x="800" y="464" text-anchor="middle" font-family="DejaVu Sans Mono" font-size="17" fill="#2b5cd9">from</text>
+  </g>
+
+  <!-- ============ RIGHT CARD : the agent ============ -->
+  <g>
+    <rect x="850" y="170" width="680" height="590" rx="14" fill="#0f1930"/>
+    <rect x="850" y="170" width="680" height="54" rx="14" fill="#1a2743"/>
+    <rect x="850" y="210" width="680" height="14" fill="#1a2743"/>
+    <circle cx="884" cy="197" r="7" fill="#f26d6d"/><circle cx="908" cy="197" r="7" fill="#f2c94c"/><circle cx="932" cy="197" r="7" fill="#5fc98e"/>
+    <text x="960" y="205" font-family="DejaVu Sans Mono" font-size="21" fill="#9fb0d0">any agent — Claude Code · Cursor · Gemini</text>
+
+    <g font-family="DejaVu Sans Mono" font-size="21">
+      <text x="884" y="278" fill="#6c7ea6"><tspan fill="#5fc98e">›</tspan> Read AGENTS.md fully, then follow §1</text>
+      <text x="884" y="308" fill="#6c7ea6">  load order and start the session.</text>
+
+      <text x="884" y="372" fill="#7ea2ff" font-weight="bold">TRUSS —<tspan fill="#e8edf7" font-weight="normal"> session booted.</tspan></text>
+
+      <text x="884" y="428" fill="#6c7ea6">phase</text>
+      <text x="1040" y="428" fill="#e8edf7">build <tspan fill="#6c7ea6">(human-gated)</tspan></text>
+      <text x="884" y="464" fill="#6c7ea6">focus</text>
+      <text x="1040" y="464" fill="#e8edf7">OD-007 — onboarding polish</text>
+      <text x="884" y="500" fill="#6c7ea6">next</text>
+      <text x="1040" y="500" fill="#e8edf7">empty-state copy</text>
+
+      <text x="884" y="564" fill="#e8edf7">Resuming where the last session</text>
+      <text x="884" y="594" fill="#e8edf7">stopped — <tspan fill="#5fc98e">nothing re-explained.</tspan></text>
+
+      <text x="884" y="658" fill="#6c7ea6" font-size="18">session end → writes state/current.md back</text>
+      <text x="884" y="688" fill="#6c7ea6" font-size="18">the next session starts warm again</text>
+    </g>
+  </g>
+
+  <!-- girder motif -->
+  <g stroke="#2b5cd9" stroke-width="3">
+    <line x1="70" y1="806" x2="1530" y2="806"/>
+    <line x1="70" y1="856" x2="1530" y2="856"/>
+    <g stroke="#b9c9ec">
+      <line x1="70" y1="806" x2="70" y2="856"/><line x1="216" y1="806" x2="216" y2="856"/><line x1="362" y1="806" x2="362" y2="856"/><line x1="508" y1="806" x2="508" y2="856"/><line x1="654" y1="806" x2="654" y2="856"/><line x1="800" y1="806" x2="800" y2="856"/><line x1="946" y1="806" x2="946" y2="856"/><line x1="1092" y1="806" x2="1092" y2="856"/><line x1="1238" y1="806" x2="1238" y2="856"/><line x1="1384" y1="806" x2="1384" y2="856"/><line x1="1530" y1="806" x2="1530" y2="856"/>
+    </g>
+    <g stroke-width="2.5">
+      <line x1="70" y1="856" x2="216" y2="806"/><line x1="216" y1="806" x2="362" y2="856"/><line x1="362" y1="856" x2="508" y2="806"/><line x1="508" y1="806" x2="654" y2="856"/><line x1="654" y1="856" x2="800" y2="806"/><line x1="800" y1="806" x2="946" y2="856"/><line x1="946" y1="856" x2="1092" y2="806"/><line x1="1092" y1="806" x2="1238" y2="856"/><line x1="1238" y1="856" x2="1384" y2="806"/><line x1="1384" y1="806" x2="1530" y2="856"/>
+    </g>
+    <g fill="#2b5cd9" stroke="none">
+      <circle cx="70" cy="806" r="6"/><circle cx="216" cy="806" r="6"/><circle cx="362" cy="806" r="6"/><circle cx="508" cy="806" r="6"/><circle cx="654" cy="806" r="6"/><circle cx="800" cy="806" r="6"/><circle cx="946" cy="806" r="6"/><circle cx="1092" cy="806" r="6"/><circle cx="1238" cy="806" r="6"/><circle cx="1384" cy="806" r="6"/><circle cx="1530" cy="806" r="6"/>
+      <circle cx="70" cy="856" r="6"/><circle cx="216" cy="856" r="6"/><circle cx="362" cy="856" r="6"/><circle cx="508" cy="856" r="6"/><circle cx="654" cy="856" r="6"/><circle cx="800" cy="856" r="6"/><circle cx="946" cy="856" r="6"/><circle cx="1092" cy="856" r="6"/><circle cx="1238" cy="856" r="6"/><circle cx="1384" cy="856" r="6"/><circle cx="1530" cy="856" r="6"/>
+    </g>
+  </g>
+</svg>

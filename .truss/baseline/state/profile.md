@@ -5,6 +5,9 @@
 
 name: [project name]
 language: [primary language for all agent output — e.g. English, German]
+code-root:
+<!-- Optional single relative directory containing the work product. Overlay
+     defaults to repo/. Leave blank for a workspace without a separate code tree. -->
 <!-- Applies to all free-text the agent writes — including entry titles and bodies
      (the text after `## OD-NNN — `). Only the machine-parsed skeleton stays English:
      ID tokens, keys/field labels, fixed file headings (AGENTS.md §3). -->

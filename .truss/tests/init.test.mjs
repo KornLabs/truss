@@ -15,15 +15,27 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, repo: null, adoptAgents: false })
+      { name: 'A', lang: 'English', overlay: false, repo: null, codeRoot: null, adoptAgents: false })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, repo: null, adoptAgents: false })
+      { name: 'A B', lang: null, overlay: true, repo: null, codeRoot: null, adoptAgents: false })
   })
   it('parses --repo (spaced and =) with overlay', () => {
     assert.deepEqual(parseInitArgs(['--overlay', '--repo', '/p/code']),
-      { name: null, lang: null, overlay: true, repo: '/p/code', adoptAgents: false })
+      { name: null, lang: null, overlay: true, repo: '/p/code', codeRoot: null, adoptAgents: false })
     assert.deepEqual(parseInitArgs(['--overlay', '--repo=https://x/y.git']),
-      { name: null, lang: null, overlay: true, repo: 'https://x/y.git', adoptAgents: false })
+      { name: null, lang: null, overlay: true, repo: 'https://x/y.git', codeRoot: null, adoptAgents: false })
+  })
+  it('parses and validates --code-root', () => {
+    assert.equal(
+      parseInitArgs(['--overlay', '--code-root', 'product/source/']).codeRoot,
+      'product/source',
+    )
+    assert.throws(() => parseInitArgs(['--code-root', 'product']), InitError)
+    assert.throws(
+      () => parseInitArgs(['--overlay', '--repo', '/p/code', '--code-root', 'product']),
+      InitError,
+    )
+    assert.throws(() => parseInitArgs(['--overlay', '--code-root', '../code']), InitError)
   })
   it('parses explicit AGENTS.md adoption', () => {
     assert.equal(parseInitArgs(['--adopt-agents']).adoptAgents, true)
@@ -106,6 +118,42 @@ describe('init --overlay', () => {
     const res = await runInit(root, ['--name', 'L', '--lang', 'English', '--overlay', '--repo', '/no/such/path'])
     assert.match(res.repo, /not found/)
     assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('uses an existing configured code root without moving or ignoring it', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const root = await makeRoot('truss-init-code-root-')
+    await fs.mkdir(path.join(root, 'truss'))
+    await fs.writeFile(path.join(root, 'truss', 'index.js'), '// product\n')
+
+    const res = await runInit(root, [
+      '--name', 'Truss Dev', '--lang', 'English', '--overlay',
+      '--code-root', 'truss',
+    ])
+
+    assert.equal(res.codeRoot, 'truss')
+    assert.equal(res.codeRootReady, true)
+    assert.match(await read(root, 'state/profile.md'), /^code-root: truss$/m)
+    assert.match(await read(root, 'AGENTS.md'), /^\| truss\/ \(on demand\) \|/m)
+    assert.match(await read(root, 'state/phases.md'), /forbidden-globs: truss\/\*\*/)
+    assert.doesNotMatch(await read(root, 'state/phases.md'), /forbidden-globs: repo\/\*\*/)
+    assert.doesNotMatch(await read(root, '.gitignore'), /(?:^|\n)truss\/(?:\n|$)/)
+    assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('rejects a missing configured code root before writing', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const root = await makeRoot('truss-init-code-root-missing-')
+    await assert.rejects(
+      runInit(root, [
+        '--name', 'Missing', '--lang', 'English', '--overlay',
+        '--code-root', 'missing',
+      ]),
+      /does not exist/,
+    )
+    await assert.rejects(fs.access(path.join(root, 'VISION.md')))
   })
 })
 

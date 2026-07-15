@@ -144,13 +144,15 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
         } catch (e) { return send(res, 200, { error: e.message, tree: '' }); }
       }
 
-      // Overlay repo/ branch awareness: actual checkout vs the declared branch:
+      // Configured code-root branch awareness: actual checkout vs declared branch:
       // in state/current.md, plus the local branch list. Read-only; degrades to
       // present:false when there is no overlay checkout. Reuses lib/git.mjs.
       if (req.method === 'GET' && url === '/api/git/branches') {
         try {
           const report = await branchReport(root);
-          const list = report.present ? await repoBranchList(path.join(root, 'repo')) : [];
+          const list = report.present && report.codeRoot
+            ? await repoBranchList(path.join(root, ...report.codeRoot.split('/')))
+            : [];
           return send(res, 200, { ...report, list });
         } catch (e) { return send(res, 200, { error: e.message, present: false, list: [] }); }
       }

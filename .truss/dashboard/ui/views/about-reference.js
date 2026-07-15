@@ -1,5 +1,6 @@
 import { html, Component } from '../../vendor/preact-htm.mjs';
 import { Card, CardHead, Badge, Button, Icons, copyText } from '../components.js';
+import { CHECK_CATALOG, PREFERENCE_GROUPS } from '../catalog-data.js';
 
 const GITHUB_URL = 'https://github.com/KornLabs/truss';
 
@@ -11,57 +12,26 @@ const sev = (s) => {
 };
 
 const COMMANDS = [
-  { cmd: 'init', flags: '--name, --lang, --overlay, --repo', desc: 'Scaffold a fresh workspace' },
+  { cmd: 'init', flags: '--name, --lang, --overlay, --repo, --code-root', desc: 'Scaffold a fresh workspace' },
   { cmd: 'status', flags: '—', desc: 'Compact workspace status summary' },
   { cmd: 'doctor', flags: '--gate, --json, --html, --fix-prompt', desc: 'Check workspace health (read-only)' },
   { cmd: 'render', flags: '—', desc: 'Sync phase block in AGENTS.md from phases.md' },
   { cmd: 'phase', flags: '[id]', desc: 'List phases or set current phase' },
   { cmd: 'set', flags: '<key> <value>', desc: 'Change an agent preference' },
   { cmd: 'map', flags: '—', desc: 'Regenerate state/map.md domain overview' },
+  { cmd: 'repo-map', flags: '—', desc: 'Print a bounded read-only code-root map' },
   { cmd: 'dashboard', flags: '--port, --no-open, --read-only', desc: 'Start local web dashboard' },
   { cmd: 'prompt', flags: 'save|reset|delete <id>', desc: 'Manage custom prompts' },
   { cmd: 'help', flags: '—', desc: 'List all commands' },
 ];
 
-const PREFS = [
-  { key: 'orchestration', values: 'low · medium · high', def: 'medium' },
-  { key: 'criticality', values: 'low · medium · high', def: 'high' },
-  { key: 'clarify', values: 'ask · infer', def: 'ask' },
-  { key: 'input-trust', values: 'open · medium · critical', def: 'medium' },
-  { key: 'research-agent', values: 'off · on', def: 'on' },
-  { key: 'review-agent', values: 'off · on', def: 'on' },
-  { key: 'source-citation', values: 'off · on', def: 'off' },
-  { key: 'scope', values: 'off · minimal · balanced · thorough', def: 'off' },
-  { key: 'auto-commit', values: 'off · suggest · on', def: 'suggest' },
-  { key: 'post-task-check', values: 'off · inline · subagent', def: 'off' },
-  { key: 'gate-advocate', values: 'off · on · agentic', def: 'agentic' },
-  { key: 'phase-lock', values: 'off · advisory', def: 'advisory' },
-  { key: 'branch-guard', values: 'off · warn · strict', def: 'warn' },
-  { key: 'response-style', values: 'normal · compact · maxcompact', def: 'normal' },
-  { key: 'control-word', values: 'off or any short word', def: 'TRUSS' },
-];
+const PREFS = PREFERENCE_GROUPS.flatMap(group => group.items).map(pref => ({
+  key: pref.key,
+  values: pref.free ? 'off or any short word' : pref.values.join(' · '),
+  def: pref.def,
+}));
 
-const CHECKS = [
-  { id: 'ST-01', sev: 'E', desc: 'Required file from structure table is missing' },
-  { id: 'ST-02', sev: 'W', desc: 'File on disk is not listed in structure table' },
-  { id: 'BL-01', sev: 'E', desc: 'Generated block (prefs or phase) drifted from source' },
-  { id: 'RF-01', sev: 'E', desc: 'Broken cross-reference (link target not found)' },
-  { id: 'RF-02', sev: 'W', desc: 'Referenced structured ID is not defined' },
-  { id: 'RF-03', sev: 'E', desc: 'Duplicate structured ID (same D/OD/HT/L/R used twice)' },
-  { id: 'SY-01', sev: 'W', desc: 'current.md missing a required key or stale (>7 days)' },
-  { id: 'SY-02', sev: 'I', desc: 'Open decision entry open >30 days' },
-  { id: 'SY-03', sev: 'W', desc: 'State entry grammar violated (D/OD/R/L/HT form)' },
-  { id: 'SY-05', sev: 'W', desc: 'repo/.git exists but no branch: in current.md' },
-  { id: 'SY-06', sev: 'W', desc: 'Decided open decision still parked as tombstone' },
-  { id: 'SY-07', sev: 'I', desc: 'Checked-off human todos piling up (>5) — archive them' },
-  { id: 'PH-01', sev: 'E', desc: 'Phase grammar invalid' },
-  { id: 'PH-02', sev: 'E', desc: 'current: points to undefined phase' },
-  { id: 'PH-03', sev: 'W', desc: 'Uncommitted path matches a forbidden glob' },
-  { id: 'PH-04', sev: 'W', desc: 'Exit criteria not met (--gate only)' },
-  { id: 'PH-07', sev: 'I', desc: 'Forbidden-path evidence has a visible coverage limit' },
-  { id: 'CX-01', sev: 'W', desc: 'Mandatory Truss boot metadata exceeds budget' },
-  { id: 'HY-01', sev: 'I', desc: 'Domain file untouched >90 days' },
-];
+const CHECKS = CHECK_CATALOG;
 
 const STATE_FILES = [
   { file: 'AGENTS.md', purpose: 'Boot file — load order, structure, rules', owner: 'Agent (generated blocks: Script)' },

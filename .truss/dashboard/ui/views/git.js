@@ -57,9 +57,10 @@ export class GitView extends Component {
         <span class="mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.file}</span></div>`;
     };
 
-    // Overlay repo/ branch awareness — only shown when there is a repo/ checkout.
+    // Code-root branch awareness — shown only when the configured checkout exists.
     const branchCard = (branches && branches.present) ? (() => {
       const info = branches.info || {};
+      const codeRoot = branches.codeRoot || 'repo';
       const current = info.detached ? `detached @ ${info.sha || '?'}` : (info.branch || (info.reason ? `unreadable (${info.reason})` : '—'));
       const declared = branches.declared || null;
       const badge = branches.mismatch
@@ -72,12 +73,12 @@ export class GitView extends Component {
         <span class="mono" style="font-size:12.5px;color:${tone || 'var(--text)'}">${value}</span></div>`;
       return html`
         <${Card} className="card-fill">
-          <${CardHead} icon=${Icons.Git} title="Overlay branch (repo/)">${badge}<//>
+          <${CardHead} icon=${Icons.Git} title=${`Code-root branch (${codeRoot}/)`}>${badge}<//>
           <div class="col" style="gap:0;padding-right:8px">
             ${row('Checked out', current, branches.mismatch ? 'var(--err)' : undefined)}
             ${row('Declared (current.md)', declared || '— not set —', declared ? undefined : 'var(--text-3)')}
           </div>
-          ${branches.mismatch ? html`<p class="muted" style="margin-top:8px;font-size:12.5px">repo/ is not on the declared branch. Switch with <span class="mono">git -C repo switch ${declared}</span>, or update <span class="mono">branch:</span> in state/current.md.</p>` : ''}
+          ${branches.mismatch ? html`<p class="muted" style="margin-top:8px;font-size:12.5px">${codeRoot}/ is not on the declared branch. Switch with <span class="mono">git -C ${codeRoot} switch ${declared}</span>, or update <span class="mono">branch:</span> in state/current.md.</p>` : ''}
           ${(branches.list && branches.list.length) ? html`<div style="margin-top:10px">
             <div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Local branches · ${branches.list.length}</div>
             <div class="row" style="flex-wrap:wrap;gap:6px">

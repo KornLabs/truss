@@ -112,4 +112,37 @@ describe('lib/git.mjs', () => {
     await fs.writeFile(path.join(root, 'state', 'current.md'), 'focus:\n\nbranch:   \n', 'utf8')
     assert.equal(await declaredBranch(root), null)
   })
+
+  it('branchReport follows a custom code-root from profile.md', async () => {
+    const customRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-git-custom-'))
+    const product = path.join(customRoot, 'product')
+    try {
+      await fs.mkdir(path.join(customRoot, 'state'), { recursive: true })
+      await fs.mkdir(product)
+      await execFileP('git', ['-C', product, 'init', '-q'])
+      await execFileP('git', ['-C', product, 'config', 'user.email', 't@t'])
+      await execFileP('git', ['-C', product, 'config', 'user.name', 'T'])
+      await execFileP('git', ['-C', product, 'commit', '-q', '--allow-empty', '-m', 'init'])
+      const { stdout } = await execFileP(
+        'git',
+        ['-C', product, 'symbolic-ref', '--short', 'HEAD'],
+      )
+      const branch = stdout.trim()
+      await fs.writeFile(
+        path.join(customRoot, 'state', 'profile.md'),
+        '## Project\n\ncode-root: product\n',
+      )
+      await fs.writeFile(
+        path.join(customRoot, 'state', 'current.md'),
+        `focus:\n\nbranch: ${branch}\n`,
+      )
+
+      const report = await branchReport(customRoot)
+      assert.equal(report.codeRoot, 'product')
+      assert.equal(report.present, true)
+      assert.equal(report.match, true)
+    } finally {
+      await fs.rm(customRoot, { recursive: true, force: true })
+    }
+  })
 })

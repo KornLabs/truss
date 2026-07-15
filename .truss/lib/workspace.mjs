@@ -10,6 +10,7 @@ import {
 } from './md.mjs'
 import { mapMdFilesFromDiskPaths } from './commands/map.mjs'
 import { loadIgnore } from './ignore.mjs'
+import { resolveCodeRoot } from './code-root.mjs'
 
 /**
  * OS / editor junk files that are never part of a Truss workspace and must not
@@ -286,13 +287,23 @@ export async function loadWorkspace(root) {
   // exactly which paths are workspace content.
   const ignore = await loadIgnore(root);
   const ignoreStats = { excluded: 0 };
+  const codeRoot = await resolveCodeRoot(root);
 
   // ── Walk disk for ST-02 ───────────────────────────────────────────────────
-  const diskPaths = await walkWorkspace(root, ignore.isIgnored, ignoreStats);
+  const diskPaths = await walkWorkspace(
+    root,
+    ignore.isIgnored,
+    ignoreStats,
+    codeRoot.rel,
+  );
 
   // Markdown-file subset the map covers (ST-07) — derived from the single walk
   // above so doctor does not walk the whole tree a second time.
-  const mdFiles = mapMdFilesFromDiskPaths(diskPaths, ignore.isIgnored);
+  const mdFiles = mapMdFilesFromDiskPaths(
+    diskPaths,
+    ignore.isIgnored,
+    codeRoot.rel,
+  );
 
   // Domain files are operational knowledge, not merely map input. Load every
   // non-ignored context/**/*.md file so RF checks links and structured IDs there.
@@ -331,6 +342,7 @@ export async function loadWorkspace(root) {
     diskPaths,       // Array<string> — all rel paths found on disk (for ST-02)
     mdFiles,         // Array<string> — md files the map covers (for ST-07)
     ignore: { sources: ignore.sources, excluded: ignoreStats.excluded }, // for the visible report
+    codeRoot,
     agentsMissing: !agentsRaw,
   };
 }
@@ -342,7 +354,12 @@ export async function loadWorkspace(root) {
  *   - .truss/out/ contents
  *   - node_modules
  */
-async function walkWorkspace(root, isIgnored = () => false, stats = { excluded: 0 }) {
+async function walkWorkspace(
+  root,
+  isIgnored = () => false,
+  stats = { excluded: 0 },
+  codeRootRel = null,
+) {
   const results = [];
 
   const walkDir = async (dirRel, depth) => {
@@ -362,12 +379,22 @@ async function walkWorkspace(root, isIgnored = () => false, stats = { excluded: 
 
       // User-declared / gitignored paths: excluded from the disk walk so ST-02,
       // ST-07 and the map never treat foreign bulk data as workspace content.
-      if (isIgnored(rel, entry.isDirectory())) { stats.excluded++; continue; }
+      if (rel !== codeRootRel && isIgnored(rel, entry.isDirectory())) {
+        stats.excluded++;
+        continue;
+      }
 
       if (entry.isDirectory()) {
         results.push(rel + '/');
+        if (rel === codeRootRel) continue;
         // Recurse fully (node_modules, .git, and out/ are already skipped)
         await walkDir(rel, depth + 1);
+      } else if (entry.isSymbolicLink() && rel === codeRootRel) {
+        try {
+          if ((await fs.stat(path.join(root, rel))).isDirectory()) {
+            results.push(rel + '/');
+          }
+        } catch { /* broken code-root symlink is handled by its own consumers */ }
       } else if (entry.isFile()) {
         // Only real files — symlinks and other special entries are skipped so this
         // walk's file set matches map's walkMdFiles (isFile()), keeping the bundled

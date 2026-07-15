@@ -17,7 +17,7 @@
 // finding labels as such. No git shell-out: checks stay pure file reads.
 //
 // SY-05 nudges an overlay to declare its active branch. It is still pure: it only
-// reads whether `repo/.git` exists on disk (fs.access) — it never runs git. The
+// reads whether the configured code-root has `.git` (fs.access) — it never runs git. The
 // live branch *comparison* (actual vs declared) is deliberately NOT here; it
 // lives in `truss status` and the dashboard so the check engine stays hermetic.
 
@@ -28,7 +28,7 @@ export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key or stale (> 7 days)' },
   { id: 'SY-02', severity: 'I', title: 'open-decisions.md holds an entry open > 30 days', description: 'Per-entry Opened: date when present, else file mtime' },
   { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / HUMAN-TODOS)' },
-  { id: 'SY-05', severity: 'W', title: 'overlay repo/ checkout present but no branch: declared in current.md' },
+  { id: 'SY-05', severity: 'W', title: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
 ]
@@ -121,14 +121,15 @@ export async function run(ctx) {
 
   // ── SY-03: entry grammars ──────────────────────────────────────────────────
   checkProfileGrammar(ctx.files.get('state/profile.md'), findings)
+  await checkCodeRootConfig(ctx, findings)
   checkDecisionsGrammar(ctx.files.get('state/decisions.md'), findings)
   checkOpenDecisionsGrammar(ctx.files.get('state/open-decisions.md'), findings)
   checkRisksGrammar(ctx.files.get('state/risks.md'), findings)
   checkLearningsGrammar(ctx.files.get('state/learnings.md'), findings)
   checkHumanTodosGrammar(ctx.files.get('HUMAN-TODOS.md'), findings)
 
-  // ── SY-05: overlay repo/ present but branch: undeclared ────────────────────
-  // Pure fs read (no git): if repo/ is a checkout, current.md should declare the
+  // ── SY-05: code-root checkout present but branch: undeclared ───────────────
+  // Pure fs read (no git): if the code root is a checkout, current.md declares the
   // branch the work belongs to so `truss status` / branch-guard can compare.
   await checkOverlayBranchDeclared(ctx, findings)
 
@@ -192,10 +193,11 @@ function checkHumanTodosDonePile(file, findings) {
   }
 }
 
-/** SY-05 — repo/.git exists but current.md has no non-empty `branch:` line. */
+/** SY-05 — code-root/.git exists but current.md has no non-empty `branch:` line. */
 async function checkOverlayBranchDeclared(ctx, findings) {
+  if (!ctx.codeRoot?.rel || ctx.codeRoot.error) return
   let isCheckout = false
-  try { await fs.access(path.join(ctx.root, 'repo', '.git')); isCheckout = true } catch { /* no overlay checkout */ }
+  try { await fs.access(path.join(ctx.codeRoot.abs, '.git')); isCheckout = true } catch { /* no code checkout */ }
   if (!isCheckout) return
 
   const current = ctx.files.get('state/current.md')
@@ -206,9 +208,46 @@ async function checkOverlayBranchDeclared(ctx, findings) {
   findings.push({
     id: 'SY-05', severity: 'W',
     file: 'state/current.md',
-    message: 'repo/ is a git checkout but no active branch is declared (branch:)',
-    fix: "Add 'branch: <name>' to state/current.md (the repo/ branch this focus belongs to). `truss status` then flags a mismatch.",
+    message: `${ctx.codeRoot.rel}/ is a git checkout but no active branch is declared (branch:)`,
+    fix: `Add 'branch: <name>' to state/current.md (the ${ctx.codeRoot.rel}/ branch this focus belongs to). \`truss status\` then flags a mismatch.`,
   })
+}
+
+async function checkCodeRootConfig(ctx, findings) {
+  if (ctx.codeRoot?.error) {
+    findings.push({
+      id: 'SY-03', severity: 'W',
+      file: 'state/profile.md',
+      message: `invalid code-root '${ctx.codeRoot.raw}': ${ctx.codeRoot.error}`,
+      fix: "Set 'code-root:' to one relative directory outside Truss-managed paths, or leave it blank.",
+    })
+    return
+  }
+  if (!ctx.codeRoot?.rel) return
+
+  try {
+    if (!(await fs.stat(ctx.codeRoot.abs)).isDirectory()) throw new Error()
+  } catch {
+    findings.push({
+      id: 'SY-03', severity: 'W',
+      file: 'state/profile.md',
+      message: `configured code-root does not exist: ${ctx.codeRoot.rel}/`,
+      fix: `Create ${ctx.codeRoot.rel}/, correct code-root in state/profile.md, or leave it blank.`,
+    })
+    return
+  }
+
+  const listed = ctx.structureTable.some(
+    row => row.paths.some(item => item.replace(/\/$/, '') === ctx.codeRoot.rel),
+  )
+  if (!listed) {
+    findings.push({
+      id: 'SY-03', severity: 'W',
+      file: 'AGENTS.md',
+      message: `configured code-root ${ctx.codeRoot.rel}/ is missing from the §2 structure table`,
+      fix: `Add '${ctx.codeRoot.rel}/ (on demand)' as a summary row in AGENTS.md §2.`,
+    })
+  }
 }
 
 // Indices of lines inside fenced code blocks (``` or ~~~). Entry-grammar checks
@@ -468,4 +507,5 @@ function checkProfileGrammar(file, findings) {
       fix: `Restore the missing sections: ${missing.join(', ')} (see STRUKTUR.md §11).`,
     })
   }
+
 }
