@@ -46,8 +46,8 @@ const CHECKS = [
   { id: 'ST-02', sev: 'W', desc: 'File on disk is not listed in structure table' },
   { id: 'BL-01', sev: 'E', desc: 'Generated block (prefs or phase) drifted from source' },
   { id: 'RF-01', sev: 'E', desc: 'Broken cross-reference (link target not found)' },
-  { id: 'RF-02', sev: 'E', desc: 'Duplicate structured ID (same D/OD/HT/L/R used twice)' },
-  { id: 'RF-03', sev: 'W', desc: 'Referenced ID not defined in its canonical file' },
+  { id: 'RF-02', sev: 'W', desc: 'Referenced structured ID is not defined' },
+  { id: 'RF-03', sev: 'E', desc: 'Duplicate structured ID (same D/OD/HT/L/R used twice)' },
   { id: 'SY-01', sev: 'W', desc: 'current.md missing a required key or stale (>7 days)' },
   { id: 'SY-02', sev: 'I', desc: 'Open decision entry open >30 days' },
   { id: 'SY-03', sev: 'W', desc: 'State entry grammar violated (D/OD/R/L/HT form)' },
@@ -56,9 +56,10 @@ const CHECKS = [
   { id: 'SY-07', sev: 'I', desc: 'Checked-off human todos piling up (>5) — archive them' },
   { id: 'PH-01', sev: 'E', desc: 'Phase grammar invalid' },
   { id: 'PH-02', sev: 'E', desc: 'current: points to undefined phase' },
-  { id: 'PH-03', sev: 'W', desc: 'Phase has no exit criteria' },
+  { id: 'PH-03', sev: 'W', desc: 'Uncommitted path matches a forbidden glob' },
   { id: 'PH-04', sev: 'W', desc: 'Exit criteria not met (--gate only)' },
-  { id: 'CX-01', sev: 'W', desc: 'Mandatory reading exceeds token budget' },
+  { id: 'PH-07', sev: 'I', desc: 'Forbidden-path evidence has a visible coverage limit' },
+  { id: 'CX-01', sev: 'W', desc: 'Mandatory Truss boot metadata exceeds budget' },
   { id: 'HY-01', sev: 'I', desc: 'Domain file untouched >90 days' },
 ];
 

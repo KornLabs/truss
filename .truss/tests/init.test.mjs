@@ -15,15 +15,18 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, repo: null })
+      { name: 'A', lang: 'English', overlay: false, repo: null, adoptAgents: false })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, repo: null })
+      { name: 'A B', lang: null, overlay: true, repo: null, adoptAgents: false })
   })
   it('parses --repo (spaced and =) with overlay', () => {
     assert.deepEqual(parseInitArgs(['--overlay', '--repo', '/p/code']),
-      { name: null, lang: null, overlay: true, repo: '/p/code' })
+      { name: null, lang: null, overlay: true, repo: '/p/code', adoptAgents: false })
     assert.deepEqual(parseInitArgs(['--overlay', '--repo=https://x/y.git']),
-      { name: null, lang: null, overlay: true, repo: 'https://x/y.git' })
+      { name: null, lang: null, overlay: true, repo: 'https://x/y.git', adoptAgents: false })
+  })
+  it('parses explicit AGENTS.md adoption', () => {
+    assert.equal(parseInitArgs(['--adopt-agents']).adoptAgents, true)
   })
   it('rejects --repo without --overlay', () => {
     assert.throws(() => parseInitArgs(['--repo', '/p/code']), InitError)
@@ -121,6 +124,73 @@ describe('init no-overwrite & pre-flight', () => {
     const res = await runInit(root, ['--name', 'A', '--lang', 'English'])
     assert.ok(res.conflicts.some(p => p.endsWith('HUMAN-TODOS.md')), 'pre-existing file reported as conflict')
     assert.equal(await read(root, 'HUMAN-TODOS.md'), '# custom todos\n', 'pre-existing file untouched')
+  })
+
+  it('rejects a marker-free AGENTS.md before writing anything', async () => {
+    const root = await makeRoot('truss-init-agents-refuse-')
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    await fs.writeFile(path.join(root, 'AGENTS.md'), '# Existing instructions\n')
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English']),
+      /--adopt-agents/
+    )
+    await assert.rejects(fs.access(path.join(root, 'VISION.md')))
+    assert.equal(await read(root, 'AGENTS.md'), '# Existing instructions\n')
+  })
+
+  it('adopts a marker-free AGENTS.md only with explicit opt-in', async () => {
+    const root = await makeRoot('truss-init-agents-adopt-')
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    await fs.writeFile(path.join(root, 'AGENTS.md'), '# Existing instructions\n\nKeep this rule.\n')
+    const res = await runInit(root, ['--name', 'A', '--lang', 'English', '--adopt-agents'])
+    const agents = await read(root, 'AGENTS.md')
+    assert.match(agents, /^# Existing instructions/)
+    assert.match(agents, /Keep this rule\./)
+    assert.match(agents, /<!-- truss:begin phase -->/)
+    assert.equal(res.adoptedAgents, true)
+    assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('merges repo/ into an existing overlay .gitignore', async () => {
+    const root = await makeRoot('truss-init-gitignore-')
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    await fs.writeFile(path.join(root, '.gitignore'), 'dist/\n')
+    await runInit(root, ['--name', 'A', '--lang', 'English', '--overlay'])
+    assert.equal(await read(root, '.gitignore'), 'dist/\nrepo/\n')
+  })
+
+  it('rejects destination parent blockers during preflight', async () => {
+    const root = await makeRoot('truss-init-preflight-')
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    await fs.writeFile(path.join(root, 'docs'), 'blocks the baseline directory\n')
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English']),
+      /preflight failed/
+    )
+    await assert.rejects(fs.access(path.join(root, 'VISION.md')))
+    await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
+    assert.equal(await read(root, 'docs'), 'blocks the baseline directory\n')
+  })
+
+  it('rejects an invalid generated-map target and can retry cleanly', async () => {
+    const root = await makeRoot('truss-init-map-preflight-')
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const blocker = path.join(root, 'state', 'map.md')
+    await fs.mkdir(blocker, { recursive: true })
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English']),
+      /preflight failed/
+    )
+    await assert.rejects(fs.access(path.join(root, 'VISION.md')))
+    await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
+    await fs.rm(blocker, { recursive: true, force: true })
+    const res = await runInit(root, ['--name', 'A', '--lang', 'English'])
+    assert.equal(res.currentPhase, 'discover')
   })
 })
 

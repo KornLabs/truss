@@ -1,4 +1,4 @@
-import { parsePhases as mdParsePhases } from '../../../lib/md.mjs';
+import { parsePhases as mdParsePhases, parsePhaseList } from '../../../lib/md.mjs';
 import { parseExitItems } from '../../../lib/render.mjs';
 export function parsePhase(lines) {
   const parsed = mdParsePhases(lines);
@@ -20,8 +20,8 @@ export function parsePhase(lines) {
     behavior: def.behavior || '',
     allowed: def.allowed || '',
     forbidden: def.forbidden || '',
-    forbiddenGlobs: (def['forbidden-globs'] || '').split(',').map(s => s.trim()).filter(Boolean),
+    forbiddenGlobs: parsePhaseList(def['forbidden-globs']),
     exit: exitItems,
-    prompts: (def.prompts || '').split(',').map(s => s.trim()).filter(Boolean)
+    prompts: parsePhaseList(def.prompts)
   };
 }

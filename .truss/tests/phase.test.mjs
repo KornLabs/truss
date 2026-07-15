@@ -39,10 +39,11 @@ describe('runPhase', () => {
     assert.equal(phases.frontmatter.current, 'ingest')
   })
 
-  it('sets the current phase, re-renders, and stays doctor-green', async () => {
+  it('requires an explicit gate override, then re-renders atomically', async () => {
     const root = await makeRoot('truss-phase-set-')
     await runInit(root, ['--name', 'L', '--lang', 'English', '--overlay'])
-    const res = await runPhase(root, ['operate'])
+    await assert.rejects(runPhase(root, ['operate']), /exit gate/)
+    const res = await runPhase(root, ['operate', '--override-gate'])
     assert.equal(res.changed, true)
     assert.equal(res.from, 'ingest')
     assert.equal(res.current, 'operate')
@@ -51,6 +52,7 @@ describe('runPhase', () => {
     assert.equal(phases.frontmatter.current, 'operate')
     assert.match(await phaseBlockOf(root), /\*\*Phase 2\/2 — operate/)
     assert.equal(errorsOf(await runChecks(root)).length, 0)
+    assert.equal(res.gateOverridden, true)
   })
 
   it('throws on an unknown phase id', async () => {

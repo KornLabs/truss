@@ -63,6 +63,40 @@ export async function repoBranchList(repoDir) {
   } catch { return [] }
 }
 
+/**
+ * Return uncommitted paths in a git checkout. Paths include staged, unstaged,
+ * untracked, deleted, and both sides of renames. Never throws.
+ */
+export async function gitChangedPaths(repoDir) {
+  const off = (reason) => ({ ok: false, paths: [], reason })
+  if (process.env.TRUSS_NO_GIT) return off('disabled')
+  if (!await isGitCheckout(repoDir)) return off('not-a-checkout')
+
+  try {
+    const { stdout } = await execFileP(
+      'git',
+      ['-C', repoDir, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      { timeout: 5000, maxBuffer: 4 << 20 }
+    )
+    const records = stdout.split('\0')
+    const paths = []
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i]
+      if (!record || record.length < 4) continue
+      const status = record.slice(0, 2)
+      paths.push(record.slice(3).replace(/\\/g, '/'))
+      if (/[RC]/.test(status)) {
+        const otherPath = records[++i]
+        if (otherPath) paths.push(otherPath.replace(/\\/g, '/'))
+      }
+    }
+    return { ok: true, paths: [...new Set(paths)], reason: null }
+  } catch (err) {
+    if (err?.code === 'ENOENT') return off('no-git-binary')
+    return off('error')
+  }
+}
+
 /** The `branch:` value declared in state/current.md (the expected branch), or null. */
 export async function declaredBranch(root) {
   try {

@@ -51,7 +51,7 @@ export class ContextView extends Component {
     return html`
       <div class="grid cols-auto-lg">
         <${Card}>
-          <${CardHead} icon=${Icons.Gauge} title="Mandatory reading per session">
+          <${CardHead} icon=${Icons.Gauge} title="Mandatory Truss boot metadata">
             <${Badge} variant=${stat.tone}>${stat.label}<//>
           <//>
           <div class="row" style="align-items:baseline;gap:8px;margin-bottom:14px">
@@ -86,9 +86,9 @@ export class ContextView extends Component {
             <${Button} variant=${stat.tone === 'ok' ? '' : 'primary'} className="sm" icon=${Icons.Copy} onClick=${this.copyCleanup}>Copy cleanup prompt<//>
           </div>
           <p class="dim" style="font-size:11px;margin-top:12px;line-height:1.5">
-            "Mandatory reading" = the AGENTS.md §1 load order every agent ingests each session
+            "Boot metadata" = the deterministic AGENTS.md §1 load order and phase read targets
             (estimated at ≈1.5 tokens/word — the same method the doctor's CX-01 check uses, so this
-            number matches <code>truss doctor</code>). Use the cleanup prompt above when the footprint grows.</p>
+            number matches <code>truss doctor</code>). Task-selected domain and source context are not counted.</p>
         <//>
 
         <${Card}>

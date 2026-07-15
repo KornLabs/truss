@@ -7,7 +7,7 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { headingToAnchor } from '../lib/md.mjs'
+import { headingToAnchor, parsePhaseList } from '../lib/md.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 export const meta = [
@@ -18,7 +18,7 @@ export const meta = [
 ];
 
 // ID prefixes that are "structured" and require definitions
-const TRACKED_PREFIXES = new Set(['D', 'HT', 'R', 'OD']);
+const TRACKED_PREFIXES = new Set(['D', 'HT', 'R', 'OD', 'L']);
 
 // Files exempt from RF-01 link checking (e.g., external links, anchors-only links)
 function isExternalLink(href) {
@@ -133,7 +133,7 @@ export async function run(ctx) {
       id: 'RF-02', severity: 'W',
       file: first.file, line: first.line,
       message: `reference to '${id}' but no definition found in any file`,
-      fix: `Define '${id}' in its canonical file (D/OD → state/decisions.md or state/open-decisions.md; HT → HUMAN-TODOS.md; R → state/risks.md)`,
+      fix: `Define '${id}' in its canonical file (D/OD → state/decisions.md or state/open-decisions.md; HT → HUMAN-TODOS.md; R → state/risks.md; L → state/learnings.md)`,
     });
   }
 
@@ -155,7 +155,7 @@ export async function run(ctx) {
     for (const [phaseId, def] of phases.defs) {
       if (!def.prompts) continue;
 
-      const promptRefs = def.prompts.split(',').map(p => p.trim()).filter(Boolean);
+      const promptRefs = parsePhaseList(def.prompts);
       for (const promptId of promptRefs) {
         if (!promptIds.has(promptId)) {
           findings.push({

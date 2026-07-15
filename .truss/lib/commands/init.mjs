@@ -1,8 +1,8 @@
 // lib/commands/init.mjs — `truss init` (WP-INIT).
 //
-// init configures a FRESH workspace from the core baseline. It never mutates an
-// existing live workspace in place (A1/A3): every whole file is written via
-// scaffold.writeFileSafe, which skips — never overwrites — existing files.
+// init preflights and configures a workspace from the core baseline. Existing
+// files are preserved except for explicit AGENTS.md adoption, overlay .gitignore
+// merge, and the generated map. Fatal workspace writes are rolled back.
 //
 // Argument semantics, step order and write discipline:
 //   --name <name>   → profile.md `name:`, VISION/README titles
@@ -36,7 +36,12 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import readline from "node:readline/promises";
-import { applyTree, writeFileSafe } from "../scaffold.mjs";
+import {
+  applyTree,
+  inventoryTree,
+  writeFileAtomic,
+  writeFileSafe,
+} from "../scaffold.mjs";
 import { writeBlock } from "../writer.mjs";
 import { renderPrefsBlock, renderPhaseBlock } from "../render.mjs";
 import { parsePhases, parseBlocks } from "../md.mjs";
@@ -60,9 +65,15 @@ async function exists(p) {
   }
 }
 
-/** Parse argv into { name, lang, overlay, repo }. Supports "--flag v" and "--flag=v". */
+/** Parse argv into init options. Supports "--flag v" and "--flag=v". */
 export function parseInitArgs(argv) {
-  const opts = { name: null, lang: null, overlay: false, repo: null };
+  const opts = {
+    name: null,
+    lang: null,
+    overlay: false,
+    repo: null,
+    adoptAgents: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     // Consume the next token as a value; reject a missing value or one that looks
@@ -76,6 +87,7 @@ export function parseInitArgs(argv) {
       return v;
     };
     if (a === "--overlay") opts.overlay = true;
+    else if (a === "--adopt-agents") opts.adoptAgents = true;
     else if (a === "--name") opts.name = value("--name");
     else if (a === "--lang") opts.lang = value("--lang");
     else if (a === "--repo") opts.repo = value("--repo");
@@ -84,7 +96,7 @@ export function parseInitArgs(argv) {
     else if (a.startsWith("--repo=")) opts.repo = a.slice("--repo=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo --adopt-agents`,
       );
   }
   if (opts.repo && !opts.overlay) {
@@ -129,15 +141,27 @@ async function resolveInteractive(opts) {
   }
 }
 
-/** Pre-flight: refuse to init an already-initialised workspace (A1) — never clobber. */
-async function assertNotInitialised(root) {
+async function readMaybe(absPath) {
+  try { return await fs.readFile(absPath, "utf8"); }
+  catch (err) {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  }
+}
+
+/**
+ * Resolve AGENTS.md before any write. Marker-free files require explicit
+ * adoption; their content remains first and the Truss router is appended.
+ */
+async function prepareAgents(root, baselineDir, adoptAgents) {
   const agentsPath = path.join(root, "AGENTS.md");
-  let raw;
-  try {
-    raw = await fs.readFile(agentsPath, "utf8");
-  } catch {
-    return;
-  } // no AGENTS.md → fresh
+  const baseline = await fs.readFile(path.join(baselineDir, "AGENTS.md"), "utf8");
+  const raw = await readMaybe(agentsPath);
+  if (raw == null) {
+    assertRenderMarkers(baseline);
+    return { content: baseline, original: null, adopted: false };
+  }
+
   const blocks = parseBlocks(raw.split("\n"));
   const phase = blocks.get("phase");
   const rendered = phase?.innerLines?.some((l) => l.startsWith("**Phase "));
@@ -146,6 +170,46 @@ async function assertNotInitialised(root) {
       "init: this workspace already looks initialised (AGENTS.md has a rendered phase block).\n" +
         "       init never overwrites an existing instance (A1). Use 'truss set' / 'render' instead.",
     );
+  }
+  const blockIsComplete = (id) => {
+    const block = blocks.get(id);
+    return block && !block.orphanBegin && !block.orphanEnd &&
+      !block.duplicateBegin && block.startLine && block.endLine;
+  };
+  if (blockIsComplete("preferences") && blockIsComplete("phase")) {
+    return { content: raw, original: raw, adopted: false };
+  }
+  if (raw.includes("<!-- truss:")) {
+    throw new InitError(
+      "init: existing AGENTS.md contains incomplete or duplicate Truss markers.\n" +
+      "       Repair or remove the markers before running init; no files were changed.",
+    );
+  }
+  if (!adoptAgents) {
+    throw new InitError(
+      "init: existing AGENTS.md has no Truss markers; no files were changed.\n" +
+      "       Re-run with --adopt-agents to preserve it as a preamble and append the Truss router.",
+    );
+  }
+  const content = `${raw.trimEnd()}\n\n---\n\n${baseline}`;
+  assertRenderMarkers(content);
+  return {
+    content,
+    original: raw,
+    adopted: true,
+  };
+}
+
+function assertRenderMarkers(content) {
+  const blocks = parseBlocks(content.split("\n"));
+  for (const id of ["preferences", "phase"]) {
+    const block = blocks.get(id);
+    if (!block || block.orphanBegin || block.orphanEnd ||
+        block.duplicateBegin || !block.startLine || !block.endLine) {
+      throw new InitError(
+        `init: baseline AGENTS.md has invalid '${id}' render markers; no files were changed.`,
+      );
+    }
   }
 }
 
@@ -238,12 +302,54 @@ export async function runInit(root, argv) {
     );
   }
 
-  await assertNotInitialised(root);
-
-  // 1. Resolve the phase source content (exactly once).
+  // Resolve and validate every prerequisite before the first workspace write.
   const phasesContent = await resolvePhasesContent(baselineDir, opts.overlay);
+  const parsed = parsePhases(phasesContent.split("\n"));
+  const currentId = parsed.frontmatter.current;
+  const def = parsed.defs.get(currentId);
+  if (!def) {
+    throw new InitError(
+      `init: resolved phases.md has no current phase '${currentId}'`,
+    );
+  }
+  const existingPhases = await readMaybe(path.join(root, "state", "phases.md"));
+  if (existingPhases != null && existingPhases !== phasesContent) {
+    throw new InitError(
+      "init: existing state/phases.md conflicts with the selected baseline; no files were changed.\n" +
+      "       Move it aside or reconcile it before retrying.",
+    );
+  }
+  const agentsPlan = await prepareAgents(root, baselineDir, opts.adoptAgents);
+  const inventory = await inventoryTree(baselineDir, root);
+  const mapPath = path.join(root, "state", "map.md");
+  try {
+    const mapStat = await fs.lstat(mapPath);
+    if (!mapStat.isFile()) {
+      inventory.errors.push({
+        path: mapPath,
+        error: "generated map target exists but is not a regular file",
+      });
+    }
+  } catch (err) {
+    if (err.code !== "ENOENT") inventory.errors.push({ path: mapPath, error: err.message });
+  }
+  if (inventory.errors.length > 0) {
+    const first = inventory.errors[0];
+    throw new InitError(
+      `init: preflight failed at ${first.path}: ${first.error}; no files were changed.`,
+    );
+  }
+  let defaultRows;
+  try {
+    defaultRows = await defaultPrefsRows(root);
+  } catch (err) {
+    throw new InitError(`init: preference render preflight failed: ${err.message}; no files were changed.`);
+  }
+  const prefsBlock = renderPrefsBlock(defaultRows);
+  const pos = parsed.ordered.indexOf(currentId) + 1;
+  const phaseBlock = renderPhaseBlock(def, currentId, pos, parsed.ordered.length);
 
-  // 2. Pre-write resolved/substituted files BEFORE applyTree, so the no-overwrite
+  // Pre-write resolved/substituted files BEFORE applyTree, so the no-overwrite
   //    guard does not clobber them and we control their content. A pre-write target
   //    that already exists is a REAL conflict (partial re-run / live workspace) and
   //    is reported; the path is also marked expected so the later baseline skip of
@@ -253,72 +359,125 @@ export async function runInit(root, argv) {
       .replace(/\[project name\]/gi, opts.name)
       .split(LANG_TOKEN)
       .join(opts.lang);
-  const errors = [];
   const prewriteConflicts = [];
   const expectedSkips = new Set();
+  const created = [];
+  const originals = new Map();
+  let baseRes = { written: [], skipped: [], errors: [] };
+
+  const rememberOriginal = async (abs) => {
+    if (originals.has(abs)) return;
+    const raw = await readMaybe(abs);
+    if (raw != null) originals.set(abs, raw);
+  };
+
   const prewrite = async (rel, content) => {
     const abs = path.join(root, rel);
     expectedSkips.add(abs);
     const r = await writeFileSafe(abs, content);
     if (r.status === "skipped-exists") prewriteConflicts.push(abs);
-    else if (r.status === "error") errors.push(r);
+    else if (r.status === "written") created.push(abs);
+    else throw new InitError(`init: could not write ${rel}: ${r.error}`);
   };
 
-  await prewrite("state/phases.md", phasesContent);
-  for (const rel of ["VISION.md", "README.md", "state/profile.md"]) {
-    const raw = await fs.readFile(path.join(baselineDir, rel), "utf8");
-    await prewrite(rel, subst(raw));
-  }
-  if (opts.overlay) {
-    const gi = await fs.readFile(path.join(baselineDir, ".gitignore"), "utf8");
-    await prewrite(
-      ".gitignore",
-      gi.includes("repo/") ? gi : gi.replace(/\s*$/, "") + "\nrepo/\n",
-    );
-  }
+  const rollback = async () => {
+    const rollbackErrors = [];
+    for (const [abs, raw] of [...originals.entries()].reverse()) {
+      try { await writeFileAtomic(abs, raw); }
+      catch (err) { rollbackErrors.push(`${abs}: ${err.message}`); }
+    }
+    for (const abs of [...new Set(created)].reverse()) {
+      try { await fs.unlink(abs); }
+      catch (err) {
+        if (err.code !== "ENOENT") rollbackErrors.push(`${abs}: ${err.message}`);
+      }
+    }
+    const dirs = [...new Set(created.map(abs => path.dirname(abs)))]
+      .filter(dir => dir !== root && !dir.startsWith(path.join(root, ".truss")))
+      .sort((a, b) => b.length - a.length);
+    for (const dir of dirs) {
+      try { await fs.rmdir(dir); }
+      catch (err) {
+        if (!["ENOENT", "ENOTEMPTY"].includes(err.code)) {
+          rollbackErrors.push(`${dir}: ${err.message}`);
+        }
+      }
+    }
+    return rollbackErrors;
+  };
 
-  // 3. Apply the core baseline skeleton (pre-written files are skipped).
-  const baseRes = await applyTree(baselineDir, root);
-  errors.push(...baseRes.errors);
+  try {
+    await prewrite("state/phases.md", phasesContent);
+    for (const rel of ["VISION.md", "README.md", "state/profile.md"]) {
+      const raw = await fs.readFile(path.join(baselineDir, rel), "utf8");
+      await prewrite(rel, subst(raw));
+    }
 
-  // Clean up the overlay directory that was inadvertently copied by applyTree from the baseline
-  const overlayPhasePath = path.join(root, "overlay", "phases.md");
-  if (baseRes.written.includes(overlayPhasePath)) {
-    try {
-      await fs.unlink(overlayPhasePath);
-    } catch {}
-    try {
+    const agentsMd = path.join(root, "AGENTS.md");
+    expectedSkips.add(agentsMd);
+    if (agentsPlan.original == null) {
+      await prewrite("AGENTS.md", agentsPlan.content);
+    } else {
+      await rememberOriginal(agentsMd);
+      await writeFileAtomic(agentsMd, agentsPlan.content);
+    }
+
+    if (opts.overlay) {
+      const giPath = path.join(root, ".gitignore");
+      const baselineGi = await fs.readFile(path.join(baselineDir, ".gitignore"), "utf8");
+      const existingGi = await readMaybe(giPath);
+      const sourceGi = existingGi ?? baselineGi;
+      const hasRepoIgnore = sourceGi.split(/\r?\n/).some(
+        line => ["/repo/", "repo/"].includes(line.trim()),
+      );
+      const mergedGi = hasRepoIgnore
+        ? sourceGi
+        : sourceGi.replace(/\s*$/, "") + "\nrepo/\n";
+      expectedSkips.add(giPath);
+      if (existingGi == null) {
+        await prewrite(".gitignore", mergedGi);
+      } else if (mergedGi !== existingGi) {
+        await rememberOriginal(giPath);
+        await writeFileAtomic(giPath, mergedGi);
+      }
+    }
+
+    baseRes = await applyTree(baselineDir, root);
+    created.push(...baseRes.written);
+    if (baseRes.errors.length > 0) {
+      const first = baseRes.errors[0];
+      throw new InitError(`init: baseline write failed at ${first.path}: ${first.error}`);
+    }
+
+    const overlayPhasePath = path.join(root, "overlay", "phases.md");
+    if (baseRes.written.includes(overlayPhasePath)) {
       await fs.rm(path.join(root, "overlay"), { recursive: true, force: true });
-    } catch {}
-    baseRes.written = baseRes.written.filter(
-      (p) => p !== overlayPhasePath && p !== path.join(root, "overlay"),
+      created.splice(created.indexOf(overlayPhasePath), 1);
+      baseRes.written = baseRes.written.filter((p) => p !== overlayPhasePath);
+    }
+
+    await writeBlock(
+      agentsMd,
+      "preferences",
+      prefsBlock,
     );
+    await writeBlock(
+      agentsMd,
+      "phase",
+      phaseBlock,
+    );
+
+    const existingMap = await readMaybe(mapPath);
+    if (existingMap != null) await rememberOriginal(mapPath);
+    else created.push(mapPath);
+    await writeFileAtomic(mapPath, await generateMapContent(root));
+  } catch (err) {
+    const rollbackErrors = await rollback();
+    const rollbackMessage = rollbackErrors.length === 0
+      ? " Workspace changes were rolled back."
+      : ` Rollback was incomplete: ${rollbackErrors.join("; ")}`;
+    throw new InitError(`init: ${err.message}.${rollbackMessage}`);
   }
-
-  // 5. Render the two AGENTS.md blocks (the only block writes — GE-9).
-  const agentsMd = path.join(root, "AGENTS.md");
-  await writeBlock(
-    agentsMd,
-    "preferences",
-    renderPrefsBlock(await defaultPrefsRows(root)),
-  );
-  const parsed = parsePhases(phasesContent.split("\n"));
-  const currentId = parsed.frontmatter.current;
-  const def = parsed.defs.get(currentId);
-  if (!def)
-    throw new InitError(
-      `init: resolved phases.md has no current phase '${currentId}'`,
-    );
-  const pos = parsed.ordered.indexOf(currentId) + 1;
-  await writeBlock(
-    agentsMd,
-    "phase",
-    renderPhaseBlock(def, currentId, pos, parsed.ordered.length),
-  );
-
-  // 5b. Generate state/map.md.
-  const mapContent = await generateMapContent(root);
-  await prewrite("state/map.md", mapContent);
 
   // 6. git init (best-effort; an instance is valid without git).
   const report = {};
@@ -339,7 +498,8 @@ export async function runInit(root, argv) {
     currentPhase: currentId,
     baselineWritten: baseRes.written.length,
     conflicts,
-    errors,
+    errors: [],
+    adoptedAgents: agentsPlan.adopted,
     git: report.git,
     repo: report.repo ?? null,
   };

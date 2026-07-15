@@ -2,7 +2,7 @@
 
 The Truss Dashboard is the local control center for a file-based Truss
 workspace. It gives you a visual view of project status, the active phase,
-decisions, the context budget, and any drift warnings — without leaving your
+decisions, mandatory Truss boot metadata, and any drift warnings — without leaving your
 machine.
 
 ## Starting it

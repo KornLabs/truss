@@ -294,6 +294,31 @@ export async function loadWorkspace(root) {
   // above so doctor does not walk the whole tree a second time.
   const mdFiles = mapMdFilesFromDiskPaths(diskPaths, ignore.isIgnored);
 
+  // Domain files are operational knowledge, not merely map input. Load every
+  // non-ignored context/**/*.md file so RF checks links and structured IDs there.
+  for (const rel of mdFiles.filter(p => p.startsWith('context/'))) {
+    if (files.has(rel)) continue;
+    const raw = await readFile(resolve(rel));
+    if (!raw) continue;
+    const fileCtx = {
+      ...raw,
+      relPath: rel,
+      links: parseAllLinks(raw.lines),
+      headings: parseHeadings(raw.lines),
+      idDefs: parseIdDefinitions(raw.lines),
+      idRefs: parseIdReferences(raw.lines),
+    };
+    files.set(rel, fileCtx);
+    for (const { id, line } of fileCtx.idDefs) {
+      if (!idDefs.has(id)) idDefs.set(id, []);
+      idDefs.get(id).push({ file: rel, line });
+    }
+    for (const { id, line } of fileCtx.idRefs) {
+      if (!idRefs.has(id)) idRefs.set(id, []);
+      idRefs.get(id).push({ file: rel, line });
+    }
+  }
+
   return {
     root,
     structureTable,

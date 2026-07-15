@@ -1,6 +1,6 @@
 // lib/context-budget.mjs — shared context-budget math.
 //
-// The SINGLE SOURCE OF TRUTH for the mandatory read-context token estimate,
+// The SINGLE SOURCE OF TRUTH for the mandatory Truss boot-metadata estimate,
 // imported by BOTH the doctor check (checks/cx.mjs → CX-01) and the dashboard
 // budget endpoint (dashboard/server.mjs). Keeping the file list and the token
 // factor here guarantees the two can never disagree on the number they place
@@ -21,9 +21,9 @@ export const TOKENS_PER_WORD = 1.5
 // Always-loaded boot context (AGENTS.md §1 load order, by file identity).
 // open-decisions.md is only *conditionally* loaded per §1, but a static check
 // cannot know the task, so it is counted unconditionally (conservative). The one
-// task-specific domain file (§1 step 6) is intentionally NOT counted — unknowable
-// statically. The phase block itself is already inside AGENTS.md (generated), so
-// it is not listed separately.
+// task-selected domain file and source/tool context are intentionally NOT
+// counted — they are unknowable statically. This metric must not be presented as
+// total task context. The phase block itself is already inside AGENTS.md.
 export const CONTEXT_FILES = [
   'AGENTS.md',
   'state/current.md',

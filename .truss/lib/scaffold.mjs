@@ -1,13 +1,8 @@
-// lib/scaffold.mjs — The single writer for WHOLE files (GE-9, A3).
-//
-// Division of responsibility (GE-9):
-//   - writer.mjs   → the only writer of the two GENERATED BLOCKS in AGENTS.md.
-//   - scaffold.mjs → the only writer of WHOLE files (init baseline skeletons).
-// No third write site exists. init never touches the filesystem except through here.
+// lib/scaffold.mjs — atomic/no-overwrite whole-file primitives for init.
 //
 // Contract (A3):
-//   - Atomic: temp file + rename, with a direct-write fallback for restricted
-//     sandboxes — exactly the strategy writer.mjs uses for the blocks.
+//   - Atomic: temp file + rename. A failed rename is an error; there is no
+//     direct-write fallback that can leave a truncated destination.
 //   - Never overwrites: if the destination already exists, it is left untouched
 //     and reported as 'skipped-exists'. No silent clobbering of existing work.
 //   - Returns a status per file so callers can build a bundled conflict report.
@@ -17,12 +12,88 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+/** Atomically create or replace a whole file. Throws without touching the target on failure. */
+export async function writeFileAtomic(absPath, content) {
+  await fs.mkdir(path.dirname(absPath), { recursive: true })
+  const tmpPath = `${absPath}.tmp-${process.pid}-${Date.now()}`
+  try {
+    await fs.writeFile(tmpPath, content, 'utf8')
+    await fs.rename(tmpPath, absPath)
+  } catch (err) {
+    try { await fs.unlink(tmpPath) } catch {}
+    throw err
+  }
+}
+
+/**
+ * Read and inventory a source tree before init writes. Existing destination
+ * files are conflicts to preserve; non-directory parent components are fatal.
+ */
+export async function inventoryTree(srcDir, destDir) {
+  const result = { files: [], conflicts: [], errors: [] }
+
+  const walk = async (relDir) => {
+    const absSrcDir = path.join(srcDir, relDir)
+    let entries
+    try { entries = await fs.readdir(absSrcDir, { withFileTypes: true }) }
+    catch (err) {
+      result.errors.push({ path: absSrcDir, error: err.message })
+      return
+    }
+
+    for (const entry of entries) {
+      const rel = relDir ? path.join(relDir, entry.name) : entry.name
+      if (entry.isDirectory()) {
+        await walk(rel)
+        continue
+      }
+      if (!entry.isFile()) continue
+
+      const absSrc = path.join(srcDir, rel)
+      const absDest = path.join(destDir, rel)
+      try { await fs.readFile(absSrc, 'utf8') }
+      catch (err) {
+        result.errors.push({ path: absSrc, error: err.message })
+        continue
+      }
+
+      let parent = path.dirname(absDest)
+      while (parent !== destDir && parent.startsWith(destDir + path.sep)) {
+        try {
+          const stat = await fs.lstat(parent)
+          if (!stat.isDirectory()) {
+            result.errors.push({ path: parent, error: 'destination parent is not a directory' })
+            break
+          }
+        } catch (err) {
+          if (err.code !== 'ENOENT') result.errors.push({ path: parent, error: err.message })
+        }
+        parent = path.dirname(parent)
+      }
+
+      try {
+        const targetStat = await fs.lstat(absDest)
+        if (!targetStat.isFile()) {
+          result.errors.push({ path: absDest, error: 'destination exists but is not a regular file' })
+        } else {
+          result.conflicts.push(absDest)
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') result.errors.push({ path: absDest, error: err.message })
+      }
+      result.files.push({ rel, absSrc, absDest })
+    }
+  }
+
+  await walk('')
+  return result
+}
+
 /**
  * Write a whole file atomically, never overwriting an existing destination.
  *
- * Creates parent directories as needed. Writes to `<absPath>.tmp` then renames
- * onto the destination; if rename fails (cross-device, restricted sandbox) it
- * falls back to a direct write. The no-overwrite guard is checked first via
+ * Creates parent directories as needed, then uses writeFileAtomic. The
+ * no-overwrite guard is checked first via
  * fs.access — there is an inherent TOCTOU window, but truss init/add run
  * single-threaded against a quiescent workspace, so a concurrent creator is out
  * of scope (one root agent at a time, STRUKTUR §8 "Concurrent Agents").
@@ -49,21 +120,11 @@ export async function writeFileSafe(absPath, content) {
     return { status: 'error', path: absPath, error: err.message }
   }
 
-  // Atomic write via temp + rename, mirroring writer.mjs's strategy.
-  const tmpPath = absPath + '.tmp'
   try {
-    await fs.writeFile(tmpPath, content, 'utf8')
-    await fs.rename(tmpPath, absPath)
+    await writeFileAtomic(absPath, content)
     return { status: 'written', path: absPath }
-  } catch {
-    // rename may fail across devices or in restricted sandboxes — direct write fallback.
-    try { await fs.unlink(tmpPath) } catch {}
-    try {
-      await fs.writeFile(absPath, content, 'utf8')
-      return { status: 'written', path: absPath }
-    } catch (err) {
-      return { status: 'error', path: absPath, error: err.message }
-    }
+  } catch (err) {
+    return { status: 'error', path: absPath, error: err.message }
   }
 }
 

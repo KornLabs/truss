@@ -73,11 +73,11 @@ const FAQ_DATA = [
         Only after editing ${code('state/phases.md')} (phase definitions or the ${code('current:')} pointer).
         Preference changes via ${code('truss set')} auto-render. If you use ${code('truss phase <id>')} to
         change phases, it also renders automatically.</p>` },
-    { q: 'What does "CX-01 context budget exceeded" mean?',
+    { q: 'What does "CX-01 boot metadata budget exceeded" mean?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        The mandatory per-session reading (files in the §1 load order) exceeds the token budget. Solutions:
+        The deterministic Truss boot files (the §1 load order plus phase read targets) exceed the budget. This excludes task-selected domain and source context. Solutions:
         shorten AGENTS.md, move detail into domain files under ${code('context/')}, or reduce the number
-        of files in the load order. The Context Budget view on the dashboard shows the breakdown.</p>` },
+        of files in the load order. The Boot Metadata view on the dashboard shows the breakdown.</p>` },
   ]},
 
   { title: 'Phases & Workflow', icon: Icons.Flag, items: [

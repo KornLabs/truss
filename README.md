@@ -18,8 +18,9 @@ forgotten, and consistency rests on you re-explaining the project each time.
 Truss fixes that with one folder that lives beside your code and acts as its
 memory. An agent opens a single boot file — `AGENTS.md` — and instantly knows
 what the project is, what phase it's in, what's being worked on right now, and
-where to find anything else. It loads only what it needs (~3k tokens by
-default), never your whole repo.
+where to find anything else. Its deterministic boot metadata is about 3.8k
+estimated tokens by default; task-selected domain and source files load on
+demand.
 
 Point any AGENTS.md-aware agent at it — Claude Code, Cowork, Codex, Gemini CLI,
 Copilot, Cursor — start it in the project folder, and it resumes exactly where
@@ -48,13 +49,19 @@ zero-dependency CLI checks the structure and surfaces open decisions for you.
   side effect. Every session boots from `AGENTS.md`, which hands the agent an
   ordered load list and one instruction: _load the smallest context that can
   answer the task, then stop._ A routing table (§2) plus a generated
-  `state/map.md` tell it exactly where anything else lives, so it reads on
-  demand instead of ingesting the repo. The payoff is a window that stays light
-  and on-task: cheaper, faster sessions and less drift from irrelevant context.
-  The mandatory read is ~3,000 tokens at scaffold; the `doctor` context check
-  (`CX`) keeps it honest, warning only if a real workspace's boot context grows
-  past ~9k, and the `TRUSS` control word acts as a live canary if context starts
-  to degrade mid-session.
+  `state/map.md` route Truss's operational Markdown, so the agent can load domain
+  knowledge on demand instead of ingesting it all. Source files and the
+  task-selected domain context remain the agent tool's responsibility. The
+  mandatory Truss boot metadata is about 3.8k estimated tokens at scaffold; the
+  `doctor` context check (`CX`) measures that boot set plus explicit phase
+  `read:` targets and warns past ~9k. It is not a measurement of total task
+  context, task cost, or task quality.
+
+**Portable guardrail contract.** Phase limits, human-only transitions, and
+subagent inheritance are behavioral instructions. Truss reports grammar,
+uncommitted forbidden-path evidence, and exit artifacts, but it does not
+authenticate the actor or intercept file writes. Treat those rules as advisory
+unless your agent host adds its own enforcement boundary.
 
 ## How it compares
 
@@ -65,11 +72,11 @@ zero-dependency CLI checks the structure and surfaces open decisions for you.
 | Cost to run            | **None — your existing subscription, no API keys**         | None                            | Often metered API keys / token spend         |
 | Memory across sessions | Structured Markdown: context, decisions, phases            | One flat file you curate        | Framework DB or vendor-hosted store          |
 | Drift detection        | `doctor` checks the files still agree                      | None                            | Varies                                       |
-| Guardrails             | Human-gated phases narrow what the agent may do            | None                            | Often fully autonomous                       |
+| Guardrails             | Advisory phases + changed-path and exit reports             | None                            | Often fully autonomous                       |
 | Who decides            | Humans & agents; scripts only report                       | You                             | The framework may act on its own             |
 | Tool-agnostic          | Yes — AGENTS.md standard (Claude, Gemini, Cursor, Copilot) | Yes                             | Usually tied to one runtime                  |
 | Lock-in                | None — plain, git-diffable files                           | None                            | Framework + sometimes hosted state           |
-| Mandatory context      | ~3k tokens                                                 | Whatever you put in the file    | Can be heavy                                 |
+| Mandatory boot metadata| ~3.8k estimated tokens                                      | Whatever you put in the file    | Can be heavy                                 |
 
 ## Quickstart
 
@@ -105,6 +112,11 @@ node .truss/bin/truss.mjs init
 # Optional: sanity-check workspace health anytime.
 node .truss/bin/truss.mjs doctor
 ```
+
+If the project already has a marker-free `AGENTS.md`, `init` stops before
+writing anything. Review that file, then re-run with `--adopt-agents` to keep it
+as the preamble and append the Truss router. Overlay init preserves an existing
+`.gitignore` and adds `repo/`.
 
 **Windows (PowerShell):**
 
@@ -248,10 +260,11 @@ alias). Full reference: [.truss/docs/cli.md](.truss/docs/cli.md).
 
 | Command                                            | What it does                                             |
 | -------------------------------------------------- | -------------------------------------------------------- |
-| `init [--name --lang --overlay]`                   | scaffold a fresh workspace                               |
+| `init [--name --lang --overlay --adopt-agents]`    | preflight and scaffold a workspace                       |
 | `status`                                           | compact workspace status summary                         |
 | `doctor [--gate] [--json] [--html] [--fix-prompt]` | check workspace health                                   |
 | `render`                                           | sync the phase block in AGENTS.md from `state/phases.md` |
+| `phase [<id>] [--override-gate]`                   | list phases, or gate and change the active phase         |
 | `set <key> <value>`                                | change an agent preference                               |
 | `map`                                              | regenerate the `state/map.md` domain overview            |
 | `dashboard`                                        | start the local web dashboard                            |
@@ -260,17 +273,18 @@ alias). Full reference: [.truss/docs/cli.md](.truss/docs/cli.md).
 
 ## Dashboard (optional)
 
-An optional, read-only local viewer over the same Markdown — nothing runs in the
-background and it keeps the zero-dependency rule. Start it with `node
+An optional local control center over the same Markdown — writable by default
+through a token-guarded CLI whitelist, or read-only with `--read-only`. Nothing
+runs in the background and it keeps the zero-dependency rule. Start it with `node
 .truss/bin/truss.mjs dashboard` (binds to `127.0.0.1` only). It surfaces the
-current focus and phase, open decisions, the context budget, the prompt library,
+current focus and phase, open decisions, Truss boot metadata, the prompt library,
 and any drift, using the same health language as the CLI (Lightweight / Growing /
 Heavy — a reading of the _workspace structure_, not your code).
 
 <p align="center">
-  <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and context budget at a glance" width="820">
+  <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and boot metadata at a glance" width="820">
   <br><br>
-  <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — Context budget: mandatory per-session reading, per-file breakdown, and how Truss compares with other agent frameworks" width="820">
+  <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — Boot metadata: mandatory Truss reading and per-file breakdown" width="820">
 </p>
 
 ## Documentation

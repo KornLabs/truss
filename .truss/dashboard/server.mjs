@@ -28,7 +28,7 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
-// The mandatory read-context file set (AGENTS.md §1 load order) lives in the
+// The mandatory Truss boot-metadata file set (AGENTS.md §1 load order) lives in the
 // shared lib/context-budget.mjs (CONTEXT_FILES) so it matches the doctor's CX-01
 // check exactly — including state/open-decisions.md and the current phase's
 // `read:` targets, which the old local list omitted.

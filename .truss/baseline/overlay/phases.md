@@ -14,8 +14,9 @@ purpose: take stock of the existing project — inventory code, docs, and decisi
 behavior: archaeological — read before changing; capture current reality, defer redesign.
 allowed: inventories, import notes, questions about the existing system, domain notes summarising findings.
 forbidden: refactors, feature work, deleting existing files, premature redesign of the inherited system.
+forbidden-globs: repo/**
 read: state/profile.md
-exit: glob: import*.md; existing system mapped and summarised (human); pursue/adjust decision recorded as D-entry (human)
+exit: file: context/import-log.md; existing system mapped and summarised (human); pursue/adjust decision recorded as D-entry (human)
 prompts: overlay-onboard
 
 ## operate

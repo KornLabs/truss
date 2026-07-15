@@ -15,8 +15,8 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 ├── lib/                 # shared library
 │   ├── command-meta.mjs # the canonical command list (drives help + dashboard whitelist)
 │   ├── workspace.mjs    # locate & load a workspace
-│   ├── scaffold.mjs     # the ONLY writer of whole files
-│   ├── writer.mjs       # the ONLY writer of generated blocks
+│   ├── scaffold.mjs     # atomic/no-overwrite whole-file primitives
+│   ├── writer.mjs       # generated-block writer
 │   ├── render.mjs       # render phase / preferences blocks
 │   ├── prefs.mjs        # preferences catalogue (single source of truth)
 │   ├── md.mjs           # markdown parsing helpers
@@ -34,7 +34,7 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 └── VERSION              # current version string
 ```
 
-## Two design rules worth knowing
+## Design rules worth knowing
 
 **1. Single source of truth for the command surface.** Every command is declared
 once in `lib/command-meta.mjs` (name, help summary, and whether the dashboard may
@@ -42,16 +42,19 @@ invoke it). Both `truss help` and the dashboard action whitelist derive from
 that one list, so "documented but not dispatched" or "whitelisted but not
 implemented" drift cannot happen.
 
-**2. Two — and only two — writers.** All file mutation flows through exactly two
-modules, which keeps writes auditable:
+**2. Writer ownership is explicit.** Mutation is limited to command-owned
+surfaces:
 
-- `scaffold.mjs` writes **whole files**, and only ones that don't exist yet
-  (`writeFileSafe` skips, never overwrites). This is how `init` lays down a fresh
-  workspace without ever clobbering live content.
+- `init` uses `scaffold.mjs` for atomic/no-overwrite whole-file operations,
+  including rollback and the explicit `--adopt-agents` merge.
 - `writer.mjs` writes the **generated blocks** (the preferences and phase blocks
-  in `AGENTS.md`), bounded by the `truss:begin/end` markers.
+  in `AGENTS.md`) for `init`, `render`, `set`, and `phase`.
+- `phase` owns the `current:` update in `state/phases.md`; `map` owns
+  `state/map.md`; `prompt` owns `.truss/prompts/custom/`; doctor report modes own
+  files under `.truss/out/`.
 
-Everything else — `doctor`, `status`, `map`'s reads, all checks — is read-only.
+Checks and `status` are read-only. The dashboard never writes directly; it can
+invoke only the command whitelist described below.
 
 ## Checks
 
@@ -72,9 +75,10 @@ to know about it.
 
 `baseline/` is the canonical fresh-instance format: the exact `AGENTS.md`, state
 files, docs, adapter stubs, and `package.json` a new workspace starts with.
-`init` resolves the phase source once (core, or the `overlay/` variant for
-`--overlay`), writes the substituted skeletons (name/language/phases), then copies
-the rest of the tree with `applyTree`, skipping anything already present. Because
+`init` resolves and validates the phase source and AGENTS.md adoption before the
+first write, writes substituted skeletons, then copies the rest of the tree with
+`applyTree`, skipping anything already present. A fatal write or render failure
+restores modified files and removes files created by that run. Because
 the state grammars the `SY` checks enforce are grounded in this baseline, the
 baseline *is* the spec — keep them in sync.
 
