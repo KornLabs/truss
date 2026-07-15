@@ -6,11 +6,14 @@ import { SEG_COLORS, budgetStatus } from '../context-config.js';
 import { handoff as handoffStore } from '../store.js';
 
 export class OverviewView extends Component {
-  state = { budget: null, git: null, modal: null, phaseChange: '', odSel: {}, odNote: {}, handoff: handoffStore.all() };
+  state = { budget: null, git: null, branches: null, modal: null, phaseChange: '', odSel: {}, odNote: {}, handoff: handoffStore.all() };
 
   componentDidMount() {
     api.contextBudget().then(b => this.setState({ budget: b })).catch(() => {});
     api.gitStatus().then(g => this.setState({ git: g })).catch(() => {});
+    // Code-root branch awareness (branch-guard feature). Degrades silently to
+    // present:false when no code-root checkout exists — the card then hides.
+    api.gitBranches().then(b => this.setState({ branches: b })).catch(() => {});
   }
 
   openModal = (m) => this.setState({ modal: m });
@@ -49,7 +52,7 @@ export class OverviewView extends Component {
   removeHandoff = (odId) => this.setState({ handoff: handoffStore.remove(odId) });
   clearHandoff = () => this.setState({ handoff: handoffStore.clear() });
 
-  render({ state, go }, { budget, git, modal, phaseChange, odSel, odNote, handoff }) {
+  render({ state, go }, { budget, git, branches, modal, phaseChange, odSel, odNote, handoff }) {
     // ── Init guard: show welcome banner instead of empty cards ──
     if (state.initialized === false) {
       return html`
@@ -114,6 +117,23 @@ export class OverviewView extends Component {
     const staged = gitLines.filter(l => !isConflict(l) && 'MADRC'.includes(l[0])).length;
     const modified = gitLines.filter(l => l[1] === 'M' || l[1] === 'D').length;
     const untracked = gitLines.filter(l => l.startsWith('??')).length;
+
+    // ── Code-root branch chip (branch-guard feature) ──────────────────────
+    // Only shown when a code-root checkout exists (branches.present). Mirrors the
+    // Git-tab card at a glance: checked-out branch + match/mismatch status.
+    const br = branches || {};
+    const brInfo = br.info || {};
+    const brCurrent = brInfo.detached
+      ? `detached @ ${brInfo.sha || '?'}`
+      : (brInfo.branch || (brInfo.reason ? 'unreadable' : '—'));
+    const brBadge = br.mismatch ? { tone: 'err', text: 'Mismatch' }
+      : br.match ? { tone: 'ok', text: 'On declared branch' }
+      : brInfo.detached ? { tone: 'warn', text: 'Detached HEAD' }
+      : { tone: 'neutral', text: br.declared ? 'OK' : 'No branch declared' };
+    const brSub = br.mismatch
+      ? `Declared ${br.declared || '—'} in current.md — resolve before working.`
+      : br.match ? 'Matches state/current.md.'
+      : br.declared ? `Declared: ${br.declared}` : 'No branch: declared in current.md.';
 
     return html`
       <${Card}>
@@ -194,6 +214,18 @@ export class OverviewView extends Component {
         </div>`}
 
       <div class="grid cols-auto-lg">
+        ${br.present ? html`
+        <${Card} onClick=${() => go('git')} style=${br.mismatch ? 'border-color:var(--err-soft)' : ''}>
+          <${CardHead} icon=${Icons.Git} title=${`Code-root branch`}>
+            <${Badge} variant=${brBadge.tone}>${brBadge.text}<//>
+          <//>
+          <div class="row" style="align-items:baseline;gap:8px;margin-bottom:6px">
+            <span class="stat-val" style="font-size:18px;font-family:var(--font-mono);color:${br.mismatch ? 'var(--err)' : 'var(--text)'}">${brCurrent}</span>
+            <span class="dim" style="font-size:12px">${br.codeRoot || 'repo'}/</span>
+          </div>
+          <p class="muted" style="font-size:12.5px">${brSub}</p>
+        <//>` : ''}
+
         <${Card} onClick=${() => go('context')}>
           <${CardHead} icon=${Icons.Gauge} title="Boot metadata">
             <${Badge} variant=${bStat.tone}>${bStat.label}<//>

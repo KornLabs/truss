@@ -157,7 +157,7 @@ truss set response-style compact
 | `source-citation` | off · on | off |
 | `scope` | off · minimal · balanced · thorough | off |
 | `auto-commit` | off · suggest · on | suggest |
-| `post-task-check` | off · inline · subagent | off |
+| `post-task-check` | off · inline · subagent | inline |
 | `gate-advocate` | off · on · agentic | agentic |
 | `phase-lock` | off · advisory | advisory |
 | `branch-guard` | off · warn · strict | warn |

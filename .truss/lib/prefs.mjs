@@ -12,7 +12,7 @@ export const PREFS_CATALOG = [
   { key: 'source-citation', values: ['off', 'on'],                   default: 'off'      },
   { key: 'scope',           values: ['off', 'minimal', 'balanced', 'thorough'], default: 'off', omit: ['off'] },
   { key: 'auto-commit',     values: ['off', 'suggest', 'on'],        default: 'suggest'  },
-  { key: 'post-task-check', values: ['off', 'inline', 'subagent'],   default: 'off' },
+  { key: 'post-task-check', values: ['off', 'inline', 'subagent'],   default: 'inline' },
   { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],        default: 'agentic'  },
   { key: 'phase-lock',      values: ['off', 'advisory'],             default: 'advisory' },
   { key: 'branch-guard',    values: ['off', 'warn', 'strict'],       default: 'warn'     },

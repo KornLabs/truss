@@ -2,11 +2,22 @@ import { html, Component } from '../../vendor/preact-htm.mjs';
 import { Card, CardHead, Icons, Badge, Empty, Button, Spinner } from '../components.js';
 import { api } from '../api.js';
 
+// Show the directory path verbatim so nested groups are unambiguous
+// (e.g. `/context`, `/state`). Root is labelled `/root` for clarity.
 const catLabel = (name) => {
   const n = name.trim();
-  if (n === '/' || n === '') return 'Root';
-  return n.replace(/^\//, '');
+  if (n === '/' || n === '') return '/root';
+  return n.startsWith('/') ? n : `/${n}`;
 };
+
+// Root first, then the remaining directories alphabetically by path.
+const sortCats = (cats) => [...cats].sort((a, b) => {
+  const an = a.name.trim(), bn = b.name.trim();
+  const aRoot = an === '/' || an === '';
+  const bRoot = bn === '/' || bn === '';
+  if (aRoot !== bRoot) return aRoot ? -1 : 1;
+  return an < bn ? -1 : (an > bn ? 1 : 0);
+});
 
 export class MapView extends Component {
   state = { running: false };
@@ -24,7 +35,7 @@ export class MapView extends Component {
   };
 
   render({ state }, { running }) {
-    const cats = state.map?.categories || [];
+    const cats = sortCats(state.map?.categories || []);
     const fileCount = cats.reduce((a, c) => a + c.files.length, 0);
 
     if (cats.length === 0) return html`

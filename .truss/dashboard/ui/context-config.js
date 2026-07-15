@@ -9,11 +9,13 @@
 export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars — basis of the external peer estimates only
 
 // Truss' fixed framework overhead: the §1 load order at a fresh `init` (empty
-// templates), remeasured 2026-07-13 from baseline/ via the shared words×1.5 method
-// at approximately 3.8k tokens. This is the cost the FRAMEWORK imposes — independent of how
-// much project content a given project has accumulated. It floors the health gauge
-// (a running project can never sit below framework overhead).
-export const TRUSS_BASELINE = 3800;
+// templates), remeasured 2026-07-15 from baseline/ via the shared words×1.5 method
+// (context-budget.mjs CONTEXT_FILES) at ≈3.1k tokens (AGENTS.md 2469 + current 132
+// + VISION 143 + decisions 68 + open-decisions 72 + profile 240 = 3123). This is the
+// cost the FRAMEWORK imposes — independent of how much project content a given project
+// has accumulated. It floors the health gauge (a running project can never sit below
+// framework overhead). Keep in sync with baseline/ when the templates change.
+export const TRUSS_BASELINE = 3123;
 
 // Internal health bands for the total mandatory-reading tokens (a running project).
 // floor  ≈ Truss default (gauge starts here, not 0 — you can't go below framework overhead)
