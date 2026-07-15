@@ -25,7 +25,12 @@ export async function runStatus(root, argv) {
     process.exit(0)
   }
 
-  const projectName = path.basename(root)
+  const profileName = ctx.files
+    .get('state/profile.md')
+    ?.lines.find(line => /^name:\s*\S/.test(line))
+    ?.replace(/^name:\s*/, '')
+    .trim()
+  const projectName = profileName || path.basename(root)
   const currentPhaseId = ctx.phases?.frontmatter?.current || 'unknown'
   const ordered = ctx.phases?.ordered || []
   const position = ordered.indexOf(currentPhaseId) + 1

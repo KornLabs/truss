@@ -4,7 +4,7 @@ export function parseProfile(lines) {
   let styleLines = [];
   for (const line of lines) {
     const mKey = line.match(/^([a-z-]+):\s*(.*)$/i);
-    if (mKey && !currentSection) {
+    if (mKey && (!currentSection || currentSection === 'project')) {
       const k = mKey[1].toLowerCase();
       if (k === 'name') result.name = mKey[2].trim();
       if (k === 'language') result.language = mKey[2].trim();

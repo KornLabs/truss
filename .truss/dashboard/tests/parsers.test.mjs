@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { parseCurrent } from '../lib/parsers/current.mjs';
 import { parseDecisions } from '../lib/parsers/decisions.mjs';
 import { parseHumanTodos } from '../lib/parsers/human-todos.mjs';
+import { parseProfile } from '../lib/parsers/profile.mjs';
 import { assembleState } from '../lib/state.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -31,6 +32,21 @@ test('parsers tolerate plain hyphen as well as em/en dash', () => {
     assert.strictEqual(ht.openCount, 1, `human-todos with "${dash}"`);
     assert.strictEqual(ht.open[0].text, 'Review the PR');
   }
+});
+
+test('parseProfile reads project keys from the Project section', () => {
+  const profile = parseProfile([
+    '## Project',
+    '',
+    'name: Truss Forge',
+    'language: German',
+    'code-root: product',
+    'pm-method: none',
+  ]);
+
+  assert.strictEqual(profile.name, 'Truss Forge');
+  assert.strictEqual(profile.language, 'German');
+  assert.strictEqual(profile.pmMethod, 'none');
 });
 
 test('assembleState handles empty/missing directories gracefully', async () => {

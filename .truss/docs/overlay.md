@@ -49,6 +49,13 @@ node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English \
   --code-root product
 ```
 
+This selects the code-worktree boundary only. The workspace root, `.truss/`
+engine, state files, and their ownership do not move into that directory.
+Checks and Git-aware views use the configured boundary, while workspace scans
+exclude its contents. The path must be an existing relative POSIX directory
+inside the workspace; absolute paths, traversal, backslashes, and
+Truss-managed top-level paths are invalid.
+
 `repo/` remains the default and the only destination managed by `--repo`.
 Exactly one code root is supported; use a directory containing multiple
 checkouts when a project genuinely needs several.

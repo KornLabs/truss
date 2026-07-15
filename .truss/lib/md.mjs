@@ -184,6 +184,10 @@ export function parseIdReferences(lines) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
+    // A resolving decision keeps `Closes: OD-NNN` after the OD definition is
+    // removed, so this durable trace is intentionally not a live reference.
+    if (/^Closes:\s+OD-\d{3}\s*$/.test(line.trim())) continue;
+
     // Toggle fenced code block
     if (!inHtmlComment && (line.startsWith('```') || line.startsWith('~~~'))) {
       inFencedBlock = !inFencedBlock;

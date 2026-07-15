@@ -205,7 +205,7 @@ Init flags:
   --lang <lang>     primary language for agent output (e.g. English)
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
   --repo <path|url> place existing code under repo/ (overlay only)
-  --code-root <dir> use an existing relative code directory (overlay only)
+  --code-root <dir> select one existing in-workspace code root (overlay only)
 
 Doctor flags:
   --gate        also run PH-04 phase-exit checks

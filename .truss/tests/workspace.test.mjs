@@ -195,6 +195,14 @@ describe('parseIdReferences — skips noise', () => {
     assert.equal(refs.length, 1)
     assert.equal(refs[0].id, 'D-004')
   })
+
+  it('skips the durable Closes trace for a removed open decision', () => {
+    const refs = parseIdReferences([
+      'Closes: OD-001',
+      'Related follow-up: OD-002',
+    ])
+    assert.deepEqual(refs, [{ id: 'OD-002', line: 2 }])
+  })
 })
 
 describe('parseIdDefinitions', () => {

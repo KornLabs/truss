@@ -32,8 +32,15 @@ truss init --name "My Project" --lang English
 | `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
 | `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore` |
 | `--repo <path\|url>` | (overlay only) bring the existing code in under `repo/`: a local path is symlinked, a URL is `git clone`d. Best-effort — a failure is reported, never fatal |
-| `--code-root <dir>` | (overlay only) use one existing relative directory as the code root instead of `repo/`; the directory must exist and is not moved or added to `.gitignore` |
+| `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
+
+`--code-root` does not relocate the workspace, the `.truss/` engine, or Truss
+state. It writes the normalized POSIX path to `state/profile.md`; status,
+branch-guard, phase evidence, code-root checks, `map`, and `repo-map` then use
+that same boundary. The directory must already exist inside the workspace and
+must not be a Truss-managed top-level path. Absolute paths, backslashes, and
+`..` traversal are rejected. Omit the option for the standard `repo/` overlay.
 
 With no flags in a TTY, `init` asks interactively. With no TTY and missing
 required answers it errors instead of hanging.

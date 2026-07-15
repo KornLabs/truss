@@ -205,6 +205,10 @@ node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English \
 
 Truss records `code-root: product` in `state/profile.md`; checks, branch status,
 phase evidence, `map`, and `repo-map` then share that single boundary.
+This changes only which existing directory is treated as code: it does not
+move the workspace, `.truss/`, or state files. The path must be relative,
+already exist inside the workspace, and stay outside Truss-managed top-level
+directories.
 
 ## Agent setup
 
