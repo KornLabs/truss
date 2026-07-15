@@ -12,7 +12,7 @@ export const PREFERENCE_GROUPS = [
     { key: 'input-trust', label: 'Input trust', values: ['open', 'medium', 'critical'], def: 'medium', desc: 'How much it verifies the claims and figures you hand it.' },
     { key: 'clarify', label: 'Clarify', values: ['ask', 'infer'], def: 'ask', desc: 'When intent is unclear: ask first, or infer and state assumptions.' },
     { key: 'source-citation', label: 'Source citation', values: ['off', 'on'], def: 'off', desc: 'Whether the agent cites the sources and references it used.' },
-    { key: 'post-task-check', label: 'Post-task check', values: ['off', 'inline', 'subagent'], def: 'off', desc: 'Run doctor after tasks: never, inline, or via a subagent.' },
+    { key: 'post-task-check', label: 'Post-task check', values: ['off', 'inline', 'subagent'], def: 'inline', desc: 'Run doctor after tasks: never, inline, or via a subagent.' },
   ]},
   { title: 'Subagents & delegation', items: [
     { key: 'research-agent', label: 'Research subagents', values: ['off', 'on'], def: 'on', desc: 'Allow spawning research subagents without an explicit instruction.' },

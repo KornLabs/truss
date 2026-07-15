@@ -105,7 +105,7 @@ export class PreferencesView extends Component {
                 ` : html`
                 <div class="opt-row">
                   ${item.values.map(v => html`
-                    <button key=${v} class="opt ${v === val ? 'active' : ''}" onClick=${() => this.change(item.key, v)}>
+                    <button key=${v} class="opt ${v === (val ?? item.def) ? 'active' : ''}" onClick=${() => this.change(item.key, v)}>
                       ${v}${v === item.def ? html`<span class="opt-def" title="Default">•</span>` : ''}
                     </button>`)}
                 </div>`}
