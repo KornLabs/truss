@@ -190,6 +190,25 @@ describe('SY-07 checked-off HT pile-up', () => {
   })
 })
 
+// ── SY-09 ────────────────────────────────────────────────────────────────────
+describe('SY-09 decisions.md read cost', () => {
+  // words × 1.5 (lib/context-budget.mjs): 2000 words ≈ 3000 tokens → at threshold.
+  const decisionsOf = (words) => '# Decisions\n\n## D-001 — big\n\nDate: 2026-01-01\nDecision: x\nRationale: y\nConsequences: z\n'
+    + Array(words).fill('lorem').join(' ') + '\n'
+  it('nudges once the estimated read cost reaches 3000 tokens', async () => {
+    const f = ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(2000)) })), 'SY-09')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].severity, 'I')
+    assert.match(f[0].message, /tokens at every session boot/)
+    assert.match(f[0].fix, /archive\/decisions\.md/)
+    assert.match(f[0].fix, /never delete/i)
+  })
+  it('stays silent below the threshold and for a missing file', async () => {
+    assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(500)) })), 'SY-09').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({})), 'SY-09').length, 0)
+  })
+})
+
 // ── CX-01 ────────────────────────────────────────────────────────────────────
 describe('CX-01 context size', () => {
   const big = (words) => '# Big\n\n' + Array(words).fill('lorem').join(' ') + '\n'
