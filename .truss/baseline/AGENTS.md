@@ -87,7 +87,7 @@ IDs: D-NNN decisions · HT-NNN human todos · OD-NNN open decisions · L-NNN lea
 
 ## 4 Session protocol
 
-Start: load §1; state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If profile.md configures a code-root, confirm its checked-out branch matches `state/current.md` `branch:` before working — run `node .truss/bin/truss.mjs status`; resolve a mismatch per `branch-guard`.
+Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical session-start command (current date/time as temporal anchor, phase, health, branch); state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If profile.md configures a code-root, confirm the reported branch matches `state/current.md` `branch:`; resolve a mismatch per `branch-guard`.
 During: respect the phase block; flag instead of drifting; if a task would violate `forbidden`, stop and ask (phase-lock).
 End — mandatory: update state/current.md (incl. `branch:` when a code-root is configured); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; if CLI is unavailable, manually check the touched files and say that mechanical validation did not run. At phase exits use the procedure below (`doctor --gate`).
 

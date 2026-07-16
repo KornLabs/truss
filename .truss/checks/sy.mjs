@@ -4,6 +4,7 @@
 // SY-02  I  state/open-decisions.md holds an entry open > 30 days (per-entry Opened: date)
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
+// SY-08  W  ritual drift — state/ or context/ changed on a later day than current.md (D-010)
 //
 // Grammar is grounded in the *baseline* the `init` command renders, which is the
 // canonical fresh-instance format (STRUKTUR.md §2.1). Notably current.md uses
@@ -31,6 +32,7 @@ export const meta = [
   { id: 'SY-05', severity: 'W', title: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
+  { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'Day-granular mtime comparison of state/ + context/ vs current.md; same-day edits never fire (D-010)' },
 ]
 
 const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done', 'updated']
@@ -82,6 +84,41 @@ export async function run(ctx) {
         file: 'state/current.md',
         message: `current.md looks stale — ${Math.floor(days)} days since ${basis} (> ${CURRENT_STALE_DAYS})`,
         fix: `Refresh state/current.md (focus / next / blockers / recently-done) at the session end and set 'updated:' to today, or confirm it is still current.`,
+      })
+    }
+  }
+
+  // ── SY-08: ritual drift — state changed after current.md's last update ─────
+  // D-010: drift becomes *visible* in-band; no host hooks, no enforcement.
+  // Day-granular ON PURPOSE: mid-session doctor runs (post-task-check) see
+  // domain edits before current.md is refreshed at session end — those
+  // same-day gaps must not fire. Only a change on a LATER day than
+  // current.md's last touch is drift evidence. mtime-based, no git shell-out
+  // (checks stay pure file reads); a fresh clone writes uniform mtimes, so it
+  // stays quiet too. Scope: the agent-owned ritual write surfaces (state/ and
+  // context/) minus current.md itself and the script-generated map.md;
+  // HUMAN-TODOS.md is excluded — humans check things off at any time.
+  if (current?.stat) {
+    const localDay = (ms) => {
+      const d = new Date(ms)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+    const candidates = (ctx.mdFiles || []).filter(rel =>
+      (rel.startsWith('state/') || rel.startsWith('context/'))
+      && rel !== 'state/current.md' && rel !== 'state/map.md')
+    let newest = null
+    for (const rel of candidates) {
+      try {
+        const st = await fs.stat(path.join(ctx.root, rel))
+        if (!newest || st.mtimeMs > newest.mtimeMs) newest = { rel, mtimeMs: st.mtimeMs }
+      } catch { /* deleted between walk and stat — irrelevant */ }
+    }
+    if (newest && localDay(newest.mtimeMs) > localDay(current.stat.mtimeMs)) {
+      findings.push({
+        id: 'SY-08', severity: 'W',
+        file: 'state/current.md',
+        message: `workspace state changed after current.md's last update — ${newest.rel} was modified on ${localDay(newest.mtimeMs)}, current.md last on ${localDay(current.stat.mtimeMs)}; the session-end ritual may have been skipped`,
+        fix: `Refresh state/current.md (focus / next / recently-done, set 'updated:' to today) so it reflects the newer state — AGENTS.md §4. If it is still accurate, saving it again clears this.`,
       })
     }
   }

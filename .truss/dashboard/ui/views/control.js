@@ -167,5 +167,5 @@ function fixAllPrompt(findings) {
     return `${i + 1}. [${tag}] ${f.id}${f.file ? ` (${f.file})` : ''}: ${f.message || f.title}` + (f.fix ? `\n   Fix: ${f.fix}` : '');
   }).join('\n');
   return `Truss doctor reports ${findings.length} finding(s). Resolve each one, consistent with AGENTS.md and STRUKTUR.md. `
-    + `Work through them in order, show a diff before writing any file, and re-run \`doctor\` afterwards to confirm everything clears.\n\n${items}`;
+    + `Work through them in order and re-run \`doctor\` afterwards to confirm everything clears.\n\n${items}`;
 }

@@ -55,6 +55,12 @@ export async function runStatus(root, argv) {
   const boldSuffix = useColorGlobal ? '\x1b[0m' : ''
 
   console.log(`\n${boldPrefix}${projectName}${boldSuffix} — truss status\n`)
+  // Temporal anchor (D-010): status is the canonical session-start command, and
+  // agents have no reliable clock — a current local timestamp lets them judge
+  // the age of dates in state files (updated:, Opened:, recently-done).
+  const now = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  console.log(`  Date:    ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} (local)`)
   console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
   console.log(`  Health:  ${doctorSummary}`)
 
