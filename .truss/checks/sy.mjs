@@ -5,6 +5,7 @@
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 // SY-08  W  ritual drift — state/ or context/ changed on a later day than current.md (D-010)
+// SY-09  I  state/decisions.md read cost grown large (≥ 3000 token-equivalent) — archive nudge
 //
 // Grammar is grounded in the *baseline* the `init` command renders, which is the
 // canonical fresh-instance format (STRUKTUR.md §2.1). Notably current.md uses
@@ -24,6 +25,7 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { wordCount, toTokens } from '../lib/context-budget.mjs'
 
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key or stale (> 7 days)' },
@@ -33,12 +35,14 @@ export const meta = [
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
   { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'Day-granular mtime comparison of state/ + context/ vs current.md; same-day edits never fire (D-010)' },
+  { id: 'SY-09', severity: 'I', title: 'decisions.md read cost is growing large', description: '≥ 3000 token-equivalent (words × 1.5) → check for compressible superseded/absorbed entries (archive/decisions.md)' },
 ]
 
 const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done', 'updated']
 const CURRENT_STALE_DAYS    = 7
 const OPEN_DECISIONS_DAYS   = 30
 const HT_DONE_MAX           = 5
+const DECISIONS_TOKENS_MAX  = 3000
 const DAY_MS = 86_400_000
 
 const ageInDays = (sinceMs) => (Date.now() - sinceMs) / DAY_MS
@@ -176,7 +180,31 @@ export async function run(ctx) {
   // ── SY-07: HUMAN-TODOS.md piling up checked-off entries ─────────────────────
   checkHumanTodosDonePile(ctx.files.get('HUMAN-TODOS.md'), findings)
 
+  // ── SY-09: decisions.md read cost growing large ──────────────────────────────
+  checkDecisionsSize(ctx.files.get('state/decisions.md'), findings)
+
   return findings
+}
+
+// ── SY-09 — decisions.md is mandatory boot context, read every session, and it
+//    only ever grows (entries are superseded, never deleted). Info-level nudge
+//    once its estimated read cost passes DECISIONS_TOKENS_MAX — one third of the
+//    CX-01 warn budget in a single file. Deliberately NOT a hard budget check
+//    (that is CX-01's aggregate job): this is the targeted archiving prompt the
+//    conventions promise. Same words × 1.5 estimate as CX-01 / `truss map`, so
+//    the numbers never disagree. A workspace whose decisions are all still
+//    load-bearing may legitimately sit above the line — the check asks for a
+//    review, it does not demand deletion (deleting decisions is forbidden). ────
+function checkDecisionsSize(file, findings) {
+  if (!file) return
+  const tokens = toTokens(wordCount(file.content))
+  if (tokens < DECISIONS_TOKENS_MAX) return
+  findings.push({
+    id: 'SY-09', severity: 'I',
+    file: 'state/decisions.md', line: 1,
+    message: `state/decisions.md costs ≈ ${tokens} tokens at every session boot (≥ ${DECISIONS_TOKENS_MAX})`,
+    fix: `Review for compressible entries (docs/conventions.md): superseded entries shrink to heading + supersede note; entries whose consequences are fully absorbed into canonical files shrink to heading + Decision: line + pointer. Move bodies to archive/decisions.md — never delete an entry, IDs and traces stay here.`,
+  })
 }
 
 // ── SY-06 — an OD entry that records its own decision is a tombstone: the

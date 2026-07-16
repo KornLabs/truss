@@ -27,6 +27,7 @@ Decision: [what was decided]
 Rationale: [why this path]
 Consequences: [what changes because of this]
 Closes: [OD-MMM or omit when none]
+Rejected: [not-chosen option — one-line why; only with Closes:, omit otherwise]
 Supersedes: [D-MMM or omit when none]
 ```
 
@@ -37,11 +38,20 @@ state/decisions.md is boot context, read every session; design detail belongs in
 the owning domain file, linked from the entry. Once a superseded entry's full
 text no longer informs current work, compress it in place to its heading plus
 the supersede note and move the body to `archive/decisions.md` — the ID and its
-trace never leave state/decisions.md.
+trace never leave state/decisions.md. The same compression applies to a
+never-superseded entry whose consequences are fully absorbed into canonical
+files (conventions, profile, domain files): keep heading + `Decision:` line +
+a pointer to the owning file, move the rest to `archive/decisions.md`. Only
+compress when the canonical file carries the truth — a decision that still
+governs behaviour on its own stays full. Never delete an entry either way.
+doctor nudges when the file's read cost grows large (SY-09).
 
 `Closes:` is the durable trace of a resolved open decision. Because the OD entry
 is removed on decision (see below), anything that referenced the OD finds its
 resolution here — never leave a "DECIDED" tombstone in open-decisions.md instead.
+`Rejected:` preserves the not-chosen options in one line — without it, the OD's
+alternatives survive only in git history and "why not B?" becomes unanswerable
+from active context.
 
 ### HT-NNN — Human todo
 
@@ -50,7 +60,10 @@ resolution here — never leave a "DECIDED" tombstone in open-decisions.md inste
 ```
 
 Keep it one line, two at most; details live in the owning domain file or OD entry —
-link, don't inline. Check off with `[x]` when done; never delete an open entry.
+link, don't inline. Every HT must be executable stand-alone: either the line itself
+carries everything the human needs, or it names the exact place where the
+instructions live (file/section, OD-/D-id) — "update X" without saying where and
+how is not an entry. Check off with `[x]` when done; never delete an open entry.
 Checked-off entries are working memory, not history: once a `[x]` entry is clearly
 settled (rule of thumb: the next session no longer needs it), move its line verbatim
 to `archive/human-todos.md` (create on demand). IDs stay sequential and are never
@@ -65,12 +78,17 @@ entries pile up (SY-07).
 Opened: YYYY-MM-DD
 Context: [why this matters now]
 Options:
-- A: [option]
-- B: [option]
-Trade-offs: [costs, risks, reversibility]
-Leaning: [current recommendation or none]
+- A: [option] — +[opportunity] / –[risk]
+- B: [option] — +[opportunity] / –[risk]
+Trade-offs: [cross-cutting: cost, reversibility — only what the option lines don't carry]
+Leaning: [recommendation — one-line why · or: none — what input would decide it]
 Needed from human: [decision/input needed]
 ```
+
+An OD is a briefing, not a note-to-self: each option carries its own opportunity
+and risk so the human can decide without reconstructing the analysis. Give a
+`Leaning:` with its why whenever one is defensible; never fabricate confidence —
+an honest `none` plus what would resolve it beats an anchored guess.
 
 `OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` lets doctor age each entry individually (SY-02). When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
 
