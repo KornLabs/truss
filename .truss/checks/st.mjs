@@ -9,7 +9,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { ADAPTER_STUBS, STUB_PATTERNS, SUMMARY_DIRS } from '../lib/workspace.mjs'
-import { generateMapContent } from '../lib/commands/map.mjs'
+import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 // Lets consumers (--json, dashboard) enumerate ALL checks, not only fired ones.
@@ -230,8 +230,13 @@ export async function run(ctx) {
       // Doesn't exist
     }
 
-    const expectedNormalized = expectedMapContent.replace(/\r\n/g, '\n').trim();
-    const actualNormalized = actualMapContent ? actualMapContent.replace(/\r\n/g, '\n').trim() : null;
+    // mapComparisonKey strips the volatile ~Tokens column from both sides:
+    // token-estimate drift alone (any content edit changes word counts) must
+    // not flag the map as outdated after every edit — that would be pure
+    // doctor noise. Structural drift (files, titles, descriptions) still fires;
+    // token values refresh with the next `truss map` run.
+    const expectedNormalized = mapComparisonKey(expectedMapContent);
+    const actualNormalized = actualMapContent ? mapComparisonKey(actualMapContent) : null;
 
     if (actualNormalized !== expectedNormalized) {
       findings.push({

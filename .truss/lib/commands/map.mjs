@@ -2,6 +2,56 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { loadIgnore } from '../ignore.mjs';
 import { resolveCodeRoot } from '../code-root.mjs';
+import { wordCount, toTokens } from '../context-budget.mjs';
+
+// ── Per-file read-cost estimate (~Tokens column) ──────────────────────────
+// Rationale: show what exists AND its retrieval cost, so an agent can make an
+// informed load decision instead of treating "on demand" as a binary category.
+// Same estimation method as the boot-budget (lib/context-budget.mjs, words × 1.5)
+// so the two never disagree on methodology.
+//
+// Values are rounded coarsely (2-ish significant figures) because they are a
+// nudge, not an accounting figure — and coarse values keep the map visually
+// stable across small edits. Token drift alone does NOT mark the map outdated:
+// ST-07 compares maps with the tokens column stripped (mapComparisonKey below),
+// so doctor stays quiet when only word counts move. Fresh values arrive with
+// the next `truss map` run.
+
+// Full-content read cap. Markdown beyond this is almost certainly bulk data
+// that belongs in .trussignore; estimate from byte size instead of loading it.
+const TOKEN_READ_CAP_BYTES = 2 * 1024 * 1024;
+const BYTES_PER_WORD_ESTIMATE = 6; // rough md average, used only above the cap
+
+// Round + format a token estimate for display: <1000 → nearest 10 (`~340`),
+// ≥1000 → nearest 100 shown as k (`~1.2k`). Minimum shown value is ~10.
+export function formatTokens(tokens) {
+  if (!Number.isFinite(tokens) || tokens <= 0) return '~10';
+  if (tokens < 1000) {
+    const rounded = Math.max(10, Math.round(tokens / 10) * 10);
+    if (rounded < 1000) return `~${rounded}`;
+    // 995–999 round up to 1000 → fall through to the k format below.
+  }
+  const k = Math.round(tokens / 100) / 10;
+  return k >= 10 ? `~${Math.round(k)}k` : `~${k}k`;
+}
+
+// Comparison key for ST-07 freshness checks: newline-normalised, trimmed, and
+// with the LAST cell of every table row removed (that is the volatile ~Tokens
+// column; titles/descriptions have their pipes escaped, so the last `|` pair is
+// a reliable cell boundary). Applied to both the generated and the on-disk map,
+// so structural drift still fires while token drift alone does not. An
+// old-format (3-column) map on disk still compares unequal to a new 4-column
+// map — normalising both sides removes one column from each, leaving 2 vs 3.
+export function mapComparisonKey(content) {
+  return content
+    .replace(/\r\n/g, '\n')
+    .trim()
+    .split('\n')
+    .map(line => line.trimEnd().startsWith('|') && line.trimEnd().endsWith('|')
+      ? line.trimEnd().replace(/\|[^|]*\|$/, '|')
+      : line)
+    .join('\n');
+}
 
 // Directories the map skips entirely (engine-internal or summary-managed). A dir
 // with one of these names is skipped at any depth. Exported as the single source
@@ -126,16 +176,33 @@ export async function generateMapContent(root, mdFilesInput) {
       const abs = path.join(root, file);
       
       if (file === 'state/map.md') {
-        validFileData.push({ file, group: '/state', title: 'Truss Map', description: 'Auto-generated overview of domain files. Do not edit manually.' });
+        // Self-referential row: the reader already has this file open, so a
+        // read-cost estimate would be useless — mark it as not applicable.
+        validFileData.push({ file, group: '/state', title: 'Truss Map', description: 'Auto-generated overview of domain files. Do not edit manually.', tokens: null });
         return;
       }
 
-      let fh;
       try {
-        fh = await fs.open(abs, 'r');
-        const buffer = Buffer.alloc(2048);
-        const { bytesRead } = await fh.read(buffer, 0, 2048, 0);
-        const topContent = buffer.toString('utf8', 0, bytesRead);
+        const stat = await fs.stat(abs);
+        let topContent;
+        let tokens;
+        if (stat.size > TOKEN_READ_CAP_BYTES) {
+          // Bulk file (belongs in .trussignore): read only the head for
+          // title/description, estimate the read cost from byte size.
+          const fh = await fs.open(abs, 'r');
+          try {
+            const buffer = Buffer.alloc(2048);
+            const { bytesRead } = await fh.read(buffer, 0, 2048, 0);
+            topContent = buffer.toString('utf8', 0, bytesRead);
+          } finally {
+            await fh.close().catch(() => {});
+          }
+          tokens = toTokens(Math.round(stat.size / BYTES_PER_WORD_ESTIMATE));
+        } else {
+          const content = await fs.readFile(abs, 'utf8');
+          topContent = content.slice(0, 2048);
+          tokens = toTokens(wordCount(content));
+        }
 
         let title = '';
         let description = '*[No description]*';
@@ -159,11 +226,9 @@ export async function generateMapContent(root, mdFilesInput) {
         const parts = file.split('/');
         const group = parts.length > 1 ? `/${parts.slice(0, -1).join('/')}` : '/';
         
-        validFileData.push({ file, group, title, description });
+        validFileData.push({ file, group, title, description, tokens });
       } catch {
         // Ignore read errors
-      } finally {
-        if (fh) await fh.close().catch(() => {});
       }
     }));
   }
@@ -188,6 +253,7 @@ export async function generateMapContent(root, mdFilesInput) {
           group: g,
           title: 'bulk data',
           description: `${collapsed.get(top)} files, unmapped — add \`${top}/\` to .trussignore to exclude`,
+          tokens: null,
           _collapsed: true,
         }]);
       }
@@ -200,20 +266,21 @@ export async function generateMapContent(root, mdFilesInput) {
   // Deterministic sorting
   const sortedGroups = [...grouped.keys()].sort((a, b) => a < b ? -1 : (a > b ? 1 : 0));
 
-  let mdContent = `# Truss Map\n\n> Auto-generated overview of domain files. Do not edit manually.\n\n`;
+  let mdContent = `# Truss Map\n\n> Auto-generated overview of domain files. Do not edit manually. ~Tokens ≈ estimated read cost per file (words × 1.5, coarsely rounded) — weigh it before loading.\n\n`;
 
   for (const group of sortedGroups) {
     mdContent += `## ${group}\n\n`;
-    mdContent += `| File | Title | Description |\n`;
-    mdContent += `|---|---|---|\n`;
-    
+    mdContent += `| File | Title | Description | ~Tokens |\n`;
+    mdContent += `|---|---|---|---|\n`;
+
     const items = grouped.get(group).sort((a, b) => a.file < b.file ? -1 : (a.file > b.file ? 1 : 0));
     const shown = items.slice(0, MAX_ROWS_PER_GROUP);
     for (const item of shown) {
-      mdContent += `| \`${item.file}\` | ${item.title} | ${item.description} |\n`;
+      const cost = item.tokens == null ? '—' : formatTokens(item.tokens);
+      mdContent += `| \`${item.file}\` | ${item.title} | ${item.description} | ${cost} |\n`;
     }
     if (items.length > MAX_ROWS_PER_GROUP) {
-      mdContent += `| … | *${items.length - MAX_ROWS_PER_GROUP} more files* | *capped for readability — narrow scope via .trussignore* |\n`;
+      mdContent += `| … | *${items.length - MAX_ROWS_PER_GROUP} more files* | *capped for readability — narrow scope via .trussignore* | — |\n`;
     }
     mdContent += `\n`;
   }

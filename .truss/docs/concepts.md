@@ -56,7 +56,7 @@ the block writer.
 | `profile.md` | project name, language, tools, PM method, style notes |
 | `risks.md` | project, launch, safety, strategy, or blocker risks (`R-NNN`); loaded on demand |
 | `learnings.md` | recurring agent weaknesses and structural fixes (`L-NNN`) |
-| `map.md` | a script-generated overview of domain files (on demand) |
+| `map.md` | a script-generated overview of domain files with per-file read-cost estimates (on demand) |
 
 Everything that *describes a topic* rather than the project's process goes into a
 **domain file** under `context/<domain>.md`, created on demand. Domain files are

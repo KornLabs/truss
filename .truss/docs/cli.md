@@ -174,6 +174,13 @@ preferences block. `scope: off` and `control-word: off` render no line.
 Regenerate `state/map.md`, the auto-generated overview of the domain files under
 `context/`. Read-only for your content; it only rewrites the map file.
 
+Each row carries a `~Tokens` column: the estimated read cost of that file
+(words × 1.5, the same method as the boot-budget check, coarsely rounded).
+Agents weigh this cost before loading a file — the map shows what exists *and*
+what it costs to know. Estimates refresh on each `truss map` run; token drift
+alone never marks the map as outdated (doctor's ST-07 compares maps with the
+tokens column stripped, so ordinary editing does not create noise).
+
 ```bash
 truss map
 ```

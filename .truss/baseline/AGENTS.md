@@ -33,7 +33,7 @@ This table lists core system files. Domain (topic) files live under `context/` a
 | README.md | H | human onboarding — not agent context |
 | VISION.md | H+A | problem, idea, principles, constraints |
 | HUMAN-TODOS.md | A→H | everything only a human can do (HT-NNN, ≤2 lines each); humans check off; settled `[x]` entries move to archive/human-todos.md |
-| state/map.md (on demand) | S | auto-generated domain map; read-only |
+| state/map.md (on demand) | S | auto-generated domain map with per-file read-cost estimates (~Tokens); read-only |
 | state/current.md | A | concise focus · next (≤5) · blockers · recently done (≤7 days); one line per item, details in owning domain |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
 | state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN with `Closes:`, remove here (no tombstones) |
