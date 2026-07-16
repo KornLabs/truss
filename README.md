@@ -2,6 +2,10 @@
   <img src=".github/hero-mockup.png" alt="Left: a project's plain-Markdown state files (AGENTS.md, state/current.md). Right: an AI agent booting from them and resuming exactly where the last session stopped." width="800">
 </p>
 
+<p align="center">
+  <b>English</b> · <a href="README.de.md">Deutsch</a>
+</p>
+
 # Truss
 
 **A layer that sits on top of your project and holds everything an AI agent needs to work on it — vision, plans, phases, current state, decisions, and docs — as plain Markdown.**
