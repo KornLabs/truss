@@ -481,3 +481,56 @@ describe('doctor exit codes (CLI)', () => {
     await fs.rm(root, { recursive: true, force: true })
   })
 })
+
+// ── SY-08 ritual drift (D-010) ───────────────────────────────────────────────
+describe('SY-08 ritual drift', () => {
+  // Real files + real mtimes: SY-08 stats ctx.root/<rel> for every state/ and
+  // context/ candidate from ctx.mdFiles and compares local days.
+  async function driftRoot() {
+    const root = await makeRoot('truss-sy08-')
+    await fs.mkdir(path.join(root, 'state'), { recursive: true })
+    await fs.writeFile(path.join(root, 'state', 'current.md'), cleanCurrent())
+    await fs.writeFile(path.join(root, 'state', 'decisions.md'), '# Decisions\n')
+    return root
+  }
+  async function ctxFor(root) {
+    const content = await fs.readFile(path.join(root, 'state', 'current.md'), 'utf8')
+    const stat = await fs.stat(path.join(root, 'state', 'current.md'))
+    return {
+      files: new Map([['state/current.md', { lines: content.split('\n'), content, stat }]]),
+      phases: { frontmatter: {}, defs: new Map() },
+      diskPaths: [], root,
+      mdFiles: ['state/current.md', 'state/decisions.md', 'state/map.md'],
+    }
+  }
+  it('fires when state changed on a later day than current.md', async () => {
+    const root = await driftRoot()
+    const old = new Date(Date.now() - 2 * DAY)
+    await fs.utimes(path.join(root, 'state', 'current.md'), old, old)
+    const f = await sy.run(await ctxFor(root))
+    assert.equal(ids(f, 'SY-08').length, 1)
+    assert.match(ids(f, 'SY-08')[0].message, /decisions\.md/)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  it('stays quiet for same-day edits and when current.md is newest', async () => {
+    const root = await driftRoot()
+    // Same day (both just written) → quiet.
+    assert.equal(ids(await sy.run(await ctxFor(root)), 'SY-08').length, 0)
+    // current.md refreshed after older state → quiet.
+    const old = new Date(Date.now() - 3 * DAY)
+    await fs.utimes(path.join(root, 'state', 'decisions.md'), old, old)
+    assert.equal(ids(await sy.run(await ctxFor(root)), 'SY-08').length, 0)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  it('ignores the excluded surfaces (map.md, missing files)', async () => {
+    const root = await driftRoot()
+    const old = new Date(Date.now() - 2 * DAY)
+    await fs.utimes(path.join(root, 'state', 'current.md'), old, old)
+    await fs.utimes(path.join(root, 'state', 'decisions.md'), old, old)
+    // A fresh script-generated map must NOT count as drift (excluded rel).
+    await fs.writeFile(path.join(root, 'state', 'map.md'), '# Truss Map\n')
+    const f = await sy.run(await ctxFor(root))
+    assert.equal(ids(f, 'SY-08').length, 0)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+})

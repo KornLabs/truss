@@ -28,7 +28,7 @@ export class OverviewView extends Component {
       + `Do NOT change the \`current:\` pointer — phase changes are human-only and I will do that via the exit `
       + `procedure. Keep the grammar valid (label / purpose / behavior / allowed / forbidden / forbidden-globs / `
       + `read / exit / prompts), record the restructuring as a D-NNN, then run \`node .truss/bin/truss.mjs render\` `
-      + `to update AGENTS.md and \`doctor\` to verify. Show a diff before writing anything.`;
+      + `to update AGENTS.md and \`doctor\` to verify.`;
   };
 
   // Combine the chosen option and the free-text note into one decision statement.
@@ -278,8 +278,8 @@ export class OverviewView extends Component {
 function singleHandoffPrompt(item) {
   return `Decision on ${item.odId} — "${item.title}": ${item.decision}.\n\n`
     + `Record it in Truss: add a D-NNN entry to state/decisions.md (Date, Decision, Rationale, Consequences), `
-    + `remove the ${item.odId} briefing from state/open-decisions.md, update any files it affects, then continue. `
-    + `Show a diff before writing.`;
+    + `remove the ${item.odId} briefing from state/open-decisions.md, update any files it affects, `
+    + `then proceed to implement what the decision calls for.`;
 }
 
 function combinedHandoffPrompt(items) {
@@ -287,7 +287,7 @@ function combinedHandoffPrompt(items) {
   const list = items.map(i => `- ${i.odId} "${i.title}": ${i.decision}`).join('\n');
   return `I've made the following decisions:\n\n${list}\n\n`
     + `For each: add a D-NNN entry to state/decisions.md (Date, Decision, Rationale, Consequences), remove its briefing from `
-    + `state/open-decisions.md, and update any files it affects. Then continue. Show a diff before writing.`;
+    + `state/open-decisions.md, and update any files it affects. Then proceed to implement what the decisions call for.`;
 }
 
 const DecisionsModal = ({ open, onClose, decisions, handoff = [], odSel, odNote, onSel, onNote, onHandoff, onCopyAll }) => html`

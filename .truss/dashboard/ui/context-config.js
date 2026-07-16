@@ -49,4 +49,4 @@ export const CLEANUP_PROMPT =
   `bulk data that belongs in .trussignore, or archive-worthy. Propose a safe compaction: move ` +
   `superseded material to archive/ with a one-line invalidation note, tighten verbose passages, ` +
   `split oversized domain files, and keep each file lean. Do not delete decided decisions — ` +
-  `supersede them. Show a diff before writing anything.`;
+  `supersede them, and state what you moved and why.`;

@@ -55,8 +55,12 @@ the human; advancing `current:` stays human-only) — see
 
 ## `status`
 
-Print a compact, read-only summary of the workspace — current phase and health.
-The quickest "where am I?" command. When `state/profile.md` configures a
+Print a compact, read-only summary of the workspace — current date/time, phase,
+and health. The **canonical session-start command** (AGENTS.md §4): agents run it
+first every session. The `Date:` line is a temporal anchor — agents have no
+reliable clock, and a current timestamp lets them judge the age of `updated:`,
+`Opened:`, and recently-done dates in the state files.
+When `state/profile.md` configures a
 `code-root`, it also prints a **Branch** line: the live code-root branch against the
 `branch:` declared in `state/current.md` (`✓` when they match, `✗ MISMATCH` with a
 switch hint when they don't). This is the live branch check — `doctor` itself

@@ -60,4 +60,5 @@ export const CHECK_CATALOG = [
   { id: 'SY-05', sev: 'W', desc: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', sev: 'W', desc: 'decided open-decision entry still present (tombstone)' },
   { id: 'SY-07', sev: 'I', desc: 'HUMAN-TODOS.md accumulates checked-off entries' },
+  { id: 'SY-08', sev: 'W', desc: 'ritual drift — workspace state changed after current.md was last updated' },
 ]
