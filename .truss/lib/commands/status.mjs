@@ -64,6 +64,17 @@ export async function runStatus(root, argv) {
   console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
   console.log(`  Health:  ${doctorSummary}`)
 
+  // Core-state integrity (F-04): a present-but-unparseable phases.md yielded a
+  // silent `unknown (? / 0)` line with exit 0, so a CI step that only ran
+  // `status` saw green over a corrupt workspace. Flag it visibly and exit
+  // non-zero; `doctor` still gives the detailed findings.
+  const phasesPresent = ctx.files.has('state/phases.md')
+  if (phasesPresent && total === 0) {
+    const yel = useColorGlobal ? '\x1b[33m' : '', rst = useColorGlobal ? '\x1b[0m' : ''
+    console.log(`  ${yel}Note:${rst}    state/phases.md defines no phases — it may be malformed. Run \`truss doctor\`.`)
+    process.exitCode = 1
+  }
+
   // Branch line — only for a configured code root with a readable checkout. The live
   // git read lives here (and in the dashboard), keeping the doctor checks pure.
   const br = await branchReport(root)

@@ -169,7 +169,9 @@ truss set response-style compact
 | `control-word` | `off` or any short word | TRUSS |
 
 Each non-omitted preference renders one directive line into the `AGENTS.md`
-preferences block. `scope: off` and `control-word: off` render no line.
+preferences block. `scope: off` renders no line. `control-word: off` renders an
+explicit opt-out directive (`control-word=off :: do not prepend a control word
+to responses`) so the disabled state is visible in the block.
 
 ---
 
