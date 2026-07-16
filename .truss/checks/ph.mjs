@@ -150,11 +150,18 @@ export async function run(ctx) {
           })
         }
       }
-      if (evidence.limited.length > 0) {
+      // Genuine unavailability (git disabled/errored) is always worth surfacing.
+      // The inherent "uncommitted paths only" caveat is only emitted when it
+      // actually qualifies a real PH-03 hit — otherwise it is noise on every
+      // clean workspace (F-03).
+      const anyHits = evidence.matches.some(m => m.hits.length > 0)
+      const reasons = [...evidence.limited]
+      if (anyHits) reasons.push(...evidence.uncommittedScopes)
+      if (reasons.length > 0) {
         findings.push({
           id: 'PH-07', severity: 'I',
           file: 'state/phases.md',
-          message: `forbidden-path coverage is limited: ${evidence.limited.join('; ')}`,
+          message: `forbidden-path coverage is limited: ${reasons.join('; ')}`,
           fix: 'Treat phase path rules as advisory. PH-03 can inspect uncommitted git paths, not changes already committed during this phase.',
         })
       }
@@ -327,6 +334,12 @@ async function changedPathEvidence(root, globs, isIgnored, codeRootRel = null) {
   const matches = globs.map(glob => ({ glob, hits: [] }))
   const byGlob = new Map(matches.map(item => [item.glob, item]))
   const limited = []
+  // The "uncommitted git paths only" caveat is inherent to git-based inspection
+  // and always true — surfacing it unconditionally produced a persistent info
+  // finding on every clean workspace (see state/learnings.md L-… F-03). Collect
+  // it separately so the caller only emits it when it actually qualifies a
+  // PH-03 hit; genuine unavailability (`limited`) is still always reported.
+  const uncommittedScopes = []
 
   const inspect = async (checkout, relevantGlobs, prefix = '') => {
     if (relevantGlobs.length === 0) return
@@ -345,7 +358,7 @@ async function changedPathEvidence(root, globs, isIgnored, codeRootRel = null) {
         .filter(rel => !isIgnored(rel, false) && re.test(rel))
       byGlob.get(glob).hits.push(...hits)
     }
-    limited.push(`${prefix || 'workspace'} coverage includes uncommitted git paths only`)
+    uncommittedScopes.push(`${prefix || 'workspace'} coverage includes uncommitted git paths only`)
   }
 
   await inspect(root, rootGlobs)
@@ -356,7 +369,11 @@ async function changedPathEvidence(root, globs, isIgnored, codeRootRel = null) {
       codePrefix,
     )
   }
-  return { matches, limited: [...new Set(limited)] }
+  return {
+    matches,
+    limited: [...new Set(limited)],
+    uncommittedScopes: [...new Set(uncommittedScopes)],
+  }
 }
 
 async function pathExists(absPath) {
@@ -365,8 +382,31 @@ async function pathExists(absPath) {
 }
 
 /**
+ * Localised aliases for the standard scaffolded VISION.md headings. A seed
+ * `section:` target is written in English, but a non-English workspace may
+ * legitimately keep the heading in its own language (F-02). Each group lists
+ * the accepted anchors; matching any one satisfies the section check, so the
+ * exit gate no longer false-fails when e.g. a German project uses
+ * "## Prinzipien" instead of "## Principles". Extend groups here as new seed
+ * headings or languages are added.
+ */
+const HEADING_ALIASES = [
+  ['problem', 'problemstellung'],
+  ['idea', 'idee', 'loesung', 'lösung'],
+  ['principles', 'prinzipien', 'grundsaetze', 'grundsätze'],
+  ['constraints', 'rahmenbedingungen', 'einschraenkungen', 'einschränkungen'],
+]
+
+/** Return the set of anchors that count as equivalent to `anchor`. */
+function anchorAliasSet(anchor) {
+  const group = HEADING_ALIASES.find(g => g.includes(anchor))
+  return group ? new Set(group) : new Set([anchor])
+}
+
+/**
  * Check if a heading (case-insensitive text match) exists in a file.
- * `section: VISION.md#Problem` → finds `## Problem` in VISION.md.
+ * `section: VISION.md#Problem` → finds `## Problem` in VISION.md. Localised
+ * equivalents of the standard VISION headings also match (see HEADING_ALIASES).
  */
 async function headingExistsInFile(root, filePath, heading) {
   if (!filePath || !heading) return false
@@ -376,6 +416,6 @@ async function headingExistsInFile(root, filePath, heading) {
   catch { return false }
 
   const headings = parseHeadings(content.split('\n'))
-  const targetAnchor = headingToAnchor(heading)
-  return headings.some(h => h.anchor === targetAnchor)
+  const accepted = anchorAliasSet(headingToAnchor(heading))
+  return headings.some(h => accepted.has(h.anchor))
 }
