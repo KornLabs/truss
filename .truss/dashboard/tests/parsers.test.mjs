@@ -4,6 +4,7 @@ import { parseCurrent } from '../lib/parsers/current.mjs';
 import { parseDecisions } from '../lib/parsers/decisions.mjs';
 import { parseHumanTodos } from '../lib/parsers/human-todos.mjs';
 import { parseProfile } from '../lib/parsers/profile.mjs';
+import { parseMap, parseTokenCell } from '../lib/parsers/map.mjs';
 import { assembleState } from '../lib/state.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -95,4 +96,39 @@ test('assembleState loads date-named session files (regex regression)', async ()
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('parseMap reads the ~Tokens column and stays compatible with old maps', () => {
+  const withTokens = parseMap([
+    '## /context',
+    '| File | Title | Description | ~Tokens |',
+    '|---|---|---|---|',
+    '| `context/domain.md` | Domain | A test domain. | ~1.2k |',
+    '| `state/map.md` | Truss Map | Auto-generated. | — |',
+  ]);
+  assert.strictEqual(withTokens.categories.length, 1);
+  const [f1, f2] = withTokens.categories[0].files;
+  assert.strictEqual(f1.tokensRaw, '~1.2k');
+  assert.strictEqual(f1.tokens, 1200);
+  assert.strictEqual(f2.tokensRaw, '—');
+  assert.strictEqual(f2.tokens, null);
+
+  // Pre-V-02 map without the column: tokens must be null, nothing throws.
+  const oldFormat = parseMap([
+    '## /context',
+    '| File | Title | Description |',
+    '|---|---|---|',
+    '| `context/domain.md` | Domain | A test domain. |',
+  ]);
+  assert.strictEqual(oldFormat.categories[0].files[0].tokens, null);
+  assert.strictEqual(oldFormat.categories[0].files[0].tokensRaw, null);
+});
+
+test('parseTokenCell handles plain, k-suffixed, and non-numeric cells', () => {
+  assert.strictEqual(parseTokenCell('~340'), 340);
+  assert.strictEqual(parseTokenCell('~1.2k'), 1200);
+  assert.strictEqual(parseTokenCell('~15k'), 15000);
+  assert.strictEqual(parseTokenCell('—'), null);
+  assert.strictEqual(parseTokenCell(''), null);
+  assert.strictEqual(parseTokenCell(undefined), null);
 });

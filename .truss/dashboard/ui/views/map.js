@@ -10,6 +10,9 @@ const catLabel = (name) => {
   return n.startsWith('/') ? n : `/${n}`;
 };
 
+// Compact display for a summed token estimate (mirrors the map's own rounding).
+const fmtTokens = (t) => t >= 1000 ? `~${Math.round(t / 100) / 10}k` : `~${t}`;
+
 // Root first, then the remaining directories alphabetically by path.
 const sortCats = (cats) => [...cats].sort((a, b) => {
   const an = a.name.trim(), bn = b.name.trim();
@@ -37,6 +40,9 @@ export class MapView extends Component {
   render({ state }, { running }) {
     const cats = sortCats(state.map?.categories || []);
     const fileCount = cats.reduce((a, c) => a + c.files.length, 0);
+    // Total estimated read cost across all mapped files (V-02). Old-format maps
+    // without a ~Tokens column sum to 0 → the badge segment is simply omitted.
+    const totalTokens = cats.reduce((a, c) => a + c.files.reduce((s, f) => s + (f.tokens || 0), 0), 0);
 
     if (cats.length === 0) return html`
       <${Card}>
@@ -53,7 +59,7 @@ export class MapView extends Component {
       <${Card}>
         <${CardHead} icon=${Icons.Map} title="Project architecture">
           <div class="row" style="gap:12px">
-            <${Badge} variant="neutral">${cats.length} groups · ${fileCount} files<//>
+            <${Badge} variant="neutral">${cats.length} groups · ${fileCount} files${totalTokens > 0 ? ` · ${fmtTokens(totalTokens)} tokens est.` : ''}<//>
             <${Button} variant="primary" className="sm" disabled=${running} onClick=${this.rebuild} icon=${running ? null : Icons.Refresh}>
               ${running ? html`<${Spinner} /> Rebuilding…` : 'Rebuild map'}
             <//>
@@ -81,6 +87,7 @@ export class MapView extends Component {
                   <${Icons.File} />
                   <span class="mono" style="font-size:13px;font-weight:600">
                     ${parts.length ? html`<span class="dim">${parts.join('/')}/</span>` : ''}${base}</span>
+                  ${f.tokensRaw && f.tokensRaw !== '—' ? html`<span class="dim mono" style="font-size:11.5px;margin-left:auto;white-space:nowrap" title="Estimated read cost (words × 1.5)">${f.tokensRaw} tok</span>` : ''}
                 </div>
                 ${f.title && f.title !== base ? html`<div style="font-size:12.5px;margin-top:5px;font-weight:500">${f.title}</div>` : ''}
                 ${f.description ? html`<p class="muted" style="font-size:12px;margin-top:3px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${f.description}</p>` : ''}

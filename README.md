@@ -281,7 +281,7 @@ alias). Full reference: [.truss/docs/cli.md](.truss/docs/cli.md).
 | `render`                                           | sync the phase block in AGENTS.md from `state/phases.md` |
 | `phase [<id>] [--override-gate]`                   | list phases, or gate and change the active phase         |
 | `set <key> <value>`                                | change an agent preference                               |
-| `map`                                              | regenerate the `state/map.md` domain overview            |
+| `map`                                              | regenerate the `state/map.md` domain overview (with per-file token estimates) |
 | `dashboard`                                        | start the local web dashboard                            |
 | `prompt <save\|reset\|delete> <id>`                | manage custom prompts                                    |
 | `help`                                             | list commands                                            |
