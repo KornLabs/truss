@@ -18,7 +18,7 @@
 ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
 > Dies ist die deutsche Übersetzung der [englischen README](README.md)
-> (Stand: `1.0.0-alpha.4`). Bei Abweichungen ist die englische Version
+> (Stand: `1.0.0-alpha.5`). Bei Abweichungen ist die englische Version
 > maßgeblich.
 
 Jede KI-Coding-Session beginnt bei null. Kontext verstreut sich, Entscheidungen
@@ -350,7 +350,7 @@ werden.
 
 ## Status
 
-`1.0.0-alpha.4`. Engine und Test-Suite sind stabil; API und Datei-Grammatik
+`1.0.0-alpha.5`. Engine und Test-Suite sind stabil; API und Datei-Grammatik
 können sich vor `1.0.0` noch ändern.
 
 ## Lizenz
