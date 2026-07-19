@@ -25,7 +25,7 @@ Load the smallest context that can answer the task. Stop as soon as it is unambi
 
 ## 2 Structure & routing
 
-This table lists core system files. Domain (topic) files live under `context/` and do not need to be registered here (see `state/map.md` for a script-generated map). Owner: H human · A agent · S script.
+This table is routing policy: which core system file owns what, and what belongs where. It is not a file inventory — that is `state/map.md`, script-generated, listing domain files with read-cost estimates. Domain (topic) files live under `context/` and do not need to be registered here. Owner: H human · A agent · S script.
 
 | Path | Owner | Purpose / what belongs here |
 |---|---|---|
