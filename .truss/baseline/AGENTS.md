@@ -70,7 +70,7 @@ Consistency — a change is complete only after its follow-ups:
 1. Human decided something → create D-NNN (with `Closes: OD-NNN`), update affected canonical files, remove the OD entry (no tombstone), refresh current.md if focus changed.
 2. New undecided question that blocks or shapes work → open-decisions briefing.
 3. New fact learned → its one canonical file; contradicted content gets an invalidation note.
-4. Task finished → update the owning task list; reflect active focus/next changes in state/current.md.
+4. Task finished → update the owning task list; write focus/next/blocker changes back to state/current.md before reporting done — never defer this to session end.
 5. Same number/name in several files → fix the canonical file, then grep and sync the copies.
 6. Superseded content → archive/ plus one-line invalidation note — never silent drift.
 7. Session ends → state/current.md current, loose ends routed.
@@ -88,8 +88,8 @@ IDs: D-NNN decisions · HT-NNN human todos · OD-NNN open decisions · L-NNN lea
 ## 4 Session protocol
 
 Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical session-start command (current date/time as temporal anchor, phase, health, branch); state what you will do; if the task is unclear, ask before touching files (`clarify` preference). If profile.md configures a code-root, confirm the reported branch matches `state/current.md` `branch:`; resolve a mismatch per `branch-guard`.
-During: respect the phase block; flag instead of drifting; if a task would violate `forbidden`, stop and ask (phase-lock).
-End — mandatory: update state/current.md (incl. `branch:` when a code-root is configured); route loose ends; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; if CLI is unavailable, manually check the touched files and say that mechanical validation did not run. At phase exits use the procedure below (`doctor --gate`).
+During: respect the phase block; flag instead of drifting; if a task would violate `forbidden`, stop and ask (phase-lock). Write back per work unit: the moment a task is done — deliverable delivered, decision recorded, next-item finished — update state/current.md and route its loose ends. Silent standard practice, no announcement needed; sessions can end without warning, and unrecorded state misleads the next agent.
+End — safety net (the write-back already happened per unit): verify state/current.md matches reality (incl. `branch:` when a code-root is configured); route anything still loose; if `auto-commit: suggest`, propose the commit message. Run `node .truss/bin/truss.mjs doctor` when unsure about workspace health; if CLI is unavailable, manually check the touched files and say that mechanical validation did not run. At phase exits use the procedure below (`doctor --gate`).
 
 Phase exit — when exit criteria appear met (never self-declare a phase change):
 1. Run `node .truss/bin/truss.mjs doctor --gate` — collect all exit findings.

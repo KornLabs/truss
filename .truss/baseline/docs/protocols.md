@@ -16,12 +16,16 @@
 - Respect the phase block (allowed/forbidden). If a task would violate `forbidden`, state the conflict and ask before proceeding (`phase-lock` preference).
 - Flag instead of drifting: if something is wrong or suboptimal, name it.
 - Route facts, decisions, and todos as they arise — don't batch at the end.
+- Write back per work unit: when a task completes (deliverable done, decision recorded, `next:` item finished), update state/current.md before or together with reporting it done. This is silent standard practice — no announcement; the diff is the record. The test: if the session ended right now, would state/current.md mislead the next agent? Review rounds on an unfinished draft are not a unit; a newly discovered blocker is — record it when it appears.
+- When orchestrating subagents, the orchestrating session owns the state/current.md write-back; subagents report their results, they don't write it.
 - If terminal/CLI access is unavailable, keep working in Markdown but say that `doctor`, `render`, `set`, or `map` validation could not run and suggest to run them manually or inspect the touched files.
 
-### End (mandatory, in order)
+### End (safety net, in order)
 
-1. Update state/current.md: current focus, next ≤5, blockers, recently-done (≤7 days). With a `repo/` overlay, set `branch:` to the branch the work belongs to.
-2. Route any loose ends: unresolved open questions → open-decisions, unresolved todos → HUMAN-TODOS.md.
+The per-unit write-back above is the primary mechanism; the end ritual verifies it. Never save state up for this step — a session can end without reaching it.
+
+1. Verify state/current.md matches reality: current focus, next ≤5, blockers, recently-done (≤7 days). With a `repo/` overlay, set `branch:` to the branch the work belongs to.
+2. Route any loose ends still unrouted: unresolved open questions → open-decisions, unresolved todos → HUMAN-TODOS.md.
 3. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
 4. If `auto-commit: suggest`, propose a commit message: `<area>: <action> — <context>`.
 
