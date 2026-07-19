@@ -29,7 +29,10 @@ adapter stubs (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`,
   anything, and the rule to stop reading as soon as the task is unambiguous.
 - **Structure & routing (§2)** — a table of every core file, who owns it
   (Human / Agent / Script), and what belongs in it. This table is the authority
-  on *where information goes*.
+  on *where information goes* — routing policy, maintained by agents. It is not
+  a file inventory: that is `state/map.md`, script-generated, listing domain
+  files with per-file read-cost estimates. Two jobs, two mechanisms — the table
+  says where things belong, the map says what exists and what it costs to read.
 - **Rules, session protocol, hard limits (§3–§5)** — how an agent works, what it
   must do at the start and end of a session, and the things it may never do
   (e.g. change the phase, edit a generated block by hand, commit secrets).
