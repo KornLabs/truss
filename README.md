@@ -36,6 +36,12 @@ zero-dependency CLI checks the structure and surfaces open decisions for you.
 > project built with AI agents: a thin frame your work rests on, never a
 > replacement for it.
 
+<p align="center">
+  <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and boot metadata at a glance" width="820">
+  <br>
+  <sub>Optional local dashboard over the same Markdown — <code>node .truss/bin/truss.mjs dashboard</code>. <a href="#dashboard-optional">More below.</a></sub>
+</p>
+
 ## Principles
 
 - **Files are the single source of truth.** Everything an agent needs lives in
@@ -301,8 +307,6 @@ and any drift, using the same health language as the CLI (Lightweight / Growing 
 Heavy — a reading of the _workspace structure_, not your code).
 
 <p align="center">
-  <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and boot metadata at a glance" width="820">
-  <br><br>
   <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — Boot metadata: mandatory Truss reading and per-file breakdown" width="820">
 </p>
 
