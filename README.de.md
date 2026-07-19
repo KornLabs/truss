@@ -42,6 +42,12 @@ Struktur und legt dir offene Entscheidungen vor.
 > Truss tut dasselbe für ein Projekt, das mit KI-Agenten gebaut wird: ein
 > dünner Rahmen, auf dem deine Arbeit ruht, niemals ihr Ersatz.
 
+<p align="center">
+  <img src=".github/dashboard-overview.png" alt="Truss-Dashboard — Übersicht: aktueller Fokus, Phase, Human-To-dos, offene Entscheidungen und Boot-Metadaten auf einen Blick" width="820">
+  <br>
+  <sub>Optionales lokales Dashboard über dasselbe Markdown — <code>node .truss/bin/truss.mjs dashboard</code>. <a href="#dashboard-optional">Mehr dazu unten.</a></sub>
+</p>
+
 ## Prinzipien
 
 - **Dateien sind die einzige Quelle der Wahrheit.** Alles, was ein Agent
@@ -322,8 +328,6 @@ Growing / Heavy — eine Einschätzung der _Workspace-Struktur_, nicht deines
 Codes).
 
 <p align="center">
-  <img src=".github/dashboard-overview.png" alt="Truss-Dashboard — Übersicht: aktueller Fokus, Phase, Human-To-dos, offene Entscheidungen und Boot-Metadaten auf einen Blick" width="820">
-  <br><br>
   <img src=".github/dashboard-context-budget.png" alt="Truss-Dashboard — Boot-Metadaten: verpflichtende Truss-Lektüre und Aufschlüsselung pro Datei" width="820">
 </p>
 
