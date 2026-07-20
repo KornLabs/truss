@@ -611,7 +611,7 @@ function printReport(root, r) {
   } else {
     steps.push([
       "Start with the boot prompt below — it has the agent interview you to turn",
-      "   your idea into VISION.md and state/profile.md (no blank-template filling).",
+      "   your idea into VISION.md, state/profile.md and a phase plan (no blank-template filling).",
     ]);
     steps.push(["Run: node .truss/bin/truss.mjs doctor"]);
   }
@@ -631,8 +631,9 @@ function printReport(root, r) {
 
 /**
  * The copy-paste boot prompt, tailored to how the workspace was initialised.
- * A fresh project points the agent at the vision intake (fill VISION.md +
- * profile.md by interviewing the human) and carries the raw idea inline; an
+ * A fresh project points the agent at the project-kickoff ritual (VISION.md +
+ * profile.md + phase plan, by interviewing the human) and carries the raw idea
+ * inline; an
  * overlay points the agent straight at the overlay-onboard ritual (the ingest
  * phase's one prompt), and a missing code root defers it until the directory exists.
  *
@@ -644,9 +645,9 @@ function bootPromptLines(r) {
   if (!r.overlay) {
     return [
       '"Read AGENTS.md fully, then follow §1 load order. This is a fresh project —',
-      "  don't start anything yet. First turn my idea into VISION.md and state/profile.md",
-      "  by interviewing me: follow the guidance at the top of VISION.md (or run the",
-      "  project-kickoff ritual on the dashboard's Setup shelf), ",
+      "  don't start anything yet. Run the project-kickoff ritual",
+      "  (.truss/prompts/base/project-kickoff.md, also on the dashboard's Setup shelf):",
+      "  interview me to turn my idea into VISION.md, state/profile.md and a phase plan,",
       "  and probe for anything missing or vague. My idea/vision: <paste your idea, your",
       '  role, and what you want to achieve here>."',
     ];
