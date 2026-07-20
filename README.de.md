@@ -8,7 +8,7 @@
 
 # Truss
 
-**Projektgedächtnis für KI-Agenten: ein Ordner aus reinem Markdown, der Vision, Entscheidungen, Phasen und aktuellen Stand hält — jede Session macht dort weiter, wo die letzte aufgehört hat, statt bei null zu beginnen.** **Keine API-Keys. Truss ruft nie ein Modell auf; es läuft über das KI-Abo, das du ohnehin bezahlst.**
+**Ein Workspace für KI-Agenten: ein Ordner aus reinem Markdown, der Vision, Entscheidungen, Phasen und aktuellen Stand hält — jede Session macht dort weiter, wo die letzte aufgehört hat, statt bei null zu beginnen.** **Keine API-Keys. Truss ruft nie ein Modell auf; es läuft über das KI-Abo, das du ohnehin bezahlst.** **Ideal für Ideenausarbeitung und -validierung, Planung, Entwicklung und mehr.**
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org) ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
@@ -23,8 +23,8 @@ Jede neue Session mit einem Coding-Agenten beginnt bei null. Du erklärst das Pr
 Viele Tools geben Agenten ein Gedächtnis. Truss optimiert zwei Dinge: Das Gedächtnis hat Struktur, und der Pflichtanteil bleibt klein. Es ist eine dünne Schicht aus reinem Markdown, die neben deinem Code liegt und als Gedächtnis des Projekts dient. Jede Session durchläuft denselben Loop:
 
 1. **Boot.** Der Agent liest eine Datei, `AGENTS.md`: was das Projekt ist, in welcher Phase es sich befindet, welche wenigen State-Dateien zu laden sind und wo alles Weitere liegt. Dieses Pflicht-Boot-Set umfasst etwa 3,8k geschätzte Tokens.
-2. **Arbeit.** Er zieht nur die Dateien heran, die die Aufgabe braucht. Eine generierte Map mit Token-Schätzung pro Datei sagt ihm, wo er nachschauen muss — er schlägt nach, statt zu suchen.
-3. **Rückschreiben.** Sobald ein Stück Arbeit fertig ist — nicht erst am Session-Ende — hält er kurz fest, was sich geändert hat: Fokus und nächste Schritte in `state/current.md`, Entscheidungen in `state/decisions.md`, Änderungen an Vision und Idee in `VISION.md`.
+2. **Arbeit.** Er zieht nur die Dateien heran, die die Aufgabe braucht. Eine generierte Map sagt ihm, wo er nachschauen muss — er weiß es bereits, statt zu suchen.
+3. **Festhalten.** Sobald ein Stück Arbeit fertig ist, hält er kurz fest, was sich geändert hat: Fokus und nächste Schritte in `state/current.md`, Entscheidungen in `state/decisions.md`, Änderungen an Vision und Idee in `VISION.md`.
 
 Die nächste Session setzt exakt dort an. Truss baut auf der offenen [AGENTS.md](https://agents.md)-Konvention auf; Claude Code, Cowork, Codex, Gemini CLI, Copilot und Cursor booten alle aus derselben Datei.
 
@@ -118,7 +118,7 @@ node .truss/bin/truss.mjs doctor
 
 `init` fragt nach Projektname und Sprache und legt beides in `state/profile.md` ab. Die Sprache (`--lang`) gilt für alle Freitexte im Workspace — `VISION.md`, State-Dateien, Einträge, Briefings, Notizen (`AGENTS.md` §3). Englisch bleibt, was Maschinen parsen (`D-NNN`, `focus:`), und die Engine selbst: `AGENTS.md`, `.truss/docs/`, CLI-Ausgabe.
 
-`init` scaffoldet nicht und lässt dich vor einer leeren Seite sitzen. Es endet mit deinen nächsten Schritten und einem **fertigen Boot-Prompt:** in dein KI-Tool einfügen, Idee anhängen, und der Agent interviewt dich zu `VISION.md`, `state/profile.md` und einem Phasenplan, statt dir ein leeres Template zu überlassen (CLI-Ausgabe ist englisch):
+`init` lässt dich nach dem Scaffolden nicht vor einer leeren Seite sitzen. Es endet mit deinen nächsten Schritten und einem **fertigen Boot-Prompt:** in dein KI-Tool einfügen, Idee anhängen, und der Agent interviewt dich zu `VISION.md`, `state/profile.md` und einem Phasenplan, statt dir ein leeres Template zu überlassen (CLI-Ausgabe ist englisch):
 
 ```text
   Boot prompt for your AI tool:
@@ -173,7 +173,7 @@ Mehr ist nicht nötig. Ohne Terminal-Zugriff degradiert Truss zu reinem Markdown
 
 ## Design-Entscheidungen
 
-Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben — und was dir jede einzelne bringt:
+Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben und was dir jede einzelne bringt:
 
 ### Wahrheit lebt in Dateien
 
@@ -248,10 +248,9 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | --- | --- |
 | `init` | einmal, um den Workspace zu scaffolden |
 | `dashboard` | um das Projekt zu sehen und zu steuern, ohne Dateien zu öffnen |
+| `doctor` | Agenten führen ihn routinemäßig aus; du, wenn du neugierig bist |
 | `status` | ein Fünf-Zeilen-Snapshot im Terminal |
-| `phase <id>` | der eine bewusst menschliche Befehl: Phase weiterschalten (gated) |
 | `set <key> <value>` | eine Agenten-Präferenz ändern (geht auch im Dashboard) |
-| `doctor` | Agenten führen ihn routinemäßig aus; du, wenn du neugierig bist |
 
 ## Dokumentation
 

@@ -8,7 +8,7 @@
 
 # Truss
 
-**Project memory for AI agents: one folder of plain Markdown that holds vision, decisions, phases, and current state, so every session resumes where the last one stopped instead of starting from zero.** **No API keys. Truss never calls a model; it runs on the AI subscription you already pay for.**
+**A workspace for AI agents: one folder of plain Markdown that holds vision, decisions, phases, and current state, so every session resumes where the last one stopped instead of starting from zero.** **No API keys. Truss never calls a model; it runs on the AI subscription you already pay for.** **Ideal for working out and validating ideas, planning, building, and more.**
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org) ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
@@ -21,8 +21,8 @@ Every new session with a coding agent starts from zero. You re-explain the proje
 Many tools give agents a memory. Truss optimizes two: the memory has structure, and the mandatory part stays small. It is a thin layer of plain Markdown that lives beside your code and acts as the project's memory. Every session runs the same loop:
 
 1. **Boot.** The agent reads one file, `AGENTS.md`: what the project is, which phase it is in, which few state files to load, and where everything else lives. This mandatory boot set is about 3.8k estimated tokens.
-2. **Work.** It pulls in only the files the task needs. A generated map with per-file token estimates tells it where to look, so it looks things up instead of searching.
-3. **Write back.** As each piece of work finishes — not just at session end — it briefly records what changed: focus and next steps in `state/current.md`, decisions in `state/decisions.md`, changes to the vision or the idea in `VISION.md`.
+2. **Work.** It pulls in only the files the task needs. A generated map tells it where everything lives, so it knows where to look instead of searching.
+3. **Record.** As each piece of work finishes, it briefly notes what changed: focus and next steps in `state/current.md`, decisions in `state/decisions.md`, changes to the vision or the idea in `VISION.md`.
 
 The next session picks up exactly there. Truss builds on the open [AGENTS.md](https://agents.md) convention; Claude Code, Cowork, Codex, Gemini CLI, Copilot, and Cursor all boot from the same file.
 
@@ -171,7 +171,7 @@ Nothing else is required. Without terminal access, Truss degrades to plain Markd
 
 ## Design decisions
 
-Truss is small on purpose. These are the decisions that shaped it — and what each one buys you:
+Truss is small on purpose. These are the decisions that shaped it and what each one buys you:
 
 ### Truth lives in files
 
@@ -246,10 +246,9 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | --- | --- |
 | `init` | once, to scaffold the workspace |
 | `dashboard` | to see and steer the project without opening files |
-| `status` | a five-line snapshot in the terminal |
-| `phase <id>` | the one deliberately human command: advance the phase (gated) |
-| `set <key> <value>` | change an agent preference (the dashboard can do this too) |
 | `doctor` | agents run it routinely; you run it when you're curious |
+| `status` | a five-line snapshot in the terminal |
+| `set <key> <value>` | change an agent preference (the dashboard can do this too) |
 
 ## Documentation
 
