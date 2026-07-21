@@ -644,7 +644,9 @@ const HANDLERS = {
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
   'repo-map': (args) => runRepoMap(root, args),
-  init:      (args) => runInit(root, args),
+  // init targets the caller's cwd (or --root), never silently the engine's own
+  // directory (D-024) — pass where the user actually stands.
+  init:      (args) => runInit(root, args, process.cwd()),
   dashboard: (args) => runDashboard(args),
 }
 

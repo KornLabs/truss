@@ -14,7 +14,16 @@
 //                       gitignores it, so the two never share commits.
 //   --code-root <dir> → (overlay only) use an existing relative directory instead
 //                       of repo/; no placement or .gitignore mutation.
+//   --root <path>   → explicit workspace target (defaults to the CLI caller's cwd).
 // Missing required answers + TTY → interactive readline; no TTY → error (no hang).
+//
+// Root separation (D-024, closes OD-005): the engine location (resolveRoot from
+// the script path) and the workspace target are distinct. The CLI dispatcher
+// passes its cwd as invokedCwd; init targets that directory (or --root), never
+// silently the engine's own directory. A target that differs from the engine
+// root must carry its own .truss/ engine of the same VERSION — otherwise init
+// aborts before any write. In-process callers (tests) omit invokedCwd and keep
+// the old behavior: target = the root argument.
 //
 // A project that needs a different lifecycle (software's +operate, the
 // founders-thinking concept flow) adopts a phase profile from
@@ -81,6 +90,7 @@ export function parseInitArgs(argv) {
     repo: null,
     codeRoot: null,
     adoptAgents: false,
+    root: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -100,13 +110,15 @@ export function parseInitArgs(argv) {
     else if (a === "--lang") opts.lang = value("--lang");
     else if (a === "--repo") opts.repo = value("--repo");
     else if (a === "--code-root") opts.codeRoot = value("--code-root");
+    else if (a === "--root") opts.root = value("--root");
     else if (a.startsWith("--name=")) opts.name = a.slice("--name=".length);
     else if (a.startsWith("--lang=")) opts.lang = a.slice("--lang=".length);
     else if (a.startsWith("--repo=")) opts.repo = a.slice("--repo=".length);
     else if (a.startsWith("--code-root=")) opts.codeRoot = a.slice("--code-root=".length);
+    else if (a.startsWith("--root=")) opts.root = a.slice("--root=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo --code-root --adopt-agents`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo --code-root --adopt-agents --root`,
       );
   }
   if (opts.repo && !opts.overlay) {
@@ -311,13 +323,84 @@ async function placeRepoMaybe(root, repoArg, report) {
   }
 }
 
+/** realpath with a fallback to path.resolve for not-yet-existing paths. */
+async function realpathSafe(p) {
+  try { return await fs.realpath(p); }
+  catch { return path.resolve(p); }
+}
+
+/**
+ * Resolve the workspace target (D-024): --root wins, then the CLI caller's cwd,
+ * then the engine root itself (in-process callers/tests). A target that is not
+ * the engine root must carry its own .truss/ engine at the same VERSION.
+ * Returns the absolute workspace root to scaffold. Throws InitError otherwise.
+ */
+async function resolveWorkspaceRoot(engineRoot, opts, invokedCwd) {
+  const requested = opts.root ? path.resolve(opts.root) : invokedCwd;
+  if (requested == null) return engineRoot;
+  const [engineReal, targetReal] = await Promise.all([
+    realpathSafe(engineRoot),
+    realpathSafe(requested),
+  ]);
+  if (engineReal === targetReal) return engineRoot;
+
+  const targetEngine = path.join(requested, ".truss");
+  if (!(await exists(path.join(targetEngine, "baseline")))) {
+    throw new InitError(
+      `init: target ${requested} has no .truss/ engine; no files were changed.\n` +
+        "       init scaffolds the directory it is run from (or --root), never the engine's own directory.\n" +
+        `       Copy the .truss/ folder into the target first, then run there: node .truss/bin/truss.mjs init`,
+    );
+  }
+  const vEngine = (await readMaybe(path.join(engineRoot, ".truss", "VERSION")))?.trim();
+  const vTarget = (await readMaybe(path.join(targetEngine, "VERSION")))?.trim();
+  // A missing VERSION on either side is treated as a mismatch: a partially
+  // copied engine (baseline present, VERSION lost) must not be scaffolded
+  // against — the versions cannot be proven equal.
+  if (!vEngine || !vTarget || vEngine !== vTarget) {
+    throw new InitError(
+      `init: engine version mismatch or undetermined — invoked ${vEngine ?? "?"} (${engineRoot}), target carries ${vTarget ?? "?"} (${requested}); no files were changed.\n` +
+        "       Run the target's own engine: node .truss/bin/truss.mjs init",
+    );
+  }
+  console.log(
+    `init: initialising ${requested} with its local engine (invoked via ${engineRoot})`,
+  );
+  return requested;
+}
+
+/**
+ * Probe that init can both create and delete files in the target (OD-005-C):
+ * a target where unlink fails (EPERM, read-only mount) would otherwise strand
+ * a half-written workspace that rollback cannot clean up.
+ */
+async function assertDeletable(root) {
+  const dirs = [root];
+  if (await exists(path.join(root, "state"))) dirs.push(path.join(root, "state"));
+  for (const dir of dirs) {
+    const probe = path.join(dir, `.truss-init-probe-${process.pid}`);
+    try {
+      await fs.writeFile(probe, "probe", "utf8");
+      await fs.unlink(probe);
+    } catch (err) {
+      throw new InitError(
+        `init: target ${dir} is not writable/deletable (${err.code || err.message}); no files were changed.\n` +
+          "       A failed write there could not be rolled back — fix permissions first.",
+      );
+    }
+  }
+}
+
 /**
  * Configure a fresh workspace. See file header / ADR §4 for the contract.
- * @param {string}   root  Absolute workspace root (from resolveRoot).
+ * @param {string}   root  Absolute engine root (from resolveRoot); also the
+ *                         workspace target unless invokedCwd/--root differ.
  * @param {string[]} argv  Arguments after "init".
+ * @param {string?}  invokedCwd  The CLI caller's cwd (dispatcher only); null
+ *                         for in-process callers keeps target = root.
  * @returns {Promise<object>}  Result summary (also printed). Throws InitError on fatal error.
  */
-export async function runInit(root, argv) {
+export async function runInit(root, argv, invokedCwd = null) {
   const opts = parseInitArgs(argv);
   await resolveInteractive(opts);
   if (!opts.name || !opts.lang) {
@@ -325,6 +408,7 @@ export async function runInit(root, argv) {
       "init: --name and --lang are required (or run in a TTY to answer interactively).",
     );
   }
+  root = await resolveWorkspaceRoot(root, opts, invokedCwd);
   if (opts.codeRoot) {
     try { await assertExistingCodeRoot(root, opts.codeRoot); }
     catch (err) {
@@ -456,6 +540,8 @@ export async function runInit(root, argv) {
     return rollbackErrors;
   };
 
+  await assertDeletable(root);
+
   try {
     await prewrite("state/phases.md", phasesContent);
     for (const rel of ["VISION.md", "README.md", "state/profile.md"]) {
@@ -526,9 +612,25 @@ export async function runInit(root, argv) {
     await writeFileAtomic(mapPath, await generateMapContent(root));
   } catch (err) {
     const rollbackErrors = await rollback();
-    const rollbackMessage = rollbackErrors.length === 0
-      ? " Workspace changes were rolled back."
-      : ` Rollback was incomplete: ${rollbackErrors.join("; ")}`;
+    let rollbackMessage;
+    if (rollbackErrors.length === 0) {
+      rollbackMessage = " Workspace changes were rolled back.";
+    } else {
+      // OD-005-C: a partial rollback must leave a durable trace, not only a
+      // scrolling error line — write the remaining paths as a list file.
+      const listPath = path.join(root, "truss-init-rollback.txt");
+      const body =
+        "# truss init — rollback incomplete. These paths kept their (possibly partial) state:\n" +
+        rollbackErrors.map((e) => `- ${e}`).join("\n") + "\n";
+      let listNote = "";
+      try {
+        await writeFileAtomic(listPath, body);
+        listNote = ` Full list: ${listPath}.`;
+      } catch { /* target may be unwritable — the message below still carries the first path */ }
+      rollbackMessage =
+        ` Rollback was incomplete (${rollbackErrors.length} path${rollbackErrors.length === 1 ? "" : "s"}).${listNote}` +
+        ` First: ${rollbackErrors[0]}`;
+    }
     throw new InitError(`init: ${err.message}.${rollbackMessage}`);
   }
 
