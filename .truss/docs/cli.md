@@ -34,6 +34,12 @@ truss init --name "My Project" --lang English
 | `--repo <path\|url>` | (overlay only) bring the existing code in under `repo/`: a local path is symlinked, a URL is `git clone`d. Best-effort — a failure is reported, never fatal |
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
+| `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
+
+`init` scaffolds the directory it is invoked from (or `--root`), never silently
+the engine's install location. Before the first write it probes that the target
+is writable and deletable; if a fatal error still leaves a partial rollback,
+the remaining paths are listed in `truss-init-rollback.txt`.
 
 `--code-root` does not relocate the workspace, the `.truss/` engine, or Truss
 state. It writes the normalized POSIX path to `state/profile.md`; status,

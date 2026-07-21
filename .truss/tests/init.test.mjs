@@ -15,15 +15,20 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, repo: null, codeRoot: null, adoptAgents: false })
+      { name: 'A', lang: 'English', overlay: false, repo: null, codeRoot: null, adoptAgents: false, root: null })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, repo: null, codeRoot: null, adoptAgents: false })
+      { name: 'A B', lang: null, overlay: true, repo: null, codeRoot: null, adoptAgents: false, root: null })
   })
   it('parses --repo (spaced and =) with overlay', () => {
     assert.deepEqual(parseInitArgs(['--overlay', '--repo', '/p/code']),
-      { name: null, lang: null, overlay: true, repo: '/p/code', codeRoot: null, adoptAgents: false })
+      { name: null, lang: null, overlay: true, repo: '/p/code', codeRoot: null, adoptAgents: false, root: null })
     assert.deepEqual(parseInitArgs(['--overlay', '--repo=https://x/y.git']),
-      { name: null, lang: null, overlay: true, repo: 'https://x/y.git', codeRoot: null, adoptAgents: false })
+      { name: null, lang: null, overlay: true, repo: 'https://x/y.git', codeRoot: null, adoptAgents: false, root: null })
+  })
+  it('parses --root (spaced and =)', () => {
+    assert.equal(parseInitArgs(['--root', '/p/ws']).root, '/p/ws')
+    assert.equal(parseInitArgs(['--root=/p/ws']).root, '/p/ws')
+    assert.throws(() => parseInitArgs(['--root']), InitError)
   })
   it('parses and validates --code-root', () => {
     assert.equal(
@@ -246,5 +251,96 @@ describe('init missing args (non-TTY)', () => {
   it('errors instead of hanging when name/lang are missing', async () => {
     const root = await makeRoot('truss-init-missing-')
     await assert.rejects(runInit(root, ['--name', 'only']), InitError)
+  })
+})
+
+describe('init root separation (D-024 / OD-005)', () => {
+  it('refuses a --root target without its own engine and writes nothing', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const os = await import('node:os')
+    const root = await makeRoot('truss-init-engine-')
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-init-target-'))
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English', '--root', target]),
+      /no \.truss\/ engine/,
+    )
+    // Neither the target nor the engine's own directory was scaffolded.
+    assert.deepEqual(await fs.readdir(target), [])
+    await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
+  })
+
+  it('refuses when the CLI cwd (invokedCwd) is a foreign engine-less directory', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const os = await import('node:os')
+    const root = await makeRoot('truss-init-engine-')
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-init-cwd-'))
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English'], cwd),
+      /no \.truss\/ engine/,
+    )
+    await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
+  })
+
+  it('refuses on engine version mismatch between caller and target', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const root = await makeRoot('truss-init-engine-')
+    const target = await makeRoot('truss-init-target-')
+    await fs.writeFile(path.join(target, '.truss', 'VERSION'), '0.0.0-other\n', 'utf8')
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English', '--root', target]),
+      /version mismatch/,
+    )
+    await assert.rejects(fs.access(path.join(target, 'AGENTS.md')))
+  })
+
+  it('refuses when the target engine has no VERSION (partial copy)', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const root = await makeRoot('truss-init-engine-')
+    const target = await makeRoot('truss-init-target-')
+    await fs.rm(path.join(target, '.truss', 'VERSION'), { force: true })
+    await assert.rejects(
+      runInit(root, ['--name', 'A', '--lang', 'English', '--root', target]),
+      /version mismatch or undetermined/,
+    )
+    await assert.rejects(fs.access(path.join(target, 'AGENTS.md')))
+  })
+
+  it('initialises a foreign target that carries its own same-version engine', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const root = await makeRoot('truss-init-engine-')
+    const target = await makeRoot('truss-init-target-')
+    const res = await runInit(root, ['--name', 'T', '--lang', 'English', '--root', target])
+    assert.equal(res.currentPhase, 'discover')
+    await fs.access(path.join(target, 'AGENTS.md'))
+    await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
+  })
+
+  it('--root pointing at the engine root behaves exactly as before', async () => {
+    const root = await makeRoot('truss-init-selfroot-')
+    const res = await runInit(root, ['--name', 'S', '--lang', 'English', '--root', root])
+    assert.equal(res.currentPhase, 'discover')
+    await read(root, 'AGENTS.md')
+  })
+
+  it('deletability preflight rejects a read-only target before any write', async (t) => {
+    if (process.getuid?.() === 0) { t.skip('running as root — chmod is not enforced'); return }
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const root = await makeRoot('truss-init-ro-')
+    await fs.chmod(root, 0o555)
+    try {
+      await assert.rejects(
+        runInit(root, ['--name', 'A', '--lang', 'English']),
+        /not writable\/deletable/,
+      )
+      await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
+    } finally {
+      await fs.chmod(root, 0o755)
+    }
   })
 })
