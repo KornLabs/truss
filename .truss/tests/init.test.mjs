@@ -329,6 +329,10 @@ describe('init root separation (D-024 / OD-005)', () => {
 
   it('deletability preflight rejects a read-only target before any write', async (t) => {
     if (process.getuid?.() === 0) { t.skip('running as root — chmod is not enforced'); return }
+    // On Windows, fs.chmod maps only the read-only bit and does not stop file
+    // creation/deletion inside a directory, so a 0o555 dir stays writable and the
+    // preflight has nothing to reject. The behaviour is POSIX-permission-specific.
+    if (process.platform === 'win32') { t.skip('chmod does not restrict directory writes on Windows'); return }
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
     const root = await makeRoot('truss-init-ro-')
