@@ -6,7 +6,7 @@ Every command runs through the dispatcher:
 node .truss/bin/truss.mjs <command> [flags]
 ```
 
-The examples below assume the alias `truss='node .truss/bin/truss.mjs'`.
+In the examples below, `truss` is shorthand for the full `node .truss/bin/truss.mjs` command.
 The CLI has **zero dependencies** and needs only Node ≥ 20.
 
 The command surface is defined once in `.truss/lib/command-meta.mjs`, which

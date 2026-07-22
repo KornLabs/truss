@@ -1,6 +1,11 @@
 <p align="center">
-  <img src=".github/hero-mockup.png" alt="Links: die Plain-Markdown-State-Dateien eines Projekts (AGENTS.md, state/current.md). Rechts: ein KI-Agent, der daraus bootet und exakt dort weitermacht, wo die letzte Session aufgehört hat." width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/hero-series-dark.svg">
+    <img src=".github/hero-series-light.svg" alt="Die Wortmarke Truss ruht knapp über dem Obergurt eines flachen Trägers. Darunter läuft eine durchgehende Akzentlinie — das Gedächtnis des Projekts — an der die vier kanonischen Dateien hängen: VISION.md, current.md, decisions.md, phases.md. Ein Träger trägt eine Last über eine Distanz, ohne Stütze in der Mitte; Truss trägt ein Projekt über die Distanz zwischen zwei Sessions. Bildunterschrift (englisch): plain Markdown, lightweight, token-lean, memory." width="900">
+  </picture>
 </p>
+
+<h3 align="center">Jede Session startet warm.</h3>
 
 <p align="center">
   <a href="README.md">English</a> · <b>Deutsch</b>
@@ -133,23 +138,6 @@ node .truss/bin/truss.mjs doctor
 Hat das Projekt bereits eine marker-freie `AGENTS.md`, stoppt `init`, bevor es etwas schreibt. Prüfe die Datei und starte erneut mit `--adopt-agents`, um sie als Präambel zu behalten und den Truss-Router anzuhängen.
 
 Die Produktdokumentation lebt innerhalb der Engine unter [`.truss/docs/`](.truss/docs/) — verfügbar in jedem Projekt, das Truss übernommen hat und nie in Kollision mit deinem eigenen `docs/`.
-
-Optionales Komfort-Alias:
-
-```bash
-# bash / zsh
-alias truss='node .truss/bin/truss.mjs'
-```
-
-```powershell
-# PowerShell
-function truss { node .truss/bin/truss.mjs @args }
-```
-
-```cmd
-rem cmd.exe
-doskey truss=node .truss/bin/truss.mjs $*
-```
 
 ### Bestehende Codebasis (Overlay)
 

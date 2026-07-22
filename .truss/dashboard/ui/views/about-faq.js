@@ -37,10 +37,6 @@ const FAQ_DATA = [
         <strong>Drop-in</strong> places Truss beside your code in the same folder — best for new projects.
         <strong>Overlay</strong> (${code('--overlay')}) nests your existing code under ${code('repo/')}, keeping
         workspace commits and code commits on separate git histories. Use overlay for existing codebases.</p>` },
-    { q: 'Do I need the shell alias?',
-      a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        No, it's a convenience. You can always use ${code('node .truss/bin/truss.mjs <command>')} directly.
-        The alias just shortens it to ${code('truss <command>')}.</p>` },
     { q: 'How do I bring an existing repo in?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
         Use ${code('truss init --overlay --repo <path|url>')}. A local path is <strong>symlinked</strong> into
