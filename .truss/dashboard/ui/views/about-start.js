@@ -24,10 +24,6 @@ const INSTALL_WIN = `git clone --depth 1 https://github.com/KornLabs/truss.git $
 Copy-Item -Recurse $env:TEMP\\truss\\.truss .\\.truss
 Remove-Item -Recurse -Force $env:TEMP\\truss`;
 
-const ALIAS_BASH = `alias truss='node .truss/bin/truss.mjs'`;
-const ALIAS_PS = `function truss { node .truss/bin/truss.mjs @args }`;
-const ALIAS_CMD = `doskey truss=node .truss/bin/truss.mjs $*`;
-
 const codeBlock = (label, content, copyMsg) => html`
   <div style="border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;margin-bottom:8px">
     <div class="row between" style="padding:9px 12px;background:var(--surface-2);border-bottom:1px solid var(--border)">
@@ -133,17 +129,6 @@ export class AboutStartView extends Component {
             <strong>Tip:</strong> Allow auto-run for ${code('node .truss/bin/truss.mjs')} commands.
             The CLI never writes outside the workspace — safe to auto-approve.
           </p>
-        </div>
-      <//>
-
-      <!-- ── Shell alias ───────────────────────────────────── -->
-      <${Card}>
-        <${CardHead} icon=${Icons.Terminal} title="Shell alias (optional)" />
-        <div style="font-size:13px;line-height:1.6;color:var(--text)">
-          <p class="measure" style="margin:0 0 10px">Add a shortcut so you can type ${code('truss')} instead of the full path:</p>
-          ${codeBlock('bash / zsh', ALIAS_BASH, 'Alias copied')}
-          ${codeBlock('PowerShell', ALIAS_PS, 'Alias copied')}
-          ${codeBlock('cmd.exe', ALIAS_CMD, 'Alias copied')}
         </div>
       <//>
 

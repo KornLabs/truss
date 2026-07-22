@@ -12,11 +12,6 @@ Scripts check and report — they never decide.
 1. **Node ≥ 20** is the only requirement. There are no npm dependencies to install.
 2. Grant your AI tool permission to run terminal commands in this workspace.
 3. Run a single top-level agent at a time — parallel sessions can collide on `state/current.md`.
-4. Optional shell alias:
-
-   ```sh
-   alias truss='node .truss/bin/truss.mjs'
-   ```
 
 No terminal access? Truss still works as Markdown, but `doctor`, `render`,
 `set`, `map`, and the dashboard cannot provide mechanical validation or
