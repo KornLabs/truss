@@ -17,7 +17,7 @@
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org) ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
-> Dies ist die deutsche Übersetzung der [englischen README](README.md) (Stand: `1.0.0-alpha.6`). Bei Abweichungen ist die englische Version maßgeblich.
+> Dies ist die deutsche Übersetzung der [englischen README](README.md) (Stand: `1.0.0-alpha.7`). Bei Abweichungen ist die englische Version maßgeblich.
 
 > Ein Truss (Fachwerkträger) ist ein leichtes Gerüst aus Streben, das die Last einer Struktur trägt und ihre Form hält, ohne selbst das Gebäude zu sein. Truss tut dasselbe für ein Projekt, das mit KI-Agenten gebaut wird: ein dünner Rahmen, auf dem deine Arbeit ruht — nie ihr Ersatz.
 
@@ -257,7 +257,7 @@ Issues und Pull Requests sind willkommen. Halte die **Null-Abhängigkeiten**-Reg
 
 ## Status
 
-`1.0.0-alpha.6`. Für dich heißt das: Engine und Test-Suite sind stabil, und Truss ist auf echten Projekten im täglichen Einsatz — du kannst es gefahrlos an einem deiner Projekte ausprobieren.
+`1.0.0-alpha.7`. Für dich heißt das: Engine und Test-Suite sind stabil, und Truss ist auf echten Projekten im täglichen Einsatz — du kannst es gefahrlos an einem deiner Projekte ausprobieren.
 
 ## License
 

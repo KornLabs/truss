@@ -255,7 +255,7 @@ Issues and pull requests are welcome. Keep the **zero-dependency** rule intact, 
 
 ## Status
 
-`1.0.0-alpha.6`. For you that means: the engine and its test suite are stable and Truss is in daily use on real projects, so it is safe to try on one of yours.
+`1.0.0-alpha.7`. For you that means: the engine and its test suite are stable and Truss is in daily use on real projects, so it is safe to try on one of yours.
 
 ## License
 
