@@ -4,7 +4,7 @@
 // imported by BOTH the doctor check (checks/cx.mjs → CX-01) and the dashboard
 // budget endpoint (dashboard/server.mjs). Keeping the file list and the token
 // factor here guarantees the two can never disagree on the number they place
-// against the 9k warn / 15k error bands.
+// against the 18k warn / 30k error bands.
 //
 // Method: words × 1.5. Empirically validated 2026-07-03 against real BPE
 // tokenizers on the truss markdown corpus:
@@ -13,10 +13,27 @@
 // tokens/word is far more stable across truss files than chars/token (paths,
 // IDs, tables and backticks inflate chars/token variance), which is why a
 // word-based factor beats the "chars ÷ 4" rule of thumb for this corpus. The
-// estimate is GPT-class-calibrated and slightly optimistic for Claude — fine for
-// a nudge-level gate, and a reason not to loosen the 9k/15k bands.
+// estimate is GPT-class-calibrated and slightly optimistic for Claude.
 
 export const TOKENS_PER_WORD = 1.5
+
+// Boot-metadata budget bands (token-equivalent). Recalibrated 2026-07-24 against
+// measured projects instead of the empty template — the old 9k/15k bands were
+// derived from a fresh `init` (≈3.3k) and left barely 3k of headroom for a
+// project's entire lifetime:
+//   • fresh init, empty templates ................ ≈ 3.3k
+//   • fresh project, vision + structure filled ... ≈ 9k    (was already warning)
+//   • truss forge itself, 24 decisions ........... ≈ 9.3k  (was already warning)
+// A real project's structural floor is ≈5.5–6k (framework template + structure
+// table + filled vision/profile) before any work happens, and only decisions.md
+// grows without bound (≈160 tokens/entry). WARN at 18k therefore lands where
+// archiving genuinely pays (~60–80 decisions on top of a full base) and still
+// costs under 10% of a 200k window; ERROR at 30k (15%) is unambiguous ballast.
+// The words×1.5 factor under-counts Claude ~15%, which these bands absorb.
+// Mirrored in dashboard/ui/context-config.js (browser module, cannot import from
+// lib/) — dashboard/tests/dashboard-instance.test.mjs asserts the two agree.
+export const WARN_TOKENS  = 18000
+export const ERROR_TOKENS = 30000
 
 // Always-loaded boot context (AGENTS.md §1 load order, by file identity).
 // open-decisions.md is only *conditionally* loaded per §1, but a static check

@@ -5,7 +5,7 @@
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 // SY-08  W  ritual drift — state/ or context/ changed on a later day than current.md (D-010)
-// SY-09  I  state/decisions.md read cost grown large (≥ 3000 token-equivalent) — archive nudge
+// SY-09  I  state/decisions.md read cost grown large (≥ 6000 token-equivalent) — archive nudge
 //
 // Grammar is grounded in the *baseline* the `init` command renders, which is the
 // canonical fresh-instance format (STRUKTUR.md §2.1). Notably current.md uses
@@ -35,14 +35,14 @@ export const meta = [
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
   { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'Day-granular mtime comparison of state/ + context/ vs current.md; same-day edits never fire (D-010)' },
-  { id: 'SY-09', severity: 'I', title: 'decisions.md read cost is growing large', description: '≥ 3000 token-equivalent (words × 1.5) → check for compressible superseded/absorbed entries (archive/decisions.md)' },
+  { id: 'SY-09', severity: 'I', title: 'decisions.md read cost is growing large', description: '≥ 6000 token-equivalent (words × 1.5) → check for compressible superseded/absorbed entries (archive/decisions.md)' },
 ]
 
 const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done', 'updated']
 const CURRENT_STALE_DAYS    = 7
 const OPEN_DECISIONS_DAYS   = 30
 const HT_DONE_MAX           = 5
-const DECISIONS_TOKENS_MAX  = 3000
+const DECISIONS_TOKENS_MAX  = 6000 // one third of the CX-01 warn budget (18k)
 const DAY_MS = 86_400_000
 
 const ageInDays = (sinceMs) => (Date.now() - sinceMs) / DAY_MS

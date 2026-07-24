@@ -104,7 +104,7 @@ export class AboutOverviewView extends Component {
               <tr><td style="font-weight:500">Who decides</td><td>Humans & agents; scripts only report</td><td>You</td><td>Framework may act alone</td></tr>
               <tr><td style="font-weight:500">Tool-agnostic</td><td>Yes — AGENTS.md standard</td><td>Yes</td><td>Usually one runtime</td></tr>
               <tr><td style="font-weight:500">Lock-in</td><td><strong>None</strong> — plain, git-diffable files</td><td>None</td><td>Framework + sometimes hosted state</td></tr>
-              <tr><td style="font-weight:500">Boot metadata</td><td>~3.8k estimated tokens</td><td>Whatever you put in</td><td>Can be heavy</td></tr>
+              <tr><td style="font-weight:500">Boot metadata</td><td>~3.3k estimated tokens</td><td>Whatever you put in</td><td>Can be heavy</td></tr>
             </tbody>
           </table>
         </div>

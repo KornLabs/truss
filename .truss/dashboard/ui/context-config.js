@@ -3,35 +3,28 @@
 // The HEALTH GAUGE total (what the bands below judge) is computed server-side with
 // the SAME method as the doctor's CX-01 check — words × 1.5 over the shared
 // CONTEXT_FILES set (lib/context-budget.mjs) — so doctor and dashboard never
-// disagree. The peer FRAMEWORKS figures below are external chars/4 estimates, so
-// the comparison chart mixes methods by a few %; treat all peer numbers as rough.
+// disagree.
 
-export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars — basis of the external peer estimates only
+export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars
 
 // Truss' fixed framework overhead: the §1 load order at a fresh `init` (empty
-// templates), remeasured 2026-07-15 from baseline/ via the shared words×1.5 method
-// (context-budget.mjs CONTEXT_FILES) at ≈3.1k tokens (AGENTS.md 2469 + current 132
-// + VISION 143 + decisions 68 + open-decisions 72 + profile 240 = 3123). This is the
+// templates), remeasured 2026-07-24 from baseline/ via the shared words×1.5 method
+// (context-budget.mjs CONTEXT_FILES) at ≈3.3k tokens (AGENTS.md 2618 + current 132
+// + VISION 143 + decisions 68 + open-decisions 72 + profile 240 = 3272). This is the
 // cost the FRAMEWORK imposes — independent of how much project content a given project
 // has accumulated. It floors the health gauge (a running project can never sit below
 // framework overhead). Keep in sync with baseline/ when the templates change.
-export const TRUSS_BASELINE = 3123;
+export const TRUSS_BASELINE = 3272;
 
 // Internal health bands for the total mandatory-reading tokens (a running project).
+// MUST match WARN_TOKENS / ERROR_TOKENS in lib/context-budget.mjs — this is a
+// browser module and cannot import from lib/, so the values are mirrored here and
+// dashboard/tests/dashboard-instance.test.mjs asserts the two never drift apart.
+// Rationale for the numbers lives next to the constants in lib/context-budget.mjs.
 // floor  ≈ Truss default (gauge starts here, not 0 — you can't go below framework overhead)
-// green  = healthy ceiling: room for a mature decision log + filled vision on top of overhead
+// green  = healthy ceiling: a full project base plus a mature decision log fits under it
 // yellow = watch ceiling; above it cleanup clearly pays off.
-export const THRESHOLDS = { floor: TRUSS_BASELINE, green: 9000, yellow: 15000 }; // > yellow = red
-
-// Comparable agent frameworks and their boot/mandatory context per run (approximate;
-// see docs/context-management.md for sources + caveats). Truss is the lightweight reference.
-export const FRAMEWORKS = [
-  { name: 'OpenClaw', tokens: 9600, note: 'autonomous agent — full workspace bootstrap (/context: ~9.6k)' },
-  { name: 'Hermes Agent', tokens: 13000, note: 'fixed core + memory files per turn (~12–16k)' },
-  // Paperclip removed: it is a company-orchestrator that drives other agents
-  // (each carrying its own context), not a per-workspace agent framework — its
-  // boot footprint isn't comparable to Truss. See docs/context-management.md.
-];
+export const THRESHOLDS = { floor: TRUSS_BASELINE, green: 18000, yellow: 30000 }; // > yellow = red
 
 export const SEG_COLORS = ['#1d9e6a', '#378add', '#7f77dd', '#d98a00', '#e5484d', '#1aa3a3', '#c64fb0'];
 

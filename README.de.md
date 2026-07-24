@@ -172,7 +172,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 
 ### Kontext ist ein Budget
 
-5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 3,8k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 9k und meldet ab 15k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
+5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 3,3k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
 6. **Den kleinsten Kontext laden, der die Aufgabe beantwortet — dann stoppen.** Die Routing-Tabelle sagt, wo Information lebt; die generierte `state/map.md` ergänzt Token-Schätzungen pro Datei. Domain-Wissen lädt bei Bedarf, nicht per Default.
 7. **Kontrolliertes Vergessen.** Überholtes wandert mit einer einzeiligen Invalidierungsnotiz nach `archive/`. Längen-Checks warnen, wenn eine State-Datei ihren Fokus verliert, und ein Hygiene-Check markiert Domain-Dateien, die 90 Tage unberührt blieben. Der Workspace bleibt aktuell, statt zu akkumulieren.
 8. **Präferenzen statt Prompt-Wiederholung.** Kritikalität, Nachfragen vs. selbst entscheiden, Subagent-Einsatz, Commit-Verhalten, Antwortstil: jede ist eine Einstellung in einem generierten Block, geändert über `truss set`, beachtet von jeder künftigen Session.
