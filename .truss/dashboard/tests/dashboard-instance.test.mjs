@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { lockPath, readLock, isPidAlive, checkExistingLock, writeLock, removeLock } from '../lib/lock.mjs';
 import { startDashboard } from '../server.mjs';
 import { THRESHOLDS, TRUSS_BASELINE, budgetStatus } from '../ui/context-config.js';
+import { WARN_TOKENS, ERROR_TOKENS } from '../../lib/context-budget.mjs';
 
 const mkRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'truss-dash-'));
 const DEAD_PID = 2147483646; // far above any realistic live pid
@@ -74,14 +75,22 @@ test('singleInstance: second launch for same project returns the running one', a
   } finally { a.server.close(); }
 });
 
-test('config: bands are floor 3.1k / green 9k / yellow 15k', () => {
-  assert.equal(TRUSS_BASELINE, 3123);
-  assert.equal(THRESHOLDS.floor, 3123);
-  assert.equal(THRESHOLDS.green, 9000);
-  assert.equal(THRESHOLDS.yellow, 15000);
-  assert.equal(budgetStatus(3123).tone, 'ok');
-  assert.equal(budgetStatus(9000).tone, 'ok');
-  assert.equal(budgetStatus(9001).tone, 'warn');
-  assert.equal(budgetStatus(15000).tone, 'warn');
-  assert.equal(budgetStatus(15001).tone, 'err');
+test('config: bands are floor 3.3k / green 18k / yellow 30k', () => {
+  assert.equal(TRUSS_BASELINE, 3272);
+  assert.equal(THRESHOLDS.floor, 3272);
+  assert.equal(THRESHOLDS.green, 18000);
+  assert.equal(THRESHOLDS.yellow, 30000);
+  assert.equal(budgetStatus(3272).tone, 'ok');
+  assert.equal(budgetStatus(9341).tone, 'ok'); // truss forge itself — a healthy mature project
+  assert.equal(budgetStatus(18000).tone, 'ok');
+  assert.equal(budgetStatus(18001).tone, 'warn');
+  assert.equal(budgetStatus(30000).tone, 'warn');
+  assert.equal(budgetStatus(30001).tone, 'err');
+});
+
+// The dashboard is a browser module and cannot import lib/context-budget.mjs, so
+// its bands are mirrored by hand. This is the guard against the two drifting.
+test('config: dashboard bands match the doctor CX-01 thresholds', () => {
+  assert.equal(THRESHOLDS.green, WARN_TOKENS);
+  assert.equal(THRESHOLDS.yellow, ERROR_TOKENS);
 });

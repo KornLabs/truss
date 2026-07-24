@@ -1,7 +1,7 @@
 // checks/cx.mjs — Context-size check (CX-01)
 //
 // CX-01  W/E  mandatory Truss boot metadata exceeds the token budget
-//             (warn ≥ 9000, error ≥ 15000 token-equivalent; words × 1.5 heuristic)
+//             (warn ≥ 18000, error ≥ 30000 token-equivalent; words × 1.5 heuristic)
 //
 // "Mandatory Truss boot metadata" = the deterministic files an agent loads per the
 // AGENTS.md §1 load order, anchored to file *identities* (not the literal step
@@ -16,20 +16,18 @@
 // paths and backticks, which tokenize into more sub-tokens than prose — 1.35 would
 // systematically under-count and miss real bloat. The message labels it a "≈".
 //
-// The file list (CONTEXT_FILES), the token factor and the phase-read resolution
-// live in lib/context-budget.mjs and are SHARED with the dashboard budget
-// endpoint, so the doctor and the dashboard never diverge on the number.
+// The file list (CONTEXT_FILES), the token factor, the budget bands and the
+// phase-read resolution live in lib/context-budget.mjs and are SHARED with the
+// dashboard budget endpoint, so the doctor and the dashboard never diverge on
+// the number or the thresholds it is judged against.
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { CONTEXT_FILES, TOKENS_PER_WORD, wordCount, toTokens, phaseReadTargets } from '../lib/context-budget.mjs'
+import { CONTEXT_FILES, TOKENS_PER_WORD, WARN_TOKENS, ERROR_TOKENS, wordCount, toTokens, phaseReadTargets } from '../lib/context-budget.mjs'
 
 export const meta = [
-  { id: 'CX-01', severity: 'W', title: 'mandatory Truss boot metadata exceeds the token budget', description: 'Excludes task-selected domain/source context; W ≥ 9000, E ≥ 15000 token-equivalent (words × 1.5)' },
+  { id: 'CX-01', severity: 'W', title: 'mandatory Truss boot metadata exceeds the token budget', description: `Excludes task-selected domain/source context; W ≥ ${WARN_TOKENS}, E ≥ ${ERROR_TOKENS} token-equivalent (words × 1.5)` },
 ]
-
-const WARN_TOKENS      = 9000
-const ERROR_TOKENS     = 15000
 
 /**
  * @param {import('../lib/workspace.mjs').WorkspaceContext} ctx

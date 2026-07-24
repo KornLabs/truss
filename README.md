@@ -170,7 +170,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 
 ### Context is a budget
 
-5. **The mandatory boot set stays small.** About 3.8k estimated tokens at scaffold; the `doctor` context check measures it, warns past 9k, and errors past 15k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
+5. **The mandatory boot set stays small.** About 3.3k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
 6. **Load the smallest context that answers the task, then stop.** The routing table says where information lives; the generated `state/map.md` adds per-file token estimates. Domain knowledge loads on demand, not by default.
 7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and a hygiene check flags domain files untouched for 90 days. The workspace stays current instead of accumulating.
 8. **Preferences instead of prompt repetition.** Criticality, ask-vs-decide, subagent use, commit behavior, response style: each is a setting in a generated block, changed through `truss set`, honored by every future session.
