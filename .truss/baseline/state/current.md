@@ -1,6 +1,6 @@
 # Current
 
-> Agent updates this at every session end. Keep it accurate — stale focus misleads the next session.
+> Agent updates this the moment a unit of work lands, not only at session end. Keep it accurate — stale focus misleads the next session. One line per item; drop what no longer informs the next step.
 
 focus:
 

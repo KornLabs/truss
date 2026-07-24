@@ -59,6 +59,17 @@ from active context.
 - [ ] HT-NNN — [what the human needs to do] — [context or deadline if relevant]
 ```
 
+Qualifier — before writing an HT, ask: could an agent do this itself, with the
+tools it has, inside this workspace or the code root? If yes it is not an HT;
+route it to `state/current.md` `next:` or the owning domain file. An HT is only
+for what an agent cannot execute: access it does not have (accounts, consoles,
+credentials, hardware, another machine), acting under the human's identity
+(publishing, sending, paying, signing), a physical or legal act, or a sign-off
+the protocol reserves for the human (phase exit). Convenience, taste, or "the
+human should know" are not qualifiers, and neither is a task you could do but
+would rather hand over. A question that needs the human's judgment is an
+`OD-NNN` briefing, not an HT — an HT is an action with a doer.
+
 Keep it one line, two at most; details live in the owning domain file or OD entry —
 link, don't inline. Every HT must be executable stand-alone: either the line itself
 carries everything the human needs, or it names the exact place where the
@@ -132,6 +143,24 @@ Keep `focus:`, each `next:` item, and each `recently-done:` item to one concise
 line. `state/current.md` is a boot snapshot, not a progress essay or changelog;
 route rationale, evidence, implementation detail, and history to the owning
 domain file, decision, or git.
+
+## Profile
+
+`state/profile.md` is boot context, read every session — a config sheet, not a
+notebook. It is also the canonical home for the human's durable **behaviour
+preferences**: when they say "remember this" and the wish is about how you work
+(language, tone, how much to plan, what to ask before acting, what never to do),
+write it as one imperative line under `## Style & moral` — never leave it in the
+chat alone. Route the other cases by content: a fact about the project → its
+domain file · a technical convention → this file · a commitment to act → the
+owning task list · something the human must do → HUMAN-TODOS.md · a real
+decision → `D-NNN`. Ambiguous → ask rather than guess.
+
+Volume: one line per entry, imperative, no rationale prose and no examples;
+roughly ten lines per section. A new preference that contradicts an older one
+replaces that line — profile.md is current configuration, not a history (that
+is what git and `D-NNN` are for). Anything that needs more than a line belongs
+in the file that owns the topic, linked from here.
 
 ## File templates
 

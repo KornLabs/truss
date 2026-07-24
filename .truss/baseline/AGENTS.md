@@ -3,6 +3,11 @@
 > Boot file for all AI agents in this workspace (open agents.md standard, tool-agnostic).
 > Files are the single source of truth. Scripts only check and report — except the two generated blocks below.
 > Read this file fully, then load per §1.
+>
+> **This workspace is the system of record — memory, not storage.** The work product
+> lives in the code root; here lives what a future session needs in order to act, each in
+> the one file §2 assigns it. Nothing durable stays in the chat, and nothing is written
+> just in case: every entry earns its place and leaves when it stops earning it (§3).
 
 <!-- truss:begin preferences -->
 > Rendered by `node .truss/bin/truss.mjs init` — edit via `truss set <key> <value>`, never by hand.
@@ -32,7 +37,7 @@ This table is routing policy: which core system file owns what, and what belongs
 | AGENTS.md | A body · S blocks | router, this table, rules |
 | README.md | H | human onboarding — not agent context |
 | VISION.md | H+A | problem, idea, principles, constraints |
-| HUMAN-TODOS.md | A→H | everything only a human can do (HT-NNN, ≤2 lines each); humans check off; settled `[x]` entries move to archive/human-todos.md |
+| HUMAN-TODOS.md | A→H | only what no agent can execute — missing access, the human's identity, physical/legal acts, reserved sign-off (HT-NNN, ≤2 lines each; qualifier test in docs/conventions.md); humans check off; settled `[x]` entries move to archive/human-todos.md |
 | state/map.md (on demand) | S | auto-generated domain map with per-file read-cost estimates (~Tokens); read-only |
 | state/current.md | A | concise focus · next (≤5) · blockers · recently done (≤7 days); one line per item, details in owning domain |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
@@ -40,9 +45,9 @@ This table is routing policy: which core system file owns what, and what belongs
 | state/risks.md | A | risks R-NNN; load for risk, Go/No-Go, strategy, launch, safety, or blocker work |
 | state/learnings.md | A | systemic agent/framework weaknesses and structural fixes; not a product bug log |
 | state/phases.md | H pointer · H+A definitions | phase definitions and `current:` pointer |
-| state/profile.md | H+A | project name/language, optional code-root, PM method, tools/subscriptions, style and moral notes |
+| state/profile.md | H+A | project name/language, optional code-root, PM method, tools/subscriptions, style and moral notes plus the durable behaviour preferences the human dictates ("remember this"); config sheet, one line per entry |
 | docs/conventions.md | A | ID schemes, entry grammars, file templates |
-| docs/protocols.md | A | session ritual detail, controlled forgetting |
+| docs/protocols.md | A | session ritual detail, admission test, controlled forgetting |
 | docs/git.md | A | commit discipline, overlay git mechanics |
 | docs/import.md | A | guided import of an existing project |
 | .gitignore | S | excludes `.truss/out/`; overlay mode adds `repo/` |
@@ -55,11 +60,13 @@ This table is routing policy: which core system file owns what, and what belongs
 | pm/ · skills/ (on demand) | A | PM files per profile method · agent skills — summary rows |
 | context/ (on demand) | H+A | domain (topic) files — one canonical home per topic (`context/<domain>.md`, folder at ~450 lines/5+ themes); summary row, contents mapped in state/map.md |
 
-Routing tie-breakers: behavior/style rule ("always plan first") → state/profile.md · technical convention ("use pattern X") → docs/conventions.md · describes the world → domain file · commits us to act → owning domain · is a decision → state/decisions.md · only a human can do it → HUMAN-TODOS.md · unsure → ask, don't guess.
+Routing tie-breakers: behavior/style rule or a "remember this" preference about how you work ("always plan first") → state/profile.md · technical convention ("use pattern X") → docs/conventions.md · describes the world → domain file · commits us to act → owning domain · is a decision → state/decisions.md · only a human can do it → HUMAN-TODOS.md · unsure → ask, don't guess.
 
 ## 3 Rules
 
 Canonical truth: every operational fact lives in exactly one file; link, never copy.
+
+Admission & expiry — before writing, name what a future session does differently because of the entry; if nothing, don't write it, and never restate what git, the code, or another file already carries. Boot context (§1) has the higher bar: only what *every* session needs — the rest goes to a domain file or an on-demand doc. Whenever you touch a file, prune what no longer earns its place; relevance decides, not age, and VISION.md and state/ are not exempt. Archive with a pointer (docs/protocols.md); never silently drop.
 
 Language: write all free-text in the `language:` set in state/profile.md — this includes entry titles and bodies (the text after `## OD-NNN — ` / `## D-NNN — `), briefings, focus, learnings, and notes; the dashboard displays this text as-is. Only the machine-parsed skeleton stays English: ID tokens (D-NNN, OD-NNN, …), keys and field labels (`focus:`, `Opened:`, `Leaning:`, `Options:`, `Date:`), and fixed file headings (e.g. profile.md's `## Project`).
 
@@ -114,6 +121,6 @@ Phase exit — when exit criteria appear met (never self-declare a phase change)
 | Read | when |
 |---|---|
 | docs/conventions.md | writing your first D-/HT-/R- entry or a new file type this session |
-| docs/protocols.md | unsure about session ritual or archiving |
+| docs/protocols.md | unsure about session ritual, archiving, or whether an entry belongs in the workspace at all |
 | docs/git.md | before the first commit of the session; anything overlay or git |
 | docs/import.md | importing an existing project |

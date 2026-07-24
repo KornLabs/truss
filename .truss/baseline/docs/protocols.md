@@ -1,6 +1,6 @@
 # Protocols
 
-> Load when: unsure about session ritual or archiving procedure. Defines the session ritual and controlled forgetting.
+> Load when: unsure about session ritual or archiving procedure. Defines the session ritual, the admission test for new entries, and controlled forgetting.
 
 ## Session ritual
 
@@ -15,7 +15,7 @@
 
 - Respect the phase block (allowed/forbidden). If a task would violate `forbidden`, state the conflict and ask before proceeding (`phase-lock` preference).
 - Flag instead of drifting: if something is wrong or suboptimal, name it.
-- Route facts, decisions, and todos as they arise — don't batch at the end.
+- Route facts, decisions, and todos as they arise — don't batch at the end; apply the admission test below before each write, and prune what you touch.
 - Write back per work unit: when a task completes (deliverable done, decision recorded, `next:` item finished), update state/current.md before or together with reporting it done. This is silent standard practice — no announcement; the diff is the record. The test: if the session ended right now, would state/current.md mislead the next agent? Review rounds on an unfinished draft are not a unit; a newly discovered blocker is — record it when it appears.
 - When orchestrating subagents, the orchestrating session owns the state/current.md write-back; subagents report their results, they don't write it.
 - If terminal/CLI access is unavailable, keep working in Markdown but say that `doctor`, `render`, `set`, or `map` validation could not run and suggest to run them manually or inspect the touched files.
@@ -29,9 +29,36 @@ The per-unit write-back above is the primary mechanism; the end ritual verifies 
 3. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
 4. If `auto-commit: suggest`, propose a commit message: `<area>: <action> — <context>`.
 
+## Admission
+
+Truss is memory, not storage. Every entry costs reading time in some future session,
+so it has to pay for that. Before you write, answer one question: **what does a future
+session do differently because this is here?** No answer → don't write it.
+
+Rejects, in practice:
+
+- "might be useful later" — speculation without a decision, task, or risk behind it
+- already carried elsewhere: git history, the code itself, the tool's own output, another canonical file
+- narration of work done (the diff is the record) — `recently-done` holds the one line that informs the next step, not the story
+- rationale that no longer governs anything — a decision states what holds now; the debate belongs in the D-entry's one-line `Rationale:` or in git
+- copies "for convenience" — link instead; two copies drift and one becomes a lie
+
+Boot context (AGENTS.md §1 load order) is judged harder: it is read in *every* session,
+including the ones the entry has nothing to do with. Ask "does every session need this?"
+— if only some do, it belongs in a domain file or an on-demand doc, linked from here.
+`doctor` measures the cost (CX-01, SY-09) but cannot judge relevance; that stays yours.
+
 ## Controlled forgetting
 
 The goal: keep the active workspace scannable in one pass. Archive is not deletion — it's relocation with a pointer.
+
+Forgetting is not a cleanup campaign, it is part of writing: when you open a file, leave
+it carrying only what still earns its place. Relevance decides, not age — a two-year-old
+constraint that still shapes decisions stays; last week's finished detour goes.
+VISION.md and state/ are explicitly included: a superseded principle or an assumption
+the project has outgrown misleads harder than a stale domain file, because it is boot
+context. When you are unsure whether something is still relevant, say so and ask rather
+than carrying it silently for another year.
 
 **When to archive:**
 

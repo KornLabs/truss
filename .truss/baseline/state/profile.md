@@ -21,7 +21,10 @@ pm-method: [kanban | scrum | none | custom]
 
 ## Style & moral
 
-<!-- Style preferences and ethical constraints for the agent. -->
+<!-- Style, working preferences, and ethical constraints — the home for what the
+     human tells you to remember about how you work. One line each, ~10 max; a new
+     preference replaces the line it contradicts (docs/conventions.md § Profile). -->
 
 - [e.g. all user-facing text in British English]
 - [e.g. no tracking without explicit user consent]
+- [e.g. propose a plan before touching more than one file]
