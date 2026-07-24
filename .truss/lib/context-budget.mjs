@@ -19,9 +19,9 @@ export const TOKENS_PER_WORD = 1.5
 
 // Boot-metadata budget bands (token-equivalent). Recalibrated 2026-07-24 against
 // measured projects instead of the empty template — the old 9k/15k bands were
-// derived from a fresh `init` (≈3.3k) and left barely 3k of headroom for a
+// derived from a fresh `init` (≈3.6k) and left barely 3k of headroom for a
 // project's entire lifetime:
-//   • fresh init, empty templates ................ ≈ 3.3k
+//   • fresh init, empty templates ................ ≈ 3.6k
 //   • fresh project, vision + structure filled ... ≈ 9k    (was already warning)
 //   • truss forge itself, 24 decisions ........... ≈ 9.3k  (was already warning)
 // A real project's structural floor is ≈5.5–6k (framework template + structure
