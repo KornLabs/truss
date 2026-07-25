@@ -719,7 +719,7 @@ function printReport(root, r) {
   }
   steps.push([
     "Optional: node .truss/bin/truss.mjs dashboard — visual status, phases, and the prompt library in your browser.",
-    "   Agent preferences (criticality, ask-vs-decide, commit behavior) start off — your AI tool's",
+    "   Agent preferences (subagents, ask-vs-infer, commit behavior) start off — your AI tool's",
     "   own behavior applies. Set the ones you want there, or with: truss set <key> <value>",
   ]);
   steps.forEach((lines, i) => {

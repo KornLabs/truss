@@ -162,7 +162,7 @@ export class AboutConceptsView extends Component {
           <${CardHead} icon=${Icons.Sliders} title="Preferences" />
           <div class="measure" style="font-size:13px;line-height:1.65;color:var(--text)">
             <p style="margin:0 0 10px">
-              A catalogue of preferences tunes how agents behave — autonomy, criticality, clarify mode,
+              A catalogue of preferences tunes how agents behave — autonomy, subagents, clarify mode,
               commit behaviour, response style, and more. Changed only through ${code('truss set <key> <value>')}.
             </p>
             <p class="muted" style="margin:0;font-size:12.5px">

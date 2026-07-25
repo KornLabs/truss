@@ -64,7 +64,7 @@ export async function run(ctx) {
 
   // ── SY-08: ritual drift — state changed after current.md's last update ─────
   // D-010: drift becomes *visible* in-band; no host hooks, no enforcement.
-  // Day-granular ON PURPOSE: mid-session doctor runs (post-task-check) see
+  // Day-granular ON PURPOSE: mid-session doctor runs (AGENTS.md §4) see
   // domain edits before current.md is refreshed at session end — those
   // same-day gaps must not fire. Only a change on a LATER day than
   // current.md's last touch is drift evidence. mtime-based, no git shell-out
