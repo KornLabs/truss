@@ -1,30 +1,17 @@
 ## Project
 
-> Filled in during init / discover. Agent reads this every session (§1 load order).
-> Update here when the project's context, tools, or style changes.
-
 name: [project name]
 language: [primary language for all agent output — e.g. English, German]
 code-root:
-<!-- Optional single relative directory containing the work product. Overlay
-     defaults to repo/. Leave blank for a workspace without a separate code tree. -->
-<!-- Applies to all free-text the agent writes — including entry titles and bodies
-     (the text after `## OD-NNN — `). Only the machine-parsed skeleton stays English:
-     ID tokens, keys/field labels, fixed file headings (AGENTS.md §3). -->
+<!-- optional relative directory holding the work product; overlay default repo/; empty = none -->
 pm-method: [kanban | scrum | none | custom]
 
 ## Tools & subscriptions
-
-<!-- AI tools and services the team uses. -->
 
 - [tool — subscription level]
 
 ## Style & moral
 
-<!-- Style, working preferences, and ethical constraints — the home for what the
-     human tells you to remember about how you work. One line each, ~10 max; a new
-     preference replaces the line it contradicts (docs/conventions.md § Profile). -->
+<!-- Durable "remember this" preferences the human dictates — one line each, ~10 max; a new preference replaces the line it contradicts (docs/conventions.md § Profile). -->
 
 - [e.g. all user-facing text in British English]
-- [e.g. no tracking without explicit user consent]
-- [e.g. propose a plan before touching more than one file]

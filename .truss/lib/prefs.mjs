@@ -2,22 +2,26 @@
 // Imported by checks/bl.mjs (validation) and the set command (validation + row ordering).
 // Catalog order defines the canonical row order in the preferences block.
 
+// D-028: every key defaults to 'off' and 'off' renders NO directive line —
+// a fresh AGENTS.md carries an empty preferences block (0 boot tokens). A
+// directive exists only when the human explicitly sets a deviation from the
+// host agent's native behavior.
 export const PREFS_CATALOG = [
-  { key: 'orchestration',   values: ['low', 'medium', 'high'],      default: 'medium'   },
-  { key: 'criticality',     values: ['low', 'medium', 'high'],        default: 'high'     },
-  { key: 'clarify',         values: ['ask', 'infer'],                default: 'ask'      },
-  { key: 'input-trust',     values: ['open', 'medium', 'critical'],  default: 'medium'   },
-  { key: 'research-agent',  values: ['off', 'on'],                   default: 'on'       },
-  { key: 'review-agent',    values: ['off', 'on'],                   default: 'on'       },
-  { key: 'source-citation', values: ['off', 'on'],                   default: 'off'      },
+  { key: 'orchestration',   values: ['off', 'low', 'medium', 'high'],           default: 'off', omit: ['off'] },
+  { key: 'criticality',     values: ['off', 'low', 'medium', 'high'],           default: 'off', omit: ['off'] },
+  { key: 'clarify',         values: ['off', 'ask', 'infer'],                    default: 'off', omit: ['off'] },
+  { key: 'input-trust',     values: ['off', 'open', 'medium', 'critical'],      default: 'off', omit: ['off'] },
+  { key: 'research-agent',  values: ['off', 'on'],                              default: 'off', omit: ['off'] },
+  { key: 'review-agent',    values: ['off', 'on'],                              default: 'off', omit: ['off'] },
+  { key: 'source-citation', values: ['off', 'on'],                              default: 'off', omit: ['off'] },
   { key: 'scope',           values: ['off', 'minimal', 'balanced', 'thorough'], default: 'off', omit: ['off'] },
-  { key: 'auto-commit',     values: ['off', 'suggest', 'on'],        default: 'suggest'  },
-  { key: 'post-task-check', values: ['off', 'inline', 'subagent'],   default: 'inline' },
-  { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],        default: 'agentic'  },
-  { key: 'phase-lock',      values: ['off', 'advisory'],             default: 'advisory' },
-  { key: 'branch-guard',    values: ['off', 'warn', 'strict'],       default: 'warn'     },
-  { key: 'response-style',  values: ['normal', 'compact', 'maxcompact'], default: 'normal' },
-  { key: 'control-word',    values: ['off'],                         default: 'TRUSS', free: true },
+  { key: 'auto-commit',     values: ['off', 'suggest', 'on'],                   default: 'off', omit: ['off'] },
+  { key: 'post-task-check', values: ['off', 'inline', 'subagent'],              default: 'off', omit: ['off'] },
+  { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],                   default: 'off', omit: ['off'] },
+  { key: 'phase-lock',      values: ['off', 'advisory'],                        default: 'off', omit: ['off'] },
+  { key: 'branch-guard',    values: ['off', 'warn', 'strict'],                  default: 'off', omit: ['off'] },
+  { key: 'response-style',  values: ['off', 'normal', 'compact', 'maxcompact'], default: 'off', omit: ['off'] },
+  { key: 'control-word',    values: ['off'],                                    default: 'off', omit: ['off'], free: true },
 ]
 
 // Keys whose value is free-form (not restricted to the listed values).

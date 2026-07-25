@@ -61,15 +61,16 @@ export class PreferencesView extends Component {
       <${Card}>
         <${CardHead} icon=${Icons.Sliders} title="Agent preferences">
           <div class="row" style="gap:8px">
-            <${Badge} variant=${changedCount ? 'accent' : 'neutral'}>${changedCount ? `${changedCount} off default` : 'All default'}<//>
+            <${Badge} variant=${changedCount ? 'accent' : 'neutral'}>${changedCount ? `${changedCount} set` : 'None set'}<//>
             <${Button} className="sm" icon=${resetting ? null : Icons.Refresh} disabled=${resetting || changedCount === 0} onClick=${this.resetAll}>
-              ${resetting ? html`<${Spinner} /> Resetting…` : 'Reset all to default'}<//>
+              ${resetting ? html`<${Spinner} /> Clearing…` : 'Clear all'}<//>
           </div>
         <//>
         <p class="muted" style="font-size:12.5px;line-height:1.5">
-          Rendered into the <span class="mono">preferences</span> block of <span class="mono">AGENTS.md</span>
-          by the <span class="mono">truss set</span> writer — the single source every agent reads. The
-          dashboard never edits the file directly.</p>
+          All optional: every preference starts off, and your AI tool's own behaviour applies until you set
+          one. What you set is rendered into the <span class="mono">preferences</span> block of
+          <span class="mono">AGENTS.md</span> by the <span class="mono">truss set</span> writer — the single
+          source every agent reads. The dashboard never edits the file directly.</p>
       <//>
 
       ${GROUPS.map(group => html`
@@ -77,7 +78,8 @@ export class PreferencesView extends Component {
           <div class="pref-group-title" style="margin:6px 2px 10px">${group.title}</div>
           <div class="grid cols-auto-fill-lg">
             ${group.items.map(item => {
-              const val = prefs[item.key];
+              // An unset key carries no line in the block — that IS its default (off).
+              const val = prefs[item.key] ?? item.def;
               const isDef = val === item.def;
               return html`
               <${Card} key=${item.key}>

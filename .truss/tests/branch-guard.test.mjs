@@ -11,12 +11,12 @@ import { makeRoot, runChecks, errorsOf, read } from './helpers.mjs'
 const findingIds = (fs) => fs.map(f => f.id)
 
 describe('branch-guard preference', () => {
-  it('renders a default warn directive in the preferences block', async () => {
+  it('renders no directive by default (off) and a warn directive on set', async () => {
     const root = await makeRoot('truss-bg-pref-')
     await runInit(root, ['--name', 'A', '--lang', 'English'])
     const agents = await read(root, 'AGENTS.md')
-    assert.match(agents, /- branch-guard=warn ::/)
-    // no errors introduced by the new pref
+    assert.doesNotMatch(agents, /- branch-guard=/)
+    // no errors introduced by the empty default block
     assert.equal(errorsOf(await runChecks(root)).length, 0)
   })
 })

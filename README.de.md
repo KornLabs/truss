@@ -27,7 +27,7 @@ Jede neue Session mit einem Coding-Agenten beginnt bei null. Du erklärst das Pr
 
 Viele Tools geben Agenten ein Gedächtnis. Truss optimiert zwei Dinge: Das Gedächtnis hat Struktur, und der Pflichtanteil bleibt klein. Es ist eine dünne Schicht aus reinem Markdown, die neben deinem Code liegt und als Gedächtnis des Projekts dient. Jede Session durchläuft denselben Loop:
 
-1. **Boot.** Der Agent liest eine Datei, `AGENTS.md`: was das Projekt ist, in welcher Phase es sich befindet, welche wenigen State-Dateien zu laden sind und wo alles Weitere liegt. Dieses Pflicht-Boot-Set umfasst etwa 3,8k geschätzte Tokens.
+1. **Boot.** Der Agent liest eine Datei, `AGENTS.md`: was das Projekt ist, in welcher Phase es sich befindet, welche wenigen State-Dateien zu laden sind und wo alles Weitere liegt. Dieses Pflicht-Boot-Set umfasst etwa 2,7k geschätzte Tokens.
 2. **Arbeit.** Er zieht nur die Dateien heran, die die Aufgabe braucht. Eine generierte Map sagt ihm, wo er nachschauen muss — er weiß es bereits, statt zu suchen.
 3. **Festhalten.** Sobald ein Stück Arbeit fertig ist, hält er kurz fest, was sich geändert hat: Fokus und nächste Schritte in `state/current.md`, Entscheidungen in `state/decisions.md`, Änderungen an Vision und Idee in `VISION.md`.
 
@@ -41,9 +41,9 @@ Das Herz der Boot-Datei ist ihre Load-Order. Das ist der echte §1, den ein Agen
 1. This file — fully, every session.
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
-4. `state/decisions.md` — before making or proposing any decision; if your
-   task touches an open question, also load `state/open-decisions.md`.
-5. `state/profile.md` — project language, tools, style.
+4. `state/profile.md` — project language, tools, style.
+5. `state/decisions.md` — before making or proposing any decision;
+   `state/open-decisions.md` (if present) when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to.
 
 Load the smallest context that can answer the task. Stop as soon as it is
@@ -56,9 +56,9 @@ unambiguous.
 
 **Ein Agent, der weiß, wo alles liegt:** Die Routing-Tabelle der Boot-Datei und eine generierte `state/map.md` (mit Token-Schätzung pro Datei) sagen dem Agenten, welche Datei was enthält. Er öffnet, was die Aufgabe braucht, und sonst nichts — statt das Repo in jeder Session neu zu scannen.
 
-**Sessions, die bei der Aufgabe bleiben:** Das Pflicht-Boot-Set liegt bei etwa 3,8k Tokens; alles Weitere lädt nur bei Bedarf. Das Fenster bleibt frei für die eigentliche Arbeit — Sessions leben länger, degradieren später und kosten weniger.
+**Sessions, die bei der Aufgabe bleiben:** Das Pflicht-Boot-Set liegt bei etwa 2,7k Tokens; alles Weitere lädt nur bei Bedarf. Das Fenster bleibt frei für die eigentliche Arbeit — Sessions leben länger, degradieren später und kosten weniger.
 
-**Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten für Recherche einsetzen oder alles selbst erledigen? Jede Einstellung einmal setzen (`truss set`), und jede künftige Session hält sich daran.
+**Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten für Recherche einsetzen oder alles selbst erledigen? Jede Präferenz startet auf `off`, dein KI-Tool verhält sich also wie immer, bis du etwas änderst. Einmal setzen (`truss set` oder im Dashboard), und jede künftige Session hält sich daran.
 
 **Stützen für die Struktur:** Eine kleine CLI ohne Abhängigkeiten stützt das System: Sie prüft, ob die Dateien ihrer Struktur noch folgen, warnt, wenn State driftet oder eine Datei ihren Fokus verliert, und hält generierte Blöcke synchron. Sie berichtet nur — jede Warnung lässt die Entscheidung bei dir und dem Agenten.
 
@@ -172,10 +172,10 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 
 ### Kontext ist ein Budget
 
-5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 3,6k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
+5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 2,7k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
 6. **Den kleinsten Kontext laden, der die Aufgabe beantwortet — dann stoppen.** Die Routing-Tabelle sagt, wo Information lebt; die generierte `state/map.md` ergänzt Token-Schätzungen pro Datei. Domain-Wissen lädt bei Bedarf, nicht per Default.
 7. **Kontrolliertes Vergessen.** Überholtes wandert mit einer einzeiligen Invalidierungsnotiz nach `archive/`. Längen-Checks warnen, wenn eine State-Datei ihren Fokus verliert, und ein Hygiene-Check markiert Domain-Dateien, die 90 Tage unberührt blieben. Der Workspace bleibt aktuell, statt zu akkumulieren.
-8. **Präferenzen statt Prompt-Wiederholung.** Kritikalität, Nachfragen vs. selbst entscheiden, Subagent-Einsatz, Commit-Verhalten, Antwortstil: jede ist eine Einstellung in einem generierten Block, geändert über `truss set`, beachtet von jeder künftigen Session.
+8. **Präferenzen statt Prompt-Wiederholung.** Kritikalität, Nachfragen vs. selbst entscheiden, Subagent-Einsatz, Commit-Verhalten, Antwortstil: jede ist eine Einstellung in einem generierten Block, geändert über `truss set` oder das Dashboard, beachtet von jeder künftigen Session. Alle starten auf `off`, ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
 
 <p align="center">
   <img src=".github/dashboard-context-budget.png" alt="Truss-Dashboard — Boot-Metadaten: Truss-Pflichtlektüre und Aufschlüsselung pro Datei" width="820">
@@ -186,7 +186,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 ### Menschen entscheiden, Skripte berichten
 
 9. **Skripte prüfen und berichten; sie entscheiden nie.** `doctor` ist read-only. Schreibzugriffe laufen über explizite, schmale Befehle (`set`, `render`, `phase`), und jeder Befund ist eine Warnung, auf die du und der Agent reagieren — keine Aktion, die für dich ausgeführt wird.
-10. **Die Phase weiterschaltest du.** Phasen weiten oder verengen, was ein Agent tun darf. Am Exit fährt er das Gate und hinterlässt dir einen Eintrag mit Verdikt (Präferenz `gate-advocate`); `current:` setzt du selbst per `truss phase <id>`, das ein ungeklärtes Gate ohne `--override-gate` verweigert. Wie hart die Verbotsliste bindet, steuert `phase-lock`: `advisory` (Default) lässt den Agenten stoppen und fragen, `off` macht sie informativ. Künftige Phasen darf er umbauen, seine eigenen aktiven Leitplanken nie.
+10. **Die Phase weiterschaltest du.** Phasen weiten oder verengen, was ein Agent tun darf. Am Exit fährt er das Gate und hinterlässt dir einen Eintrag mit Verdikt; `current:` setzt du selbst per `truss phase <id>`, das ein ungeklärtes Gate ohne `--override-gate` verweigert. Verstößt eine Aktion gegen die Verbotsliste, benennt der Agent den Konflikt und fragt, bevor er weitermacht. Mit `phase-lock: advisory` härtest du das zu einem Stopp, der auch seine Subagenten bindet, mit `gate-advocate` lässt du ein Review-Subagent das Exit-Verdikt zuerst angreifen. Künftige Phasen darf er umbauen, seine eigenen aktiven Leitplanken nie.
 11. **Menschliche Arbeit wird geroutet, nicht verloren.** Alles, was **nur du** tun kannst, wird ein `HT-NNN`-Eintrag in `HUMAN-TODOS.md`. Unentschiedene Fragen werden Briefings in `state/open-decisions.md` mit Optionen und Trade-offs — sie warten auf deine Entscheidung, statt still entschieden zu werden.
 12. **Truss ist ein transparentes Nudge-System, kein Enforcement.** Phasengrenzen und harte Regeln sind Verhaltensanweisungen an den Agenten. Truss berichtet Evidenz — Grammatik, uncommittete Änderungen an verbotenen Pfaden, Exit-Artefakte —, aber es authentifiziert keine Akteure und fängt keine Schreibzugriffe ab, und die Doku sagt das unumwunden. Bringt dein Agent-Host eine Enforcement-Grenze mit, fügt sich Truss ein.
 
@@ -197,7 +197,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 15. **Struktur wächst mit beobachtetem Bedarf.** Domain-Dateien entstehen, wenn ein Thema sich eine verdient. Kein vorsorglicher Backlog, keine leeren Ordner, keine Index-Dateien pro Verzeichnis.
 16. **Das Dashboard ist eine Sicht, keine zweite Wahrheit.** Es rendert dasselbe Markdown, bindet nur an `127.0.0.1` und schreibt über eine token-geschützte CLI-Whitelist (oder gar nicht, mit `--read-only`). Nichts läuft im Hintergrund.
 17. **Overlay lässt dein Repo in Ruhe.** Eingebetteter Code behält seine eigene Git-Historie; eine `code-root`-Einstellung zieht eine Grenze, die Checks, Maps und Branch-Status gemeinsam nutzen. Truss umschließt das Projekt, es absorbiert es nicht.
-18. **Ein Kontrollwort als Session-Kanarienvogel.** Standardmäßig beginnt jede Agenten-Antwort mit `` `TRUSS — ` ``. Verschwindet der Marker mitten in der Session, degradiert der Kontext — Zeit für eine neue Session. Wort ändern oder abschalten: `truss set control-word <wort|off>`.
+18. **Ein Kontrollwort als Session-Kanarienvogel.** Opt-in: Nach `truss set control-word TRUSS` beginnt jede Agenten-Antwort mit `` `TRUSS — ` ``. Verschwindet der Marker mitten in der Session, degradiert der Kontext — Zeit für eine neue Session. Abschalten: `truss set control-word off`.
 19. **Prompts sind Mandate, keine Methodenskripte.** Die mitgelieferte Prompt-Library im Dashboard (`plan`, `implement`, `research`, `critique`, `resume`, `handover`, …) benennt Mandat und Ergebnislatte in wenigen Zeilen und überlässt die Methode dem Agenten — die Hausregeln stehen bereits in `AGENTS.md`. Eigene Prompts kommen daneben: im Dashboard speichern oder `truss prompt save <id>`.
 
 ## Wie es funktioniert
@@ -209,14 +209,14 @@ my-project/
 ├── AGENTS.md          # Boot-Datei — jeder Agent liest sie zuerst
 ├── VISION.md          # Problem, Idee, Prinzipien, Constraints
 ├── README.md          # menschliches Onboarding
-├── HUMAN-TODOS.md     # Dinge, die nur ein Mensch tun kann (HT-NNN)
-├── state/             # Fokus, Entscheidungen, Phasen, Profil, Learnings
+├── HUMAN-TODOS.md     # Dinge, die nur ein Mensch tun kann (HT-NNN) — entsteht beim ersten Eintrag
+├── state/             # Fokus, Entscheidungen, Phasen, Profil
 ├── docs/              # Konventionen, Protokolle, Git, Import
 ├── context/           # Domain-Dateien, entstehen bei Bedarf
 └── .truss/            # die Engine (read-only für Agenten)
 ```
 
-Eine Session in der Praxis: Der Agent bootet nach Load-Order, führt `truss status` als zeitlichen Anker aus (Datum, Phase, Health, Branch), sagt, was er vorhat, und legt los — jede Antwort mit dem Kontrollwort vorangestellt. Zurückgeschrieben wird fortlaufend: Jede fertige Arbeitseinheit landet in `state/current.md` und ihren Dateien, sobald sie abgeschlossen ist. Das Session-Ende ist ein Sicherheitsnetz — Stand prüfen, Übriges routen und per `doctor` bestätigen, dass der Workspace noch mit sich selbst übereinstimmt.
+Eine Session in der Praxis: Der Agent bootet nach Load-Order, führt `truss status` als zeitlichen Anker aus (Datum, Phase, Health, Branch), sagt, was er vorhat, und legt los. Zurückgeschrieben wird fortlaufend: Jede fertige Arbeitseinheit landet in `state/current.md` und ihren Dateien, sobald sie abgeschlossen ist. Das Session-Ende ist ein Sicherheitsnetz — Stand prüfen, Übriges routen und per `doctor` bestätigen, dass der Workspace noch mit sich selbst übereinstimmt.
 
 Phasen geben der Arbeit eine Form. Ein frischer Workspace startet mit dem Seed `discover → validate → plan → build`; das Kickoff schneidet ihn auf das Projekt zu, und Agenten restrukturieren den Plan, wenn sich Anforderungen ändern — immer mit Entscheidungseintrag und Notiz an dich. Jede Phase deklariert, was erlaubt ist, was verboten, welche Dateien zu lesen sind und welche Exit-Kriterien das Gate prüft. Alternative Lebensläufe liegen als [Phase-Profile](.truss/phase-profiles/README.md) bei; das volle Denkmodell steht in [concepts.md](.truss/docs/concepts.md).
 

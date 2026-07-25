@@ -95,10 +95,10 @@ const FAQ_DATA = [
         agents restructure it later when requirements change (with a D-NNN and a note to you).</p>` },
     { q: 'What does the gate advocate do?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        At phase exit the agent spawns an adversarial <strong>review subagent</strong> that challenges whether
-        exit criteria are truly met. In ${code('agentic')} mode (the default) the agent then fixes the
-        agent-fixable findings itself, re-runs the gate, and writes one exit summary — only genuinely
-        human-only items land in your todos. ${code('on')} reports without remediation.</p>` },
+        Off unless you set it. Turned on, the agent spawns an adversarial <strong>review subagent</strong> at
+        phase exit that challenges whether exit criteria are truly met. In ${code('agentic')} mode the agent
+        then fixes the agent-fixable findings itself, re-runs the gate, and writes one exit summary — only
+        genuinely human-only items land in your todos. ${code('on')} reports without remediation.</p>` },
   ]},
 
   { title: 'Decisions & State', icon: Icons.Edit, items: [

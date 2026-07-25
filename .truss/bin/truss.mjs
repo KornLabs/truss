@@ -571,9 +571,17 @@ async function runSet(keyArg, valueArg) {
 
   const newInnerLines = renderPrefsBlock(ordered)
 
+  // Rows from an older instance whose value now renders nothing (every key's
+  // 'off' since D-028). renderPrefsBlock drops them — say so instead of letting
+  // them vanish silently.
+  const dropped = ordered.filter(r => r.key !== keyArg && isOmitValue(r.key, r.value))
+
   try {
     await writeBlock(agentsMdPath, 'preferences', newInnerLines)
     console.log(`truss set: ${keyArg} = ${valueArg}${omit ? ' (no directive written)' : ''}`)
+    if (dropped.length) {
+      console.log(`  removed ${dropped.length} directive(s) that are now the default: ${dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
+    }
   } catch (err) {
     console.error(`truss set: failed to write block — ${err.message}`)
     process.exit(2)

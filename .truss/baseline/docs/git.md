@@ -28,9 +28,9 @@ Keep the subject line under 72 characters. Body is optional; use it for breaking
 - After each logical unit of work (a decision, a completed task, a phase advance).
 - Never in the middle of a refactor — leave the tree clean.
 - With `auto-commit: suggest`, the agent proposes the message; you run `git commit`.
-- With `auto-commit: off`, you write your own commit messages.
+- Without an `auto-commit` directive (default), commit behaviour follows your host agent's own rules.
 
-The agent never runs `git commit` itself (hard limit).
+The agent only runs `git commit` itself when `auto-commit: on` is set.
 
 ## Overlay git
 

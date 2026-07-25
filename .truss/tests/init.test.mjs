@@ -75,11 +75,10 @@ describe('init (core)', () => {
     assert.match(profile, /language: English/)
     assert.match(await read(root, 'VISION.md'), /Acme/)
 
-    // rendered blocks (C1 defaults + phase 1/4)
+    // rendered blocks (D-028: all preferences off → empty block + phase 1/4)
     const agents = await read(root, 'AGENTS.md')
-    assert.match(agents, /- orchestration=medium ::/)
-    assert.match(agents, /- phase-lock=advisory ::/)
-    assert.doesNotMatch(agents, /- emoji=/)
+    assert.doesNotMatch(agents, /- [\w-]+=\w+ ::/)
+    assert.match(agents, /all preferences off/)
     assert.match(await phaseBlockOf(root), /\*\*Phase 1\/4 — discover/)
 
     assert.equal(res.conflicts.length, 0)
@@ -173,10 +172,10 @@ describe('init no-overwrite & pre-flight', () => {
     const root = await makeRoot('truss-init-partial-')
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
-    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'), '# custom todos\n')
+    await fs.writeFile(path.join(root, 'VISION.md'), '# custom vision\n')
     const res = await runInit(root, ['--name', 'A', '--lang', 'English'])
-    assert.ok(res.conflicts.some(p => p.endsWith('HUMAN-TODOS.md')), 'pre-existing file reported as conflict')
-    assert.equal(await read(root, 'HUMAN-TODOS.md'), '# custom todos\n', 'pre-existing file untouched')
+    assert.ok(res.conflicts.some(p => p.endsWith('VISION.md')), 'pre-existing file reported as conflict')
+    assert.equal(await read(root, 'VISION.md'), '# custom vision\n', 'pre-existing file untouched')
   })
 
   it('rejects a marker-free AGENTS.md before writing anything', async () => {

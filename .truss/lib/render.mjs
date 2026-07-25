@@ -114,14 +114,20 @@ export const PREFS_GROUPS = [
 export function renderPrefsBlock(rows) {
   // Drop values flagged as "omit" (e.g. scope=off): they render no line.
   rows = rows.filter(r => !isOmitValue(r.key, r.value))
+
+  // Empty block = all preferences at their 'off' default (D-028): render a
+  // single pointer line so the block costs ~0 boot tokens.
+  if (rows.length === 0) {
+    return ['> empty — all preferences off (host-agent defaults). Set via `node .truss/bin/truss.mjs set <key> <value>`.']
+  }
+
   const byKey = new Map(rows.map(r => [r.key, r]))
   const used = new Set()
   const lines = []
 
   lines.push(
-    '> Canonical agent directives. Machine-written via `node .truss/bin/truss.mjs set <key> <value>` — never edit by hand.'
+    '> Machine-written via `node .truss/bin/truss.mjs set <key> <value>` — never edit by hand. Apply HARD rules first.'
   )
-  lines.push('> Format: `key=value :: directive`, one per line, grouped by enforcement. Apply HARD rules first.')
 
   for (const group of PREFS_GROUPS) {
     const present = group.keys.filter(k => byKey.has(k))
