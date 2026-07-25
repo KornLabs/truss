@@ -117,10 +117,24 @@ export async function run(ctx) {
   // Scope: only operational files (state/, AGENTS.md, HUMAN-TODOS.md,
   // domain files). Skip docs/ — those files use IDs as format examples, not
   // real references to operational entries.
+  // An OD entry is REMOVED when it is decided (no tombstones, AGENTS.md §3): its
+  // permanent trace is the `Closes: OD-NNN` line in the deciding D-entry. That
+  // makes the id legitimately undefined — so a decision naming the question it
+  // closed must not be flagged, or the no-tombstone rule would forbid writing a
+  // readable rationale.
+  const closedIds = new Set();
+  for (const fileCtx of files.values()) {
+    for (const line of fileCtx.lines || []) {
+      const m = line.match(/^\s*Closes:\s*(.+)$/);
+      if (m) for (const tok of m[1].match(/[A-Z]+-\d+/g) || []) closedIds.add(tok);
+    }
+  }
+
   for (const [id, allRefs] of idRefs) {
     const prefix = id.split('-')[0];
     if (!TRACKED_PREFIXES.has(prefix)) continue;
     if (idDefs.has(id)) continue;
+    if (closedIds.has(id)) continue;
 
     // Filter to operational files only
     const operationalRefs = allRefs.filter(

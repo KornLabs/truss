@@ -16,7 +16,7 @@ if (_maj < 20) {
 // M2: doctor (ST/BL/RF checks) + --fix-prompt + --json + exit codes
 // M3: render, set, --gate, PH checks
 // M4: init (workspace scaffolding)
-// M5: SY/CX/HY checks, doctor --html
+// M5: SY/CX checks, doctor --html
 // M6: dashboard server
 
 import path from 'node:path'
@@ -25,7 +25,7 @@ import { readFileSync } from 'node:fs'
 import { loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
 import { renderPhaseBlock, renderPrefsBlock, parsePrefsRows } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
-import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitValue } from '../lib/prefs.mjs'
+import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { runMap } from '../lib/commands/map.mjs'
@@ -57,7 +57,7 @@ function escapeHtml(s) {
 /**
  * Render the doctor report as a self-contained dark-theme HTML page (GE-14:
  * zero dependencies, no CDN, no build). Lists every finding plus the full check
- * catalog (all families ST/BL/RF/SY/PH/CX/HY) with a fired-count per check.
+ * catalog (all families ST/BL/RF/SY/PH/CX) with a fired-count per check.
  */
 function renderHtmlReport({ root, version, timestamp, gate, summary, registry, findings }) {
   const ts = timestamp.replace('T', ' ').slice(0, 16) + ' UTC'
@@ -289,7 +289,6 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
     import('../checks/ph.mjs'),
     import('../checks/sy.mjs'),
     import('../checks/cx.mjs'),
-    import('../checks/hy.mjs'),
   ]
 
   // All core check modules run in parallel; no first-fail
@@ -568,19 +567,22 @@ async function runSet(keyArg, valueArg) {
     ...catalogKeys.filter(k => rowMap.has(k)).map(k => rowMap.get(k)),
     ...[...rowMap.values()].filter(r => !catalogKeys.includes(r.key)),
   ]
+  // Retired keys never reach the writer — a `set` is the migration moment.
+  const kept = ordered.filter(r => !RETIRED_KEYS.has(r.key))
 
-  const newInnerLines = renderPrefsBlock(ordered)
+  const newInnerLines = renderPrefsBlock(kept)
 
-  // Rows from an older instance whose value now renders nothing (every key's
-  // 'off' since D-028). renderPrefsBlock drops them — say so instead of letting
-  // them vanish silently.
-  const dropped = ordered.filter(r => r.key !== keyArg && isOmitValue(r.key, r.value))
+  // Lines an older instance wrote that no longer belong: values that now render
+  // nothing (every key's 'off' since D-028) and keys retired by D-029. Both are
+  // dropped here rather than silently carried in the OTHER group.
+  const dropped = ordered.filter(r =>
+    r.key !== keyArg && (isOmitValue(r.key, r.value) || RETIRED_KEYS.has(r.key)))
 
   try {
     await writeBlock(agentsMdPath, 'preferences', newInnerLines)
     console.log(`truss set: ${keyArg} = ${valueArg}${omit ? ' (no directive written)' : ''}`)
     if (dropped.length) {
-      console.log(`  removed ${dropped.length} directive(s) that are now the default: ${dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
+      console.log(`  removed ${dropped.length} directive(s) that are retired or now the default: ${dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
     }
   } catch (err) {
     console.error(`truss set: failed to write block — ${err.message}`)

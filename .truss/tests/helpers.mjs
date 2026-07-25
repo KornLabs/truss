@@ -15,7 +15,6 @@ import * as rf from '../checks/rf.mjs'
 import * as ph from '../checks/ph.mjs'
 import * as sy from '../checks/sy.mjs'
 import * as cx from '../checks/cx.mjs'
-import * as hy from '../checks/hy.mjs'
 
 // Never prompt (no readline hang) and never shell out to git in tests.
 process.stdin.isTTY = false
@@ -45,7 +44,7 @@ export async function runChecks(root, { gate = false } = {}) {
   const ctx = await loadWorkspace(root)
   ctx.gate = gate
   const findings = []
-  for (const mod of [st, bl, rf, ph, sy, cx, hy]) findings.push(...await mod.run(ctx))
+  for (const mod of [st, bl, rf, ph, sy, cx]) findings.push(...await mod.run(ctx))
   return findings
 }
 

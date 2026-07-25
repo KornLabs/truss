@@ -3,28 +3,20 @@
 
 export const PREFERENCE_GROUPS = [
   { title: 'Autonomy & safety', items: [
-    { key: 'orchestration', label: 'Orchestration', values: ['off', 'low', 'medium', 'high'], def: 'off', desc: 'How freely the agent orchestrates multi-step tasks (build, analyze) without checking in.' },
-    { key: 'phase-lock', label: 'Phase lock', values: ['off', 'advisory'], def: 'off', desc: 'If an action violates the phase forbidden list: ignore, or stop and ask.' },
+    { key: 'subagents', label: 'Subagents', values: ['off', 'research', 'full'], def: 'off', desc: 'Delegation the agent may start on its own: none, research only, or full (research, review and parallel task agents).' },
     { key: 'gate-advocate', label: 'Gate advocate', values: ['off', 'on', 'agentic'], def: 'off', desc: 'Adversarial review at phase exit: report only (on), or fix agent-fixable findings and re-verify before the single exit HT (agentic).' },
   ]},
   { title: 'Rigor & verification', items: [
-    { key: 'criticality', label: 'Criticality', values: ['off', 'low', 'medium', 'high'], def: 'off', desc: 'How aggressively it names weaknesses in inputs and plans before executing.' },
-    { key: 'input-trust', label: 'Input trust', values: ['off', 'open', 'medium', 'critical'], def: 'off', desc: 'How much it verifies the claims and figures you hand it.' },
-    { key: 'clarify', label: 'Clarify', values: ['off', 'ask', 'infer'], def: 'off', desc: 'When intent is unclear: ask first, or infer and state assumptions.' },
-    { key: 'source-citation', label: 'Source citation', values: ['off', 'on'], def: 'off', desc: 'Whether the agent cites the sources and references it used.' },
-    { key: 'post-task-check', label: 'Post-task check', values: ['off', 'inline', 'subagent'], def: 'off', desc: 'Run doctor after tasks: never, inline, or via a subagent.' },
-  ]},
-  { title: 'Subagents & delegation', items: [
-    { key: 'research-agent', label: 'Research subagents', values: ['off', 'on'], def: 'off', desc: 'Allow spawning research subagents without an explicit instruction.' },
-    { key: 'review-agent', label: 'Review subagents', values: ['off', 'on'], def: 'off', desc: 'Allow spawning critical-review subagents on its own.' },
+    { key: 'verify-inputs', label: 'Verify inputs', values: ['off', 'on'], def: 'off', desc: 'Independently validate the claims, figures and prior results you hand it, instead of taking them at face value. Naming weaknesses in a plan is already a fixed rule in AGENTS.md §3.' },
+    { key: 'clarify', label: 'Clarify', values: ['off', 'ask', 'infer'], def: 'off', desc: 'When intent is unclear: ask first, or infer and state assumptions. Naming the assumption is already a fixed rule in AGENTS.md §4.' },
   ]},
   { title: 'Git & workflow', items: [
     { key: 'scope', label: 'Solution scope', values: ['off', 'minimal', 'balanced', 'thorough'], def: 'off', desc: 'How much solution to build: the smallest thing that works, matched to the problem, or full edge-case coverage. Off imposes no bias.' },
     { key: 'auto-commit', label: 'Auto-commit', values: ['off', 'suggest', 'on'], def: 'off', desc: 'After a logical unit: do nothing, propose a message, or commit.' },
-    { key: 'branch-guard', label: 'Branch guard', values: ['off', 'warn', 'strict'], def: 'off', desc: 'Compare the configured code-root branch with state/current.md before work.' },
+    { key: 'branch-guard', label: 'Branch guard', values: ['off', 'strict'], def: 'off', desc: 'Refuse to work while the code-root branch differs from state/current.md. Reporting the mismatch is already a fixed rule in AGENTS.md §4.' },
   ]},
   { title: 'Response & session', items: [
-    { key: 'response-style', label: 'Verbosity', values: ['off', 'normal', 'compact', 'maxcompact'], def: 'off', desc: 'How terse responses are: normal prose, compact (no filler), or maxcompact (telegraphic — form compressed, never content). Emojis are always off.' },
+    { key: 'response-style', label: 'Verbosity', values: ['off', 'compact', 'maxcompact'], def: 'off', desc: 'How terse responses are: compact (no filler) or maxcompact (telegraphic — form compressed, never content). Off leaves your AI tool its own style.' },
     { key: 'control-word', label: 'Control word', values: ['off'], free: true, def: 'off', suggestions: ['TRUSS'],
       desc: 'Have the agent open every response with `<WORD> — …`. If the marker goes missing, the session may be losing context. Pick Off, a preset, or your own word.' },
   ]},
@@ -35,7 +27,6 @@ export const CHECK_CATALOG = [
   { id: 'BL-02', sev: 'E', desc: 'Phase block drifted from state/phases.md' },
   { id: 'BL-03', sev: 'E', desc: 'Preferences block: bad key, value, or grammar' },
   { id: 'CX-01', sev: 'W', desc: 'mandatory Truss boot metadata exceeds the token budget' },
-  { id: 'HY-01', sev: 'I', desc: 'archive candidate: context domain file untouched > 90 days' },
   { id: 'PH-01', sev: 'E', desc: 'phases.md grammar violated' },
   { id: 'PH-02', sev: 'E', desc: 'current: points to an unknown phase' },
   { id: 'PH-03', sev: 'W', desc: 'forbidden-globs match changed paths' },
@@ -54,8 +45,8 @@ export const CHECK_CATALOG = [
   { id: 'ST-05', sev: 'I', desc: 'File exceeds growth-rule line limit (450)' },
   { id: 'ST-06', sev: 'E', desc: 'AGENTS.md or its §2 structure table could not be parsed' },
   { id: 'ST-07', sev: 'W', desc: 'Truss map is outdated' },
-  { id: 'SY-01', sev: 'W', desc: 'current.md missing a required key or stale (> 7 days)' },
-  { id: 'SY-02', sev: 'I', desc: 'open-decisions.md holds an entry open > 30 days' },
+  { id: 'ST-08', sev: 'W', desc: 'AGENTS.md is missing a numbered top-level section' },
+  { id: 'SY-01', sev: 'W', desc: 'current.md missing a required key' },
   { id: 'SY-03', sev: 'W', desc: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / HUMAN-TODOS)' },
   { id: 'SY-05', sev: 'W', desc: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', sev: 'W', desc: 'decided open-decision entry still present (tombstone)' },

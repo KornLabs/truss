@@ -25,7 +25,7 @@ Every new session with a coding agent starts from zero. You re-explain the proje
 
 Many tools give agents a memory. Truss optimizes two: the memory has structure, and the mandatory part stays small. It is a thin layer of plain Markdown that lives beside your code and acts as the project's memory. Every session runs the same loop:
 
-1. **Boot.** The agent reads one file, `AGENTS.md`: what the project is, which phase it is in, which few state files to load, and where everything else lives. This mandatory boot set is about 2.7k estimated tokens.
+1. **Boot.** The agent reads one file, `AGENTS.md`: what the project is, which phase it is in, which few state files to load, and where everything else lives. This mandatory boot set is about 3.2k estimated tokens.
 2. **Work.** It pulls in only the files the task needs. A generated map tells it where everything lives, so it knows where to look instead of searching.
 3. **Record.** As each piece of work finishes, it briefly notes what changed: focus and next steps in `state/current.md`, decisions in `state/decisions.md`, changes to the vision or the idea in `VISION.md`.
 
@@ -54,7 +54,7 @@ unambiguous.
 
 **An agent that knows where things are:** The boot file's routing table and a generated `state/map.md` (with a token estimate per file) tell the agent which file holds what. It opens what the task needs and nothing else, instead of re-scanning the repo every session.
 
-**Sessions that stay on the task:** The mandatory boot set is about 2.7k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
+**Sessions that stay on the task:** The mandatory boot set is about 3.2k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
 
 **Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Every preference starts off, so your AI tool keeps its own behavior until you change one. Set what you want once (`truss set`, or the dashboard), and every future session honors it.
 
@@ -170,10 +170,10 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 
 ### Context is a budget
 
-5. **The mandatory boot set stays small.** About 2.7k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
+5. **The mandatory boot set stays small.** About 3.2k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
 6. **Load the smallest context that answers the task, then stop.** The routing table says where information lives; the generated `state/map.md` adds per-file token estimates. Domain knowledge loads on demand, not by default.
-7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and a hygiene check flags domain files untouched for 90 days. The workspace stays current instead of accumulating.
-8. **Preferences instead of prompt repetition.** Criticality, ask-vs-decide, subagent use, commit behavior, response style: each is a setting in a generated block, changed through `truss set` or the dashboard, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
+7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and the read-cost check flags a boot set that has grown expensive. Truss never ages content out by the calendar: a project that rests for two weeks resumes exactly where it stopped, and relevance decides what goes, not the date.
+8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior, response style: each is a setting in a generated block, changed through `truss set` or the dashboard, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
 
 <p align="center">
   <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — boot metadata: mandatory Truss reading and per-file breakdown" width="820">

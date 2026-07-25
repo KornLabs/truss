@@ -11,7 +11,6 @@ import { promisify } from 'node:util'
 
 import * as sy from '../checks/sy.mjs'
 import * as cx from '../checks/cx.mjs'
-import * as hy from '../checks/hy.mjs'
 import * as ph from '../checks/ph.mjs'
 import * as rf from '../checks/rf.mjs'
 import { loadWorkspace } from '../lib/workspace.mjs'
@@ -44,7 +43,6 @@ next:
 blockers: none
 recently-done:
   - built checks
-updated: ${date}
 `
 
 // ── SY-01 ────────────────────────────────────────────────────────────────────
@@ -57,38 +55,6 @@ describe('SY-01 current.md', () => {
     const f = await sy.run(ctxOf({ 'state/current.md': file(cleanCurrent().replace('blockers: none\n', '')) }))
     assert.equal(ids(f, 'SY-01').length, 1)
     assert.match(ids(f, 'SY-01')[0].message, /blockers/)
-  })
-  it('flags staleness from the updated: date', async () => {
-    const f = await sy.run(ctxOf({ 'state/current.md': file(cleanCurrent(daysAgo(30))) }))
-    assert.ok(ids(f, 'SY-01').some(x => /stale/.test(x.message)))
-  })
-  it('falls back to mtime when updated: is an unparsable placeholder', async () => {
-    const placeholder = cleanCurrent('[YYYY-MM-DD]')
-    const fresh = await sy.run(ctxOf({ 'state/current.md': file(placeholder, 0) }))
-    assert.equal(ids(fresh, 'SY-01').filter(x => /stale/.test(x.message)).length, 0)
-    const old = await sy.run(ctxOf({ 'state/current.md': file(placeholder, 20) }))
-    assert.ok(ids(old, 'SY-01').some(x => /stale/.test(x.message)))
-  })
-})
-
-// ── SY-02 ────────────────────────────────────────────────────────────────────
-describe('SY-02 open-decisions.md', () => {
-  const withEntry = `# Open Decisions\n\n## Should we X?\n\nOptions: a, b\nLeaning: a\n`
-  const empty = `# Open Decisions\n\n<!-- OD entries go here. -->\n`
-  const dated = (date) => `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: ${date}\nOptions:\n  A. a — t\nTrade-offs: x\nLeaning: a\n`
-  it('falls back to file mtime when no entry carries an Opened: date', async () => {
-    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(withEntry, 31) })), 'SY-02').length, 1)
-  })
-  it('stays silent on an empty file even when old', async () => {
-    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(empty, 90) })), 'SY-02').length, 0)
-  })
-  it('uses the per-entry Opened: date, not the file mtime, when present', async () => {
-    // File is old by mtime but the entry was opened 5 days ago → silent.
-    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(dated(daysAgo(5)), 99) })), 'SY-02').length, 0)
-    // Entry opened 45 days ago, file freshly touched → still flagged, by entry.
-    const f = ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(dated(daysAgo(45)), 0) })), 'SY-02')
-    assert.equal(f.length, 1)
-    assert.match(f[0].message, /OD-001|Should we X/)
   })
 })
 
@@ -236,46 +202,6 @@ describe('CX-01 context size', () => {
   })
 })
 
-// ── HY-01 ────────────────────────────────────────────────────────────────────
-describe('HY-01 archive candidate', () => {
-  it('flags an old context domain file; skips template and docs files', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-hy-'))
-    await fs.mkdir(path.join(root, 'context'), { recursive: true })
-    await fs.writeFile(path.join(root, 'context', 'market.md'), '# Market\n')
-    await fs.writeFile(path.join(root, 'AGENTS.md'), '# A\n')
-    await fs.writeFile(path.join(root, 'VISION.md'), '# V\n')
-    await fs.mkdir(path.join(root, 'docs'), { recursive: true })
-    await fs.writeFile(path.join(root, 'docs', 'conventions.md'), '# C\n')
-    const old = new Date(Date.now() - 100 * DAY)
-    for (const rel of ['context/market.md', 'AGENTS.md', 'VISION.md', 'docs/conventions.md']) {
-      await fs.utimes(path.join(root, rel), old, old)
-    }
-    const diskPaths = ['context/', 'context/market.md', 'AGENTS.md', 'VISION.md', 'docs/', 'docs/conventions.md']
-    const h = ids(await hy.run(ctxOf({}, { diskPaths, root })), 'HY-01')
-    assert.equal(h.length, 1, JSON.stringify(h))
-    assert.equal(h[0].file, 'context/market.md')
-    await fs.rm(root, { recursive: true, force: true })
-  })
-  it('is silent on a fresh context domain file', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-hy2-'))
-    await fs.mkdir(path.join(root, 'context'), { recursive: true })
-    await fs.writeFile(path.join(root, 'context', 'market.md'), '# Market\n')
-    const f = await hy.run(ctxOf({}, { diskPaths: ['context/', 'context/market.md'], root }))
-    assert.equal(ids(f, 'HY-01').length, 0)
-    await fs.rm(root, { recursive: true, force: true })
-  })
-  it('still nudges old root-level domain files for migration', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-hy-legacy-'))
-    await fs.writeFile(path.join(root, 'market.md'), '# Market\n')
-    const old = new Date(Date.now() - 100 * DAY)
-    await fs.utimes(path.join(root, 'market.md'), old, old)
-    const h = ids(await hy.run(ctxOf({}, { diskPaths: ['market.md'], root })), 'HY-01')
-    assert.equal(h.length, 1)
-    assert.equal(h[0].file, 'market.md')
-    await fs.rm(root, { recursive: true, force: true })
-  })
-})
-
 // ── doctor --html / --json (Dashboard v0), real CLI subprocess ───────────────
 describe('doctor report output', () => {
   const BIN = (root) => path.join(root, '.truss', 'bin', 'truss.mjs')
@@ -291,7 +217,7 @@ describe('doctor report output', () => {
     const html = await read(root, '.truss/out/doctor.html')
     assert.match(html, /<title>truss doctor/)
     assert.match(html, /All checks passed/)
-    for (const probe of ['ST-01', 'BL-01', 'RF-01', 'SY-01', 'PH-01', 'CX-01', 'HY-01']) {
+    for (const probe of ['ST-01', 'BL-01', 'RF-01', 'SY-01', 'PH-01', 'CX-01']) {
       assert.ok(html.includes(probe), `catalog should list ${probe}`)
     }
   })
@@ -302,7 +228,7 @@ describe('doctor report output', () => {
     await runCli(root, ['doctor', '--json'])
     const json = JSON.parse(await read(root, '.truss/out/doctor.json'))
     const catalogIds = json.checks.map(c => c.id)
-    for (const id of ['SY-01', 'SY-02', 'SY-03', 'CX-01', 'HY-01']) {
+    for (const id of ['SY-01', 'SY-03', 'SY-09', 'CX-01']) {
       assert.ok(catalogIds.includes(id), `JSON catalog should include ${id}`)
     }
   })

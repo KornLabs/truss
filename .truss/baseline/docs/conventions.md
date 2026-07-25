@@ -101,7 +101,7 @@ and risk so the human can decide without reconstructing the analysis. Give a
 `Leaning:` with its why whenever one is defensible; never fabricate confidence —
 an honest `none` plus what would resolve it beats an anchored guess.
 
-`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` lets doctor age each entry individually (SY-02). When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
+`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` records when the question arose; Truss never ages an entry out by the calendar. When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
 
 ### R-NNN — Risk
 
@@ -137,13 +137,6 @@ structurally fixed. Ordinary product bugs go to the repo issue tracker, a test,
 a local domain task, or `pm/`. If a bug exposes a technical decision, record a
 D-NNN; if it creates project, launch, or safety exposure, record an R-NNN.
 
-## Current snapshot
-
-Keep `focus:`, each `next:` item, and each `recently-done:` item to one concise
-line. `state/current.md` is a boot snapshot, not a progress essay or changelog;
-route rationale, evidence, implementation detail, and history to the owning
-domain file, decision, or git.
-
 ## Profile
 
 `state/profile.md` is boot context, read every session — a config sheet, not a
@@ -156,11 +149,8 @@ domain file · a technical convention → this file · a commitment to act → t
 owning task list · something the human must do → HUMAN-TODOS.md · a real
 decision → `D-NNN`. Ambiguous → ask rather than guess.
 
-Volume: one line per entry, imperative, no rationale prose and no examples;
-roughly ten lines per section. A new preference that contradicts an older one
-replaces that line — profile.md is current configuration, not a history (that
-is what git and `D-NNN` are for). Anything that needs more than a line belongs
-in the file that owns the topic, linked from here.
+The volume rules live in the file itself. Anything that needs more than a line
+belongs in the file that owns the topic, linked from here.
 
 ## File templates
 

@@ -6,23 +6,36 @@
 // a fresh AGENTS.md carries an empty preferences block (0 boot tokens). A
 // directive exists only when the human explicitly sets a deviation from the
 // host agent's native behavior.
+// D-029: nine keys. A key earns its place only when projects genuinely differ
+// AND the exact wording is worth not reinventing. Everything whose floor is
+// universally right now lives as a fixed rule in AGENTS.md §3/§4 — the key only
+// sells the harder variant (clarify, branch-guard) or is gone entirely.
 export const PREFS_CATALOG = [
-  { key: 'orchestration',   values: ['off', 'low', 'medium', 'high'],           default: 'off', omit: ['off'] },
-  { key: 'criticality',     values: ['off', 'low', 'medium', 'high'],           default: 'off', omit: ['off'] },
+  { key: 'subagents',       values: ['off', 'research', 'full'],                default: 'off', omit: ['off'] },
+  { key: 'verify-inputs',   values: ['off', 'on'],                              default: 'off', omit: ['off'] },
   { key: 'clarify',         values: ['off', 'ask', 'infer'],                    default: 'off', omit: ['off'] },
-  { key: 'input-trust',     values: ['off', 'open', 'medium', 'critical'],      default: 'off', omit: ['off'] },
-  { key: 'research-agent',  values: ['off', 'on'],                              default: 'off', omit: ['off'] },
-  { key: 'review-agent',    values: ['off', 'on'],                              default: 'off', omit: ['off'] },
-  { key: 'source-citation', values: ['off', 'on'],                              default: 'off', omit: ['off'] },
   { key: 'scope',           values: ['off', 'minimal', 'balanced', 'thorough'], default: 'off', omit: ['off'] },
   { key: 'auto-commit',     values: ['off', 'suggest', 'on'],                   default: 'off', omit: ['off'] },
-  { key: 'post-task-check', values: ['off', 'inline', 'subagent'],              default: 'off', omit: ['off'] },
   { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],                   default: 'off', omit: ['off'] },
-  { key: 'phase-lock',      values: ['off', 'advisory'],                        default: 'off', omit: ['off'] },
-  { key: 'branch-guard',    values: ['off', 'warn', 'strict'],                  default: 'off', omit: ['off'] },
-  { key: 'response-style',  values: ['off', 'normal', 'compact', 'maxcompact'], default: 'off', omit: ['off'] },
+  { key: 'branch-guard',    values: ['off', 'strict'],                          default: 'off', omit: ['off'] },
+  { key: 'response-style',  values: ['off', 'compact', 'maxcompact'],           default: 'off', omit: ['off'] },
   { key: 'control-word',    values: ['off'],                                    default: 'off', omit: ['off'], free: true },
 ]
+
+// Keys retired in D-029. Their behaviour either became a fixed rule in AGENTS.md
+// or merged into a surviving key. An existing workspace keeps rendering them
+// until its next `truss set`; BL-03 reports them as a warning with the migration
+// hint instead of an unknown-key error, so upgrading never turns doctor red.
+export const RETIRED_KEYS = new Map([
+  ['orchestration',   'merged into `subagents` (autonomy floor is AGENTS.md §4)'],
+  ['research-agent',  'merged into `subagents` (use `subagents research`)'],
+  ['review-agent',    'merged into `subagents` (use `subagents full`)'],
+  ['criticality',     'now a fixed rule — AGENTS.md §3 names plan weaknesses before executing'],
+  ['input-trust',     'renamed to `verify-inputs`'],
+  ['source-citation', 'belongs in state/profile.md § Style & moral as a one-line preference'],
+  ['post-task-check', 'now a fixed rule — AGENTS.md §4 runs doctor before reporting done'],
+  ['phase-lock',      'now a fixed rule — AGENTS.md §4 names the conflict and asks'],
+])
 
 // Keys whose value is free-form (not restricted to the listed values).
 // `control-word` may be 'off' or any short word the human picks (session-health marker).
