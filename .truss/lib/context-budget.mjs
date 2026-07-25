@@ -21,7 +21,7 @@ export const TOKENS_PER_WORD = 1.5
 // measured projects instead of the empty template — the old 9k/15k bands were
 // derived from a fresh `init` (≈3.6k) and left barely 3k of headroom for a
 // project's entire lifetime:
-//   • fresh init, empty templates ................ ≈ 3.6k
+//   • fresh init, empty templates ................ ≈ 2.7k (3.6k before D-028)
 //   • fresh project, vision + structure filled ... ≈ 9k    (was already warning)
 //   • truss forge itself, 24 decisions ........... ≈ 9.3k  (was already warning)
 // A real project's structural floor is ≈5.5–6k (framework template + structure

@@ -139,7 +139,7 @@ export function parseStructureTable(lines) {
 // so doctor only checks existence/non-emptiness, not each child path.
 // Canonical form = bare directory names (no trailing slash). Single source of
 // truth — consumers that compare slash-suffixed paths strip the slash first (C2).
-export const SUMMARY_DIRS = new Set(['archive', 'repo', 'pm', 'skills', 'context', '.truss']);
+export const SUMMARY_DIRS = new Set(['archive', 'repo', 'pm', 'skills', 'context', 'docs', '.truss']);
 
 // Known adapter stubs — part of template, ST-04 checks these.
 // Paths are POSIX literals ('/'): they are compared against walk-generated

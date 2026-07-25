@@ -67,11 +67,11 @@ export class AboutConceptsView extends Component {
               <tbody>
                 <tr><td>${code('current.md')}</td><td>Live focus, next actions (≤5), blockers, recently done</td></tr>
                 <tr><td>${code('decisions.md')}</td><td>Decided decisions (D-NNN); superseded, never deleted</td></tr>
-                <tr><td>${code('open-decisions.md')}</td><td>Undecided questions with options and trade-offs (OD-NNN)</td></tr>
+                <tr><td>${code('open-decisions.md')}</td><td>Undecided questions with options and trade-offs (OD-NNN); created at its first entry</td></tr>
                 <tr><td>${code('phases.md')}</td><td>Phase definitions and the ${code('current:')} pointer</td></tr>
                 <tr><td>${code('profile.md')}</td><td>Project name, language, tools, PM method, style</td></tr>
-                <tr><td>${code('risks.md')}</td><td>Project risks (R-NNN); loaded on demand</td></tr>
-                <tr><td>${code('learnings.md')}</td><td>Recurring agent weaknesses and fixes (L-NNN)</td></tr>
+                <tr><td>${code('risks.md')}</td><td>Project risks (R-NNN); created at its first entry</td></tr>
+                <tr><td>${code('learnings.md')}</td><td>Recurring agent weaknesses and fixes (L-NNN); created at its first entry</td></tr>
                 <tr><td>${code('map.md')}</td><td>Script-generated domain file overview</td></tr>
               </tbody>
             </table>
@@ -167,8 +167,8 @@ export class AboutConceptsView extends Component {
               commit behaviour, response style, and more. Changed only through ${code('truss set <key> <value>')}.
             </p>
             <p class="muted" style="margin:0;font-size:12.5px">
-              Defaults are deliberately cautious (e.g. ${code('clarify: ask')}, ${code('criticality: high')}).
-              Categories: Autonomy & safety, Rigor & verification, Subagents, Git & workflow, Response & session.
+              Every key starts at ${code('off')} and renders nothing — your AI tool's own behaviour applies until
+              you set a deviation. Categories: Autonomy & safety, Rigor & verification, Subagents, Git & workflow, Response & session.
             </p>
           </div>
         <//>

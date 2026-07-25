@@ -54,12 +54,16 @@ the block writer.
 |---|---|
 | `current.md` | the live focus: what you're doing, next actions (≤5), blockers, recently done |
 | `decisions.md` | decided decisions, each a `D-NNN` entry; superseded, never deleted |
-| `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`) |
+| `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`); created at its first entry |
 | `phases.md` | the phase definitions and the `current:` pointer |
 | `profile.md` | project name, language, tools, PM method, style notes |
-| `risks.md` | project, launch, safety, strategy, or blocker risks (`R-NNN`); loaded on demand |
-| `learnings.md` | recurring agent weaknesses and structural fixes (`L-NNN`) |
+| `risks.md` | project, launch, safety, strategy, or blocker risks (`R-NNN`); created at its first entry |
+| `learnings.md` | recurring agent weaknesses and structural fixes (`L-NNN`); created at its first entry |
 | `map.md` | a script-generated overview of domain files with per-file read-cost estimates (on demand) |
+
+Only `current.md`, `decisions.md`, `phases.md`, and `profile.md` exist from
+`init`. Everything else appears the moment its first real entry does — a fresh
+workspace carries no empty placeholder files (D-028).
 
 Everything that *describes a topic* rather than the project's process goes into a
 **domain file** under `context/<domain>.md`, created on demand. Domain files are
@@ -162,8 +166,10 @@ A small catalogue of preferences tunes how agents behave — autonomy, criticali
 whether to ask or infer, commit behaviour, response style, and so on. They live
 in the generated preferences block of `AGENTS.md` and are changed only through
 `truss set <key> <value>`, which validates the value against the catalogue.
-Defaults are deliberately cautious (e.g. `clarify: ask`, `criticality: high`).
-The full list of keys and values is in [cli.md](cli.md#set).
+Every key defaults to `off` and renders nothing — a fresh workspace has an
+empty block that costs no boot context, and a directive line exists only for
+the deviations the human explicitly sets (D-028). The full list of keys and
+values is in [cli.md](cli.md#set).
 
 ## 8. Prompts
 

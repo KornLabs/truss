@@ -158,26 +158,31 @@ truss set response-style compact
 
 | Key | Values | Default |
 |---|---|---|
-| `orchestration` | low · medium · high | medium |
-| `criticality` | low · medium · high | high |
-| `clarify` | ask · infer | ask |
-| `input-trust` | open · medium · critical | medium |
-| `research-agent` | off · on | on |
-| `review-agent` | off · on | on |
+| `orchestration` | off · low · medium · high | off |
+| `criticality` | off · low · medium · high | off |
+| `clarify` | off · ask · infer | off |
+| `input-trust` | off · open · medium · critical | off |
+| `research-agent` | off · on | off |
+| `review-agent` | off · on | off |
 | `source-citation` | off · on | off |
 | `scope` | off · minimal · balanced · thorough | off |
-| `auto-commit` | off · suggest · on | suggest |
-| `post-task-check` | off · inline · subagent | inline |
-| `gate-advocate` | off · on · agentic | agentic |
-| `phase-lock` | off · advisory | advisory |
-| `branch-guard` | off · warn · strict | warn |
-| `response-style` | normal · compact · maxcompact | normal |
-| `control-word` | `off` or any short word | TRUSS |
+| `auto-commit` | off · suggest · on | off |
+| `post-task-check` | off · inline · subagent | off |
+| `gate-advocate` | off · on · agentic | off |
+| `phase-lock` | off · advisory | off |
+| `branch-guard` | off · warn · strict | off |
+| `response-style` | off · normal · compact · maxcompact | off |
+| `control-word` | `off` or any short word | off |
 
-Each non-omitted preference renders one directive line into the `AGENTS.md`
-preferences block. `scope: off` renders no line. `control-word: off` renders an
-explicit opt-out directive (`control-word=off :: do not prepend a control word
-to responses`) so the disabled state is visible in the block.
+Every key defaults to `off`, and `off` renders **no directive line** — a fresh
+workspace ships an empty preferences block that costs no boot context. Setting
+any other value writes exactly one directive line; setting a key back to `off`
+removes its line. The block therefore only ever contains the human's explicit
+deviations from the host agent's native behavior.
+
+Upgrading from a pre-`off`-default instance: existing `key=off` directives stay
+readable and `doctor` accepts them, but the next `set` of any key rewrites the
+block without them — they are the default now. `set` names each line it drops.
 
 ---
 

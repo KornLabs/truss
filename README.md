@@ -25,7 +25,7 @@ Every new session with a coding agent starts from zero. You re-explain the proje
 
 Many tools give agents a memory. Truss optimizes two: the memory has structure, and the mandatory part stays small. It is a thin layer of plain Markdown that lives beside your code and acts as the project's memory. Every session runs the same loop:
 
-1. **Boot.** The agent reads one file, `AGENTS.md`: what the project is, which phase it is in, which few state files to load, and where everything else lives. This mandatory boot set is about 3.8k estimated tokens.
+1. **Boot.** The agent reads one file, `AGENTS.md`: what the project is, which phase it is in, which few state files to load, and where everything else lives. This mandatory boot set is about 2.7k estimated tokens.
 2. **Work.** It pulls in only the files the task needs. A generated map tells it where everything lives, so it knows where to look instead of searching.
 3. **Record.** As each piece of work finishes, it briefly notes what changed: focus and next steps in `state/current.md`, decisions in `state/decisions.md`, changes to the vision or the idea in `VISION.md`.
 
@@ -39,9 +39,9 @@ The heart of the boot file is its load order. This is the actual §1 an agent se
 1. This file — fully, every session.
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
-4. `state/decisions.md` — before making or proposing any decision; if your
-   task touches an open question, also load `state/open-decisions.md`.
-5. `state/profile.md` — project language, tools, style.
+4. `state/profile.md` — project language, tools, style.
+5. `state/decisions.md` — before making or proposing any decision;
+   `state/open-decisions.md` (if present) when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to.
 
 Load the smallest context that can answer the task. Stop as soon as it is
@@ -54,9 +54,9 @@ unambiguous.
 
 **An agent that knows where things are:** The boot file's routing table and a generated `state/map.md` (with a token estimate per file) tell the agent which file holds what. It opens what the task needs and nothing else, instead of re-scanning the repo every session.
 
-**Sessions that stay on the task:** The mandatory boot set is about 3.8k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
+**Sessions that stay on the task:** The mandatory boot set is about 2.7k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
 
-**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Set each once (`truss set`), and every future session honors it.
+**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Every preference starts off, so your AI tool keeps its own behavior until you change one. Set what you want once (`truss set`, or the dashboard), and every future session honors it.
 
 **Support for the structure:** A small, zero-dependency CLI backs the system: it checks that the files still follow their structure, warns when state drifts or a file grows past focus, and keeps generated blocks in sync. It only reports — every warning leaves the decision to you and the agent.
 
@@ -170,10 +170,10 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 
 ### Context is a budget
 
-5. **The mandatory boot set stays small.** About 3.6k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
+5. **The mandatory boot set stays small.** About 2.7k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
 6. **Load the smallest context that answers the task, then stop.** The routing table says where information lives; the generated `state/map.md` adds per-file token estimates. Domain knowledge loads on demand, not by default.
 7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and a hygiene check flags domain files untouched for 90 days. The workspace stays current instead of accumulating.
-8. **Preferences instead of prompt repetition.** Criticality, ask-vs-decide, subagent use, commit behavior, response style: each is a setting in a generated block, changed through `truss set`, honored by every future session.
+8. **Preferences instead of prompt repetition.** Criticality, ask-vs-decide, subagent use, commit behavior, response style: each is a setting in a generated block, changed through `truss set` or the dashboard, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
 
 <p align="center">
   <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — boot metadata: mandatory Truss reading and per-file breakdown" width="820">
@@ -184,7 +184,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 ### Humans decide, scripts report
 
 9. **Scripts check and report; they never decide.** `doctor` is read-only. Writes go through explicit, narrow commands (`set`, `render`, `phase`), and every finding is a warning for you and the agent to act on, not an action taken for you.
-10. **You advance the phase.** Phases widen or narrow what an agent may do. At the exit it runs the gate and leaves you one entry with the verdict (`gate-advocate` preference); you set `current:` yourself with `truss phase <id>`, which refuses an uncleared gate without `--override-gate`. How hard the forbidden list binds is set by `phase-lock`: `advisory` (the default) makes the agent stop and ask, `off` makes it informational. It may restructure future phases, never its own active guardrails.
+10. **You advance the phase.** Phases widen or narrow what an agent may do. At the exit it runs the gate and leaves you one entry with the verdict; you set `current:` yourself with `truss phase <id>`, which refuses an uncleared gate without `--override-gate`. An action against the forbidden list makes the agent name the conflict and ask before it proceeds. Set `phase-lock: advisory` to harden that into a stop that binds its subagents too, or `gate-advocate` to have a review subagent challenge the exit verdict first. It may restructure future phases, never its own active guardrails.
 11. **Human work is routed, not lost.** Anything **only you** can do becomes an `HT-NNN` entry in `HUMAN-TODOS.md`. Undecided questions become briefings in `state/open-decisions.md` with options and trade-offs, waiting for your decision instead of being settled silently.
 12. **Truss is a transparent nudge system, not enforcement.** Phase limits and hard rules are behavioral instructions to the agent. Truss reports evidence — grammar, uncommitted forbidden-path changes, exit artifacts — but it does not authenticate actors or intercept file writes, and the docs say so plainly. If your agent host adds an enforcement boundary, Truss composes with it.
 
@@ -195,7 +195,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 15. **Structure grows on observed need.** Domain files are created when a topic earns one. No premade backlog, no empty folders, no per-folder index files.
 16. **The dashboard is a view, not a second truth.** It renders the same Markdown, binds to `127.0.0.1` only, and writes through a token-guarded CLI whitelist (or not at all, with `--read-only`). Nothing runs in the background.
 17. **Overlay leaves your repo alone.** Nested code keeps its own git history; a `code-root` setting draws one boundary that checks, maps, and branch status all share. Truss wraps the project, it doesn't absorb it.
-18. **A control word as session canary.** By default every agent reply starts with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Change the word or turn it off: `truss set control-word <word|off>`.
+18. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Turn it off again: `truss set control-word off`.
 19. **Prompts are mandates, not method scripts.** The shipped prompt library in the dashboard (`plan`, `implement`, `research`, `critique`, `resume`, `handover`, …) states the mandate and the result bar in a few lines and leaves the method to the agent — the house rules already live in `AGENTS.md`. Your own sit beside them: save from the dashboard or with `truss prompt save <id>`.
 
 ## How it works
@@ -207,14 +207,14 @@ my-project/
 ├── AGENTS.md          # boot file — every agent reads this first
 ├── VISION.md          # problem, idea, principles, constraints
 ├── README.md          # human onboarding
-├── HUMAN-TODOS.md     # things only a human can do (HT-NNN)
-├── state/             # current focus, decisions, phases, profile, learnings
+├── HUMAN-TODOS.md     # things only a human can do (HT-NNN) — created at its first entry
+├── state/             # current focus, decisions, phases, profile
 ├── docs/              # conventions, protocols, git, import
 ├── context/           # domain files, created on demand
 └── .truss/            # the engine (read-only for agents)
 ```
 
-A session in practice: the agent boots per the load order, runs `truss status` as its temporal anchor (date, phase, health, branch), states what it will do, and starts — every reply prefixed with the control word. It writes back as it goes: each finished unit of work lands in `state/current.md` and its owning files the moment it is done. The session end is a safety net — verify the state, route what is still loose, and run `doctor` to confirm the workspace still agrees with itself.
+A session in practice: the agent boots per the load order, runs `truss status` as its temporal anchor (date, phase, health, branch), states what it will do, and starts. It writes back as it goes: each finished unit of work lands in `state/current.md` and its owning files the moment it is done. The session end is a safety net — verify the state, route what is still loose, and run `doctor` to confirm the workspace still agrees with itself.
 
 Phases give the work a shape. A fresh workspace seeds `discover → validate → plan → build`; the kickoff tailors that into a project-specific plan, and agents restructure the plan when requirements change — always with a decision entry and a note to you. Each phase declares what is allowed, what is forbidden, which files to read, and the exit criteria the gate checks. Alternative lifecycles ship as [phase profiles](.truss/phase-profiles/README.md); the full mental model is in [concepts.md](.truss/docs/concepts.md).
 

@@ -37,14 +37,14 @@ const STATE_FILES = [
   { file: 'AGENTS.md', purpose: 'Boot file — load order, structure, rules', owner: 'Agent (generated blocks: Script)' },
   { file: 'VISION.md', purpose: 'Problem, idea, principles, constraints', owner: 'Human + Agent' },
   { file: 'README.md', purpose: 'Human onboarding', owner: 'Agent' },
-  { file: 'HUMAN-TODOS.md', purpose: 'Human-only actions (HT-NNN)', owner: 'Agent writes, Human resolves' },
+  { file: 'HUMAN-TODOS.md', purpose: 'Human-only actions (HT-NNN) — created at its first entry', owner: 'Agent writes, Human resolves' },
   { file: 'state/current.md', purpose: 'Live focus, next actions, blockers', owner: 'Agent' },
   { file: 'state/decisions.md', purpose: 'Decided decisions (D-NNN)', owner: 'Agent' },
-  { file: 'state/open-decisions.md', purpose: 'Open questions (OD-NNN)', owner: 'Agent' },
+  { file: 'state/open-decisions.md', purpose: 'Open questions (OD-NNN) — created at its first entry', owner: 'Agent' },
   { file: 'state/phases.md', purpose: 'Phase definitions + current pointer', owner: 'Human (current:) + Agent (defs)' },
   { file: 'state/profile.md', purpose: 'Project metadata', owner: 'Agent' },
-  { file: 'state/risks.md', purpose: 'Risks (R-NNN)', owner: 'Agent' },
-  { file: 'state/learnings.md', purpose: 'Learnings (L-NNN)', owner: 'Agent' },
+  { file: 'state/risks.md', purpose: 'Risks (R-NNN) — created at its first entry', owner: 'Agent' },
+  { file: 'state/learnings.md', purpose: 'Learnings (L-NNN) — created at its first entry', owner: 'Agent' },
   { file: 'state/map.md', purpose: 'Domain file overview', owner: 'Script (truss map)' },
 ];
 

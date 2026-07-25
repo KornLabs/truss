@@ -164,6 +164,14 @@ in the file that owns the topic, linked from here.
 
 ## File templates
 
+### On-demand state files
+
+`state/open-decisions.md`, `state/risks.md`, `state/learnings.md`, and
+`HUMAN-TODOS.md` do not exist until their first entry (AGENTS.md §2). Create
+each as `# [Title]` plus the first entry in the grammar above — no boilerplate
+header comments. When the last entry leaves (decided, archived), the file may
+be deleted again; the ID counters continue regardless.
+
 ### Domain file (`context/<domain>.md`)
 
 > Domain (topic) files live under `context/` — one canonical home per topic; discovered via `state/map.md`, not individually registered in §2.
