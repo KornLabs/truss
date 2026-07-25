@@ -307,7 +307,17 @@ export async function loadWorkspace(root) {
 
   // Domain files are operational knowledge, not merely map input. Load every
   // non-ignored context/**/*.md file so RF checks links and structured IDs there.
-  for (const rel of mdFiles.filter(p => p.startsWith('context/'))) {
+  //
+  // archive/ is loaded for the same reason but a different one: §3 tells agents
+  // to move a superseded decision to archive/ with an invalidation note, and
+  // §5 forbids ever deleting one. Without indexing archive/, every reference to
+  // an archived D-NNN would turn into an RF-02 warning — the framework would
+  // punish following its own rule. An archived ID counts as defined; the
+  // invalidation note next to it says which entry superseded it.
+  // archive/ is deliberately absent from mdFiles (MAP_SKIP_DIRS keeps it out of
+  // the domain map), so its markdown is taken from diskPaths directly.
+  const archiveMd = diskPaths.filter(p => p.startsWith('archive/') && p.endsWith('.md'))
+  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd]) {
     if (files.has(rel)) continue;
     const raw = await readFile(resolve(rel));
     if (!raw) continue;

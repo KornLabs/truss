@@ -7,13 +7,13 @@
 ### Start
 
 1. Load files per AGENTS.md §1 (load order).
-2. State what you will do — one sentence. If the task is unclear, ask (`clarify` preference).
+2. State what you will do — one sentence. If the task is unclear, name the assumption you would act on and ask when guessing wrong would cost more than the question (AGENTS.md §4).
 3. Read state/current.md. If the focus is stale or the next list is empty, surface this and ask.
 4. If a `repo/` overlay exists, confirm its checked-out branch matches `current.md` `branch:` (run `truss status`, or `git -C repo symbolic-ref --short HEAD`). On a mismatch, apply the `branch-guard` preference: with `warn` (default) or `strict`, STOP, tell the human, and recommend `git -C repo switch <declared>` before doing branch-specific work; with `off`, just note it and continue.
 
 ### During
 
-- Respect the phase block (allowed/forbidden). If a task would violate `forbidden`, state the conflict and ask before proceeding (`phase-lock` preference).
+- Respect the phase block (allowed/forbidden). If a task would violate `forbidden`, name the conflict and ask before proceeding (AGENTS.md §4).
 - Flag instead of drifting: if something is wrong or suboptimal, name it.
 - Route facts, decisions, and todos as they arise — don't batch at the end; apply the admission test below before each write, and prune what you touch.
 - Write back per work unit: when a task completes (deliverable done, decision recorded, `next:` item finished), update state/current.md before or together with reporting it done. This is silent standard practice — no announcement; the diff is the record. The test: if the session ended right now, would state/current.md mislead the next agent? Review rounds on an unfinished draft are not a unit; a newly discovered blocker is — record it when it appears.
@@ -24,7 +24,7 @@
 
 The per-unit write-back above is the primary mechanism; the end ritual verifies it. Never save state up for this step — a session can end without reaching it.
 
-1. Verify state/current.md matches reality: current focus, next ≤5, blockers, recently-done (≤7 days). With a `repo/` overlay, set `branch:` to the branch the work belongs to.
+1. Verify state/current.md matches reality: current focus, next ≤5, blockers, recently-done (≤7 entries). With a `repo/` overlay, set `branch:` to the branch the work belongs to.
 2. Route any loose ends still unrouted: unresolved open questions → open-decisions, unresolved todos → HUMAN-TODOS.md.
 3. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
 4. If `auto-commit: suggest`, propose a commit message: `<area>: <action> — <context>`.

@@ -4,7 +4,7 @@
 // BL-02  E  phase block content has drifted from state/phases.md (content comparison)
 // BL-03  E  preferences block has unknown key, invalid value, or grammar error
 
-import { CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue } from '../lib/prefs.mjs'
+import { CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { renderPhaseBlock, parsePrefsRows } from '../lib/render.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
@@ -152,10 +152,18 @@ export async function run(ctx) {
     const seenKeys = new Set()
     for (const { key, value } of rows) {
       if (!CATALOG_KEYS.has(key)) {
+        // A key retired by a catalog change is a migration hint, not an error:
+        // an upgraded workspace must never go red for a line it wrote correctly
+        // under the previous version.
+        const retired = RETIRED_KEYS.get(key)
         findings.push({
-          id: 'BL-03', severity: 'E', file: 'AGENTS.md', line,
-          message: `preferences block: unknown key '${key}'`,
-          fix: `Remove the directive for '${key}' or update the prefs catalog`,
+          id: 'BL-03', severity: retired ? 'W' : 'E', file: 'AGENTS.md', line,
+          message: retired
+            ? `preferences block: '${key}' is retired — ${retired}`
+            : `preferences block: unknown key '${key}'`,
+          fix: retired
+            ? `Delete the line, or run any \`truss set <key> <value>\` — the writer drops retired directives`
+            : `Remove the directive for '${key}' or update the prefs catalog`,
         })
         continue
       }

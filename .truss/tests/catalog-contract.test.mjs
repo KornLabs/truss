@@ -12,7 +12,6 @@ import * as rf from '../checks/rf.mjs'
 import * as sy from '../checks/sy.mjs'
 import * as ph from '../checks/ph.mjs'
 import * as cx from '../checks/cx.mjs'
-import * as hy from '../checks/hy.mjs'
 
 const ENGINE = path.join(fileURLToPath(import.meta.url), '..', '..')
 
@@ -34,7 +33,7 @@ describe('catalog contracts', () => {
   })
 
   it('dashboard check IDs, severities and titles match all check metadata', () => {
-    const canonical = [st, bl, rf, sy, ph, cx, hy]
+    const canonical = [st, bl, rf, sy, ph, cx]
       .flatMap(mod => mod.meta)
       .map(({ id, severity, title }) => ({ id, sev: severity, desc: title }))
       .sort((a, b) => a.id.localeCompare(b.id))

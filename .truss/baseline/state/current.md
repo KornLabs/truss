@@ -1,6 +1,7 @@
 # Current
 
-> Update the moment a unit of work lands, not at session end. One line per item; details live in the owning domain file. `updated:` is ISO (YYYY-MM-DD). Grammar: docs/conventions.md.
+> Update the moment a unit of work lands, not at session end. One line per item, no prose — rationale and detail belong in the owning domain file, decision, or git.
+> Limits: `next:` ≤5 · `recently-done:` ≤7 entries, dropped once they stop informing the next step.
 
 focus:
 
@@ -11,5 +12,3 @@ next:
 blockers: none
 
 recently-done:
-
-updated:

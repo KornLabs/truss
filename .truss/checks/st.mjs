@@ -22,6 +22,7 @@ export const meta = [
   { id: 'ST-05', severity: 'I', title: 'File exceeds growth-rule line limit (450)' },
   { id: 'ST-06', severity: 'E', title: 'AGENTS.md or its §2 structure table could not be parsed', description: 'Guards against silent degradation (A4): an empty table makes ST-01/ST-02 vacuous' },
   { id: 'ST-07', severity: 'W', title: 'Truss map is outdated', description: 'state/map.md does not match the actual workspace markdown files' },
+  { id: 'ST-08', severity: 'W', title: 'AGENTS.md is missing a numbered top-level section', description: '§1–§6 are the contract every prompt, doc and check cross-references' },
 ];
 
 // Paths that exist on disk but are intentionally not in the structure table
@@ -62,6 +63,29 @@ export async function run(ctx) {
       message: 'AGENTS.md §2 structure table is empty or its heading was not found — ST-01/ST-02 cannot validate anything',
       fix: 'Ensure AGENTS.md has a "## 2 ..." heading followed by the structure table (| Path | Owner | ... |)',
     });
+  }
+
+  // ── ST-08: the numbered sections are a cross-reference contract ─────────
+  // Prompts, docs and check fix-hints all point at "AGENTS.md §N". A section
+  // that silently disappears during an edit breaks every one of those pointers
+  // without any other check noticing, so the headings are verified directly.
+  const agentsFile = ctx.files?.get('AGENTS.md');
+  if (agentsFile) {
+    const present = new Set(
+      agentsFile.lines
+        .map(l => l.match(/^##\s+(\d)\s/))
+        .filter(Boolean)
+        .map(m => m[1]),
+    );
+    const missing = ['1', '2', '3', '4', '5', '6'].filter(n => !present.has(n));
+    if (missing.length) {
+      findings.push({
+        id: 'ST-08', severity: 'W',
+        file: 'AGENTS.md',
+        message: `AGENTS.md is missing top-level section${missing.length > 1 ? 's' : ''} ${missing.map(n => `§${n}`).join(', ')} — cross-references to them no longer resolve`,
+        fix: `Restore the "## ${missing[0]} …" heading (§1 load order · §2 structure · §3 rules · §4 session protocol · §5 hard limits · §6 on-demand docs)`,
+      });
+    }
   }
 
   // Build a set of all managed relative paths from the table

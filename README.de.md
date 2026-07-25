@@ -27,7 +27,7 @@ Jede neue Session mit einem Coding-Agenten beginnt bei null. Du erklärst das Pr
 
 Viele Tools geben Agenten ein Gedächtnis. Truss optimiert zwei Dinge: Das Gedächtnis hat Struktur, und der Pflichtanteil bleibt klein. Es ist eine dünne Schicht aus reinem Markdown, die neben deinem Code liegt und als Gedächtnis des Projekts dient. Jede Session durchläuft denselben Loop:
 
-1. **Boot.** Der Agent liest eine Datei, `AGENTS.md`: was das Projekt ist, in welcher Phase es sich befindet, welche wenigen State-Dateien zu laden sind und wo alles Weitere liegt. Dieses Pflicht-Boot-Set umfasst etwa 2,7k geschätzte Tokens.
+1. **Boot.** Der Agent liest eine Datei, `AGENTS.md`: was das Projekt ist, in welcher Phase es sich befindet, welche wenigen State-Dateien zu laden sind und wo alles Weitere liegt. Dieses Pflicht-Boot-Set umfasst etwa 3,2k geschätzte Tokens.
 2. **Arbeit.** Er zieht nur die Dateien heran, die die Aufgabe braucht. Eine generierte Map sagt ihm, wo er nachschauen muss — er weiß es bereits, statt zu suchen.
 3. **Festhalten.** Sobald ein Stück Arbeit fertig ist, hält er kurz fest, was sich geändert hat: Fokus und nächste Schritte in `state/current.md`, Entscheidungen in `state/decisions.md`, Änderungen an Vision und Idee in `VISION.md`.
 
@@ -56,7 +56,7 @@ unambiguous.
 
 **Ein Agent, der weiß, wo alles liegt:** Die Routing-Tabelle der Boot-Datei und eine generierte `state/map.md` (mit Token-Schätzung pro Datei) sagen dem Agenten, welche Datei was enthält. Er öffnet, was die Aufgabe braucht, und sonst nichts — statt das Repo in jeder Session neu zu scannen.
 
-**Sessions, die bei der Aufgabe bleiben:** Das Pflicht-Boot-Set liegt bei etwa 2,7k Tokens; alles Weitere lädt nur bei Bedarf. Das Fenster bleibt frei für die eigentliche Arbeit — Sessions leben länger, degradieren später und kosten weniger.
+**Sessions, die bei der Aufgabe bleiben:** Das Pflicht-Boot-Set liegt bei etwa 3,2k Tokens; alles Weitere lädt nur bei Bedarf. Das Fenster bleibt frei für die eigentliche Arbeit — Sessions leben länger, degradieren später und kosten weniger.
 
 **Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten für Recherche einsetzen oder alles selbst erledigen? Jede Präferenz startet auf `off`, dein KI-Tool verhält sich also wie immer, bis du etwas änderst. Einmal setzen (`truss set` oder im Dashboard), und jede künftige Session hält sich daran.
 
@@ -172,10 +172,10 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 
 ### Kontext ist ein Budget
 
-5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 2,7k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
+5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 3,2k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
 6. **Den kleinsten Kontext laden, der die Aufgabe beantwortet — dann stoppen.** Die Routing-Tabelle sagt, wo Information lebt; die generierte `state/map.md` ergänzt Token-Schätzungen pro Datei. Domain-Wissen lädt bei Bedarf, nicht per Default.
-7. **Kontrolliertes Vergessen.** Überholtes wandert mit einer einzeiligen Invalidierungsnotiz nach `archive/`. Längen-Checks warnen, wenn eine State-Datei ihren Fokus verliert, und ein Hygiene-Check markiert Domain-Dateien, die 90 Tage unberührt blieben. Der Workspace bleibt aktuell, statt zu akkumulieren.
-8. **Präferenzen statt Prompt-Wiederholung.** Kritikalität, Nachfragen vs. selbst entscheiden, Subagent-Einsatz, Commit-Verhalten, Antwortstil: jede ist eine Einstellung in einem generierten Block, geändert über `truss set` oder das Dashboard, beachtet von jeder künftigen Session. Alle starten auf `off`, ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
+7. **Kontrolliertes Vergessen.** Überholtes wandert mit einer einzeiligen Invalidierungsnotiz nach `archive/`. Längen-Checks warnen, wenn eine State-Datei ihren Fokus verliert, und der Lesekosten-Check meldet ein teuer gewordenes Boot-Set. Truss lässt nichts nach Kalender verfallen: Ein Projekt, das zwei Wochen ruht, macht genau dort weiter, wo es aufgehört hat, und über das Aussortieren entscheidet Relevanz statt Datum.
+8. **Präferenzen statt Prompt-Wiederholung.** Nachfragen vs. selbst entscheiden, Input-Prüfung, Subagent-Einsatz, Commit-Verhalten, Antwortstil: jede ist eine Einstellung in einem generierten Block, geändert über `truss set` oder das Dashboard, beachtet von jeder künftigen Session. Alle starten auf `off`, ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
 
 <p align="center">
   <img src=".github/dashboard-context-budget.png" alt="Truss-Dashboard — Boot-Metadaten: Truss-Pflichtlektüre und Aufschlüsselung pro Datei" width="820">

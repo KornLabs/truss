@@ -139,10 +139,9 @@ has a severity — **E**rror, **W**arning, or **I**nfo — and an ID like `ST-02
 | `ST` Structure | the structure table matches what's actually on disk |
 | `BL` Block | the generated preference/phase blocks haven't drifted |
 | `RF` Reference | operational links resolve and D/OD/HT/R/L IDs are defined exactly once, including under `context/` |
-| `SY` State | the state files have the required keys and aren't stale |
+| `SY` State | the state files have the required keys, valid entry grammar, and no unrecorded drift |
 | `PH` Phase | grammar, uncommitted forbidden-path evidence, and `--gate` exit criteria |
 | `CX` Context | mandatory Truss boot metadata stays under the configured estimate |
-| `HY` Hygiene | flags `context/` domain files untouched for >90 days (archive nudge) |
 
 `doctor` is read-only. It reports; it never edits your files. `--fix-prompt`
 emits an instruction block you can hand to an agent, `--json` is for tooling, and
@@ -162,14 +161,18 @@ workspace was changed without running the CLI.
 
 ## 7. Preferences
 
-A small catalogue of preferences tunes how agents behave — autonomy, criticality,
+A small catalogue of nine preferences tunes how agents behave — autonomy,
 whether to ask or infer, commit behaviour, response style, and so on. They live
 in the generated preferences block of `AGENTS.md` and are changed only through
 `truss set <key> <value>`, which validates the value against the catalogue.
 Every key defaults to `off` and renders nothing — a fresh workspace has an
 empty block that costs no boot context, and a directive line exists only for
-the deviations the human explicitly sets (D-028). The full list of keys and
-values is in [cli.md](cli.md#set).
+the deviations the human explicitly sets (D-028). What is universally right is
+not a preference at all: naming plan weaknesses before executing, naming the
+assumption behind an unclear task, naming a forbidden-path or branch conflict,
+and running `doctor` before reporting done are fixed rules in AGENTS.md §3/§4.
+A key exists only where projects genuinely differ (D-029). The full list of keys
+and values is in [cli.md](cli.md#set).
 
 ## 8. Prompts
 

@@ -146,7 +146,6 @@ export class AboutConceptsView extends Component {
                 <tr><td>State</td><td>${code('SY')}</td><td>State files have required keys, aren't stale</td></tr>
                 <tr><td>Phase</td><td>${code('PH')}</td><td>Phase grammar valid; ${code('--gate')} checks exit criteria</td></tr>
                 <tr><td>Context</td><td>${code('CX')}</td><td>Mandatory Truss boot metadata under budget</td></tr>
-                <tr><td>Hygiene</td><td>${code('HY')}</td><td>Flags domain files untouched >90 days</td></tr>
               </tbody>
             </table>
           </div>

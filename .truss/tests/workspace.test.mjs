@@ -327,7 +327,7 @@ describe('BL-03: invalid pref value detected', async () => {
       '',
       '| key | value | behavior |',
       '|---|---|---|',
-      '| orchestration | turbo | does stuff |',
+      '| scope | turbo | does stuff |',
       '<!-- truss:end preferences -->',
     ]
     const blocks = parseBlocks(lines)
@@ -1033,7 +1033,7 @@ describe('render + set end-to-end (T4)', () => {
       '> provenance',
       '',
       '**RIGOR & VERIFICATION**',
-      '- criticality=high :: name weaknesses before executing',
+      '- scope=thorough :: cover the edge cases',
       '<!-- truss:end preferences -->',
       '',
       '<!-- truss:begin phase -->',
@@ -1053,9 +1053,9 @@ describe('render + set end-to-end (T4)', () => {
     assert(!agents.includes('..'), 'render output must not contain a double period')
 
     // set
-    await execFileP('node', [bin, 'set', 'criticality', 'medium'], { cwd: tmp })
+    await execFileP('node', [bin, 'set', 'scope', 'minimal'], { cwd: tmp })
     agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
-    assert(/-\s*criticality=medium\s*::/.test(agents), 'set should change criticality to medium (new directive format)')
+    assert(/-\s*scope=minimal\s*::/.test(agents), 'set should change scope to minimal (new directive format)')
 
     await rmTmp(tmp)
   })

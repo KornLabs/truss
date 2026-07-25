@@ -64,8 +64,7 @@ the human; advancing `current:` stays human-only) — see
 Print a compact, read-only summary of the workspace — current date/time, phase,
 and health. The **canonical session-start command** (AGENTS.md §4): agents run it
 first every session. The `Date:` line is a temporal anchor — agents have no
-reliable clock, and a current timestamp lets them judge the age of `updated:`,
-`Opened:`, and recently-done dates in the state files.
+reliable clock, and a current timestamp lets them date what they write.
 When `state/profile.md` configures a
 `code-root`, it also prints a **Branch** line: the live code-root branch against the
 `branch:` declared in `state/current.md` (`✓` when they match, `✗ MISMATCH` with a
@@ -150,7 +149,7 @@ Change one agent preference. The value is validated against the catalogue before
 the preferences block in `AGENTS.md` is rewritten.
 
 ```bash
-truss set criticality high
+truss set verify-inputs on
 truss set response-style compact
 ```
 
@@ -158,20 +157,14 @@ truss set response-style compact
 
 | Key | Values | Default |
 |---|---|---|
-| `orchestration` | off · low · medium · high | off |
-| `criticality` | off · low · medium · high | off |
+| `subagents` | off · research · full | off |
+| `verify-inputs` | off · on | off |
 | `clarify` | off · ask · infer | off |
-| `input-trust` | off · open · medium · critical | off |
-| `research-agent` | off · on | off |
-| `review-agent` | off · on | off |
-| `source-citation` | off · on | off |
 | `scope` | off · minimal · balanced · thorough | off |
 | `auto-commit` | off · suggest · on | off |
-| `post-task-check` | off · inline · subagent | off |
 | `gate-advocate` | off · on · agentic | off |
-| `phase-lock` | off · advisory | off |
-| `branch-guard` | off · warn · strict | off |
-| `response-style` | off · normal · compact · maxcompact | off |
+| `branch-guard` | off · strict | off |
+| `response-style` | off · compact · maxcompact | off |
 | `control-word` | `off` or any short word | off |
 
 Every key defaults to `off`, and `off` renders **no directive line** — a fresh
@@ -180,9 +173,12 @@ any other value writes exactly one directive line; setting a key back to `off`
 removes its line. The block therefore only ever contains the human's explicit
 deviations from the host agent's native behavior.
 
-Upgrading from a pre-`off`-default instance: existing `key=off` directives stay
-readable and `doctor` accepts them, but the next `set` of any key rewrites the
-block without them — they are the default now. `set` names each line it drops.
+Upgrading from an older instance: existing `key=off` directives stay readable and
+`doctor` accepts them, but the next `set` of any key rewrites the block without
+them — they are the default now. `set` names each line it drops. Keys retired in
+D-029 (`orchestration`, `research-agent`, `review-agent`, `criticality`,
+`input-trust`, `source-citation`, `post-task-check`, `phase-lock`) are reported by
+`BL-03` as a warning naming their replacement, never as an error.
 
 ---
 
