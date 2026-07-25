@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/hero-series-dark.svg">
-    <img src=".github/hero-series-light.svg" alt="The Truss wordmark resting just above the top chord of a flat truss. An unbroken accent line runs beneath it — the project's memory — with the four canonical files hanging from it: VISION.md, current.md, decisions.md, phases.md. A truss carries a load across a distance without support in the middle; Truss carries a project across the distance between sessions. Caption: plain Markdown, lightweight, token-lean, memory." width="900">
+    <img src=".github/hero-series-light.svg" alt="The Truss wordmark resting just above the top chord of a flat truss. Between the two chords, spanning their full width, runs one spaced line — plain Markdown, lightweight, token-lean, memory. The lower chord is an unbroken accent line running end to end — the project's memory — with the four canonical files hanging from it: VISION.md, current.md, decisions.md, phases.md. A truss carries a load across a distance without support in the middle; Truss carries a project across the distance between sessions." width="900">
   </picture>
 </p>
 
