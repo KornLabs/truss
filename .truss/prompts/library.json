@@ -155,6 +155,15 @@
     },
 
     {
+      "id": "upgrade",
+      "shelf": "setup",
+      "tags": ["maintain"],
+      "recommended": false,
+      "orchestratable": false,
+      "title": { "en": "Finish a version upgrade", "de": "Versionsupgrade abschließen" }
+    },
+
+    {
       "id": "orchestrate",
       "shelf": "orchestration",
       "tags": ["build", "plan"],

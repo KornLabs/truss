@@ -74,7 +74,11 @@ export function parseTableRow(line) {
  * Returns { type: 'begin'|'end', id: string } or null.
  */
 export function parseTrussMarker(line) {
-  const m = line.match(/^<!-- truss:(begin|end) ([a-z-]+) -->$/);
+  // Trailing \r (a CRLF file split on \n) and trailing spaces are tolerated: on
+  // Windows CRLF is the default, and a marker that fails to parse there makes
+  // every block-aware feature — BL-01/BL-02, render, the upgrade block
+  // alignment — silently do nothing instead of reporting a problem.
+  const m = line.match(/^<!-- truss:(begin|end) ([a-z-]+) -->[ \t\r]*$/);
   if (!m) return null;
   return { type: m[1], id: m[2] };
 }

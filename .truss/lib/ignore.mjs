@@ -34,6 +34,11 @@ const ENGINE_HARDCODES = [
   '.git/',
   'node_modules/',
   '.truss/out/',
+  // The engine `truss upgrade` moved aside, and its staging directory. Both are
+  // engine copies, not project content — scanning them reports a whole install
+  // as unmanaged files.
+  '.truss.bak-*/',
+  '.truss.incoming/',
 ]
 
 /**

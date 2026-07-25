@@ -59,6 +59,52 @@ the human; advancing `current:` stays human-only) — see
 
 ---
 
+## `upgrade`
+
+Lift an existing workspace to a newer Truss version. Unlike every other command,
+`upgrade` is run from the **new** engine against the **old** workspace — so an
+instance on any past version can be lifted by any later release, and the upgrade
+logic is always the current one.
+
+```bash
+git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
+node /tmp/truss/.truss/bin/truss.mjs upgrade      # from your project directory
+```
+
+| Flag | Meaning |
+|---|---|
+| `--root <path>` | workspace to upgrade; defaults to the directory you run the command from |
+| `--dry-run`, `-n` | print the plan and change nothing |
+| `--force` | proceed despite an unclean git tree, or re-apply at the same version |
+
+What it does, in order: refuse if the workspace has uncommitted changes (that
+commit is your rollback) or if a backup from an earlier run is still lying
+around; stage the new engine into `.truss.incoming/` and carry `prompts/custom/`
+over; swap it in by renaming `.truss/` to `.truss.bak-<old-version>/`; then
+reconcile the baseline files. `--dry-run` stops after planning and is not gated
+on a clean tree. Unfinished work exits with code `3`.
+
+The merge base comes free: every installed engine ships the `.truss/baseline/`
+it scaffolded the workspace from, so the old baseline, the new baseline and your
+file are all on disk. Per file — unchanged upstream is skipped, unmodified
+locally is taken from the new baseline, non-overlapping changes are merged, and
+a genuine conflict lands in `<file>.truss-merge` with your file untouched. Files
+that left the baseline are kept as yours; files you deleted are not resurrected.
+
+The baseline's **seed** files — `state/*`, `VISION.md`, `README.md` — are never
+written, only reported: `init` writes them once and after that they are project
+matter, not Truss's to rewrite. `context/`, `HUMAN-TODOS.md`, `archive/` and your
+code root are not baseline files at all and are never looked at. The generated
+blocks in `AGENTS.md` are excluded from the merge, so `truss render` / `truss set`
+stay their only writers.
+
+Whatever is left needs judgment, not mechanics: the printed prompt hands it to
+your agent via [`prompts/base/upgrade.md`](../prompts/base/upgrade.md), which also
+covers the semantic half — `doctor` names retired preference keys and their
+replacements after the swap. Full walkthrough: [upgrade.md](upgrade.md).
+
+---
+
 ## `status`
 
 Print a compact, read-only summary of the workspace — current date/time, phase,

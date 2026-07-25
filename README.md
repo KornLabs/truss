@@ -237,6 +237,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | `doctor` | agents run it routinely; you run it when you're curious |
 | `status` | a five-line snapshot in the terminal |
 | `set <key> <value>` | change an agent preference (the dashboard can do this too) |
+| `upgrade` | when a new Truss version is out — run it from the new engine, it merges the changes into your workspace and leaves your state alone ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Documentation
 
@@ -244,6 +245,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | --- | --- |
 | [.truss/docs/concepts.md](.truss/docs/concepts.md) | the model — files, state layer, phases, checks, preferences |
 | [.truss/docs/cli.md](.truss/docs/cli.md) | command reference and flags |
+| [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | moving an existing project to a newer Truss version |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | how the engine is built (contributors) |
 | [.truss/prompts/README.md](.truss/prompts/README.md) | the prompt library |
 | [.truss/phase-profiles/README.md](.truss/phase-profiles/README.md) | alternative lifecycles |

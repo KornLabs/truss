@@ -18,6 +18,7 @@ export const COMMAND_META = [
   { name: 'phase',     display: 'phase [<id>] [--override-gate]', summary: 'show phases, or gate and set the current phase', dashboardSafe: false },
   { name: 'set',       display: 'set <key> <val>',   summary: 'update a preference in the preferences block',      dashboardSafe: true },
   { name: 'init',      display: 'init [flags]',      summary: 'configure a fresh workspace (flags or interactive)', dashboardSafe: false },
+  { name: 'upgrade',   display: 'upgrade [flags]',   summary: 'lift an existing workspace to this engine version', dashboardSafe: false },
   { name: 'map',       display: 'map',               summary: 'regenerate the state/map.md domain file overview',  dashboardSafe: true },
   { name: 'repo-map',  display: 'repo-map',          summary: 'print a bounded read-only map of the configured code root', dashboardSafe: false },
   { name: 'dashboard', display: 'dashboard [flags]', summary: 'start the local web dashboard',                     dashboardSafe: false },
