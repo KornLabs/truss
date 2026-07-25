@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/hero-series-dark.svg">
-    <img src=".github/hero-series-light.svg" alt="Die Wortmarke Truss ruht knapp über dem Obergurt eines flachen Trägers. Darunter läuft eine durchgehende Akzentlinie — das Gedächtnis des Projekts — an der die vier kanonischen Dateien hängen: VISION.md, current.md, decisions.md, phases.md. Ein Träger trägt eine Last über eine Distanz, ohne Stütze in der Mitte; Truss trägt ein Projekt über die Distanz zwischen zwei Sessions. Bildunterschrift (englisch): plain Markdown, lightweight, token-lean, memory." width="900">
+    <img src=".github/hero-series-light.svg" alt="Die Wortmarke Truss ruht knapp über dem Obergurt eines flachen Trägers. Zwischen den beiden Gurten läuft über deren volle Breite eine gesperrte Zeile (englisch): plain Markdown, lightweight, token-lean, memory. Der untere Gurt ist eine durchgehende Akzentlinie von Ende zu Ende — das Gedächtnis des Projekts — an der die vier kanonischen Dateien hängen: VISION.md, current.md, decisions.md, phases.md. Ein Träger trägt eine Last über eine Distanz, ohne Stütze in der Mitte; Truss trägt ein Projekt über die Distanz zwischen zwei Sessions." width="900">
   </picture>
 </p>
 
