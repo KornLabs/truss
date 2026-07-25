@@ -239,6 +239,7 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | `doctor` | Agenten führen ihn routinemäßig aus; du, wenn du neugierig bist |
 | `status` | ein Fünf-Zeilen-Snapshot im Terminal |
 | `set <key> <value>` | eine Agenten-Präferenz ändern (geht auch im Dashboard) |
+| `upgrade` | wenn eine neue Truss-Version da ist — aus der neuen Engine heraus ausgeführt, merged sie die Änderungen in deinen Workspace und lässt deinen State in Ruhe ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Dokumentation
 
@@ -246,6 +247,7 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | --- | --- |
 | [.truss/docs/concepts.md](.truss/docs/concepts.md) | das Modell — Dateien, State-Layer, Phasen, Checks, Präferenzen |
 | [.truss/docs/cli.md](.truss/docs/cli.md) | Befehlsreferenz und Flags |
+| [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | ein bestehendes Projekt auf eine neuere Truss-Version heben |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | wie die Engine gebaut ist (Contributors) |
 | [.truss/prompts/README.md](.truss/prompts/README.md) | die Prompt-Library |
 | [.truss/phase-profiles/README.md](.truss/phase-profiles/README.md) | alternative Lebensläufe |

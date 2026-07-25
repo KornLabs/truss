@@ -28,6 +28,7 @@ import { writeBlock } from '../lib/writer.mjs'
 import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
+import { runUpgrade } from '../lib/commands/upgrade.mjs'
 import { runMap } from '../lib/commands/map.mjs'
 import { runRepoMap } from '../lib/commands/repo-map.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
@@ -657,12 +658,15 @@ const HANDLERS = {
   // init targets the caller's cwd (or --root), never silently the engine's own
   // directory (D-024) — pass where the user actually stands.
   init:      (args) => runInit(root, args, process.cwd()),
+  // upgrade runs the NEW engine (this script) against the workspace the caller
+  // stands in — the reverse direction of every other command.
+  upgrade:   (args) => runUpgrade(root, args, process.cwd()),
   dashboard: (args) => runDashboard(args),
 }
 
 // init/phase surface user-facing fatals as a throw → exit code 2 (dashboard
 // handles its own errors internally).
-const THROWS_TO_EXIT_2 = new Set(['init', 'phase', 'repo-map'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'repo-map'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); process.exit(0)
