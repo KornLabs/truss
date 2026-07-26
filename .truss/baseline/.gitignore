@@ -1,7 +1,9 @@
 .truss/out/
 
-# Engine kept aside by `truss upgrade` as a rollback copy — never committed.
+# Engine kept aside by `truss upgrade` as a rollback copy, and its staging
+# directory — both are engine copies, never project content.
 .truss.bak-*/
+.truss.incoming/
 
 # OS / editor junk
 .DS_Store

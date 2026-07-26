@@ -258,7 +258,10 @@ async function mergeThreeWay(tmpDir, rel, mine, base, theirs) {
     // Exit code > 0 with output means conflicts, and stdout holds the marked-up
     // merge. No output at all is a genuine failure — say which, never dress a
     // git error up as "unavailable".
-    if (typeof err.stdout === 'string' && err.stdout.length > 0 && !err.code?.toString().startsWith('ERR_')) {
+    // err.signal is set when the timeout killed git: stdout may then be a
+    // truncated prefix, which must never be dressed up as a conflict.
+    if (typeof err.stdout === 'string' && err.stdout.length > 0
+        && !err.signal && !err.code?.toString().startsWith('ERR_')) {
       return { text: err.stdout, conflicts: true, reason: null }
     }
     const reason = err.code === 'ENOENT'
@@ -274,11 +277,40 @@ async function mergeThreeWay(tmpDir, rel, mine, base, theirs) {
  * so the target outside the workspace stays untouched — but a silently replaced
  * symlink is its own surprise, so the caller reports it.
  */
-async function writeWorkspaceFile(abs, content) {
+async function writeWorkspaceFile(target, abs, content) {
   let wasSymlink = false
   try { wasSymlink = (await fs.lstat(abs)).isSymbolicLink() } catch {}
+  await assertInsideWorkspace(target, abs)
   await writeFileAtomic(abs, content)
   return wasSymlink
+}
+
+/**
+ * Confine a write to the workspace. Checking the final component is not enough:
+ * a symlinked *directory* (`docs/` → somewhere else) makes writeFileAtomic
+ * mkdir and rename into the resolved parent, silently editing files outside the
+ * repo that `git checkout .` can never restore. Resolve the deepest existing
+ * ancestor and require it to sit inside the workspace — the same confinement
+ * discipline as init.mjs and prompt.mjs.
+ */
+async function assertInsideWorkspace(target, abs) {
+  const realTarget = await fs.realpath(target)
+  let dir = path.dirname(abs)
+  for (;;) {
+    try {
+      const real = await fs.realpath(dir)
+      const rel = path.relative(realTarget, real)
+      if (rel !== '' && (rel.startsWith('..') || path.isAbsolute(rel))) {
+        throw new UpgradeError(`resolves outside the workspace (via ${path.relative(target, dir)}/)`)
+      }
+      return
+    } catch (err) {
+      if (err instanceof UpgradeError) throw err
+      const parent = path.dirname(dir)
+      if (parent === dir) return          // nothing of the path exists yet
+      dir = parent
+    }
+  }
 }
 
 /** Execute a plan. Mutates each entry's action/note to the actual outcome. */
@@ -294,7 +326,7 @@ async function applyPlan(target, plan, baseDir, theirsDir) {
       // One failed file must not abandon the run half-applied with a bare errno.
       try {
         if (p.action === 'write') {
-          const symlink = await writeWorkspaceFile(abs, await fs.readFile(path.join(theirsDir, p.rel)))
+          const symlink = await writeWorkspaceFile(target, abs, await fs.readFile(path.join(theirsDir, p.rel)))
           p.action = 'written'
           if (symlink) p.note += ' (replaced a symlink)'
           continue
@@ -311,10 +343,11 @@ async function applyPlan(target, plan, baseDir, theirsDir) {
         const { text, conflicts, reason } = await mergeThreeWay(tmpDir, p.rel, mine, base, theirs)
         if (text === null) {
           p.action = 'manual'; p.note = reason
-        } else if (!conflicts && wellFormed(p.rel, text)) {
-          const symlink = await writeWorkspaceFile(abs, text)
+        } else if (!conflicts && wellFormed(p.rel, text, mine)) {
+          const symlink = await writeWorkspaceFile(target, abs, text)
           p.action = 'merged'; p.note = symlink ? 'merged cleanly (replaced a symlink)' : 'merged cleanly'
         } else {
+          await assertInsideWorkspace(target, `${abs}.truss-merge`)
           await writeFileAtomic(`${abs}.truss-merge`, text)
           p.action = 'conflict'
           p.note = conflicts
@@ -335,9 +368,19 @@ async function applyPlan(target, plan, baseDir, theirsDir) {
  * A line merge can be conflict-free and still produce a structurally broken
  * file. Only formats we can cheaply prove are checked; everything else passes.
  */
-function wellFormed(rel, text) {
+function wellFormed(rel, text, mine) {
   if (rel.endsWith('.json')) {
     try { JSON.parse(text) } catch { return false }
+  }
+  if (mine !== undefined) {
+    // The block BODIES are aligned out of the merge, but the marker LINES are
+    // still merge input. A merge that swallows one comes out "clean" and then
+    // breaks render, set and BL-01 — in the boot file. Assert preservation, not
+    // presence: every block that was sound before must still be sound after.
+    const after = parseBlocks(text.split('\n'))
+    for (const [id, block] of parseBlocks(mine.split('\n'))) {
+      if (soundBlock(block) && !soundBlock(after.get(id))) return false
+    }
   }
   return true
 }
@@ -402,6 +445,14 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
     return { target, from: oldVersion, to: newVersion, upToDate: true, plan: [] }
   }
 
+  // Clear a staging directory an interrupted run left behind BEFORE any gate.
+  // It is engine scratch, never user content — but git sees it as an untracked
+  // directory, so leaving it here would make the dirty-tree gate below abort
+  // every retry and tell the adopter to commit a full copy of the engine into
+  // their repository. The recovery has to come first to be a recovery at all.
+  const incoming = path.join(target, INCOMING)
+  await fs.rm(incoming, { recursive: true, force: true }).catch(() => {})
+
   // --dry-run writes nothing, so it must never be gated on a clean tree: it is
   // exactly what a cautious user wants to run BEFORE committing.
   if (opts.dryRun) {
@@ -443,8 +494,6 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       '       it may still be the only copy of your previous engine.',
     )
   }
-  const incoming = path.join(target, INCOMING)
-  await fs.rm(incoming, { recursive: true, force: true })
   try {
     await fs.cp(newEngine, incoming, { recursive: true })
     const customSrc = path.join(oldEngine, 'prompts', 'custom')
@@ -457,13 +506,32 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
     throw new UpgradeError(`upgrade: staging the new engine failed (${err.message}); nothing was changed.`)
   }
   const customRestored = await exists(path.join(oldEngine, 'prompts', 'custom'))
-  await fs.rename(oldEngine, backup)
+  try {
+    await fs.rename(oldEngine, backup)
+  } catch (err) {
+    // Windows in particular: an editor or indexer holding a handle inside
+    // .truss/ makes this EPERM. Nothing has moved yet, so this is still a
+    // clean abort — but only if it says so instead of escaping as a raw errno.
+    await fs.rm(incoming, { recursive: true, force: true }).catch(() => {})
+    throw new UpgradeError(
+      `upgrade: moving the old engine aside failed (${err.message}); nothing was changed.\n` +
+      '       Close anything holding files open under .truss/ and try again.',
+    )
+  }
   try {
     await fs.rename(incoming, oldEngine)
   } catch (err) {
-    await fs.rename(backup, oldEngine).catch(() => {})
+    // Compensate — and never claim a restore that did not happen: at this point
+    // the workspace has no .truss/ at all, which the message has to say.
+    const restored = await fs.rename(backup, oldEngine).then(() => true).catch(() => false)
     await fs.rm(incoming, { recursive: true, force: true }).catch(() => {})
-    throw new UpgradeError(`upgrade: swapping the engine in failed (${err.message}); the old engine was restored.`)
+    throw new UpgradeError(
+      `upgrade: swapping the engine in failed (${err.message}); ` +
+      (restored
+        ? 'the old engine was restored.'
+        : `the old engine could NOT be restored — it is at ${path.basename(backup)}/.\n` +
+          `       Recover with: mv ${path.basename(backup)} .truss`),
+    )
   }
 
   // ── Baseline reconciliation, base read from the backup ──

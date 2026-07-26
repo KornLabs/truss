@@ -288,6 +288,35 @@ describe('runUpgrade', () => {
     await fs.rm(tmp, { recursive: true, force: true })
   })
 
+  it('does not follow a symlinked directory out of the workspace', async () => {
+    const { tmp, ws, next } = await fixture()
+    const outside = path.join(tmp, 'outside-docs')
+    await fs.mkdir(outside)
+    await fs.writeFile(path.join(outside, 'take.md'), 'old\n')
+    await fs.rm(path.join(ws, 'docs'), { recursive: true })
+    await fs.symlink(outside, path.join(ws, 'docs'))
+
+    const r = await runUpgrade(next, ['--root', ws])
+    process.exitCode = 0
+    assert.equal(await fs.readFile(path.join(outside, 'take.md'), 'utf8'), 'old\n',
+      'a file outside the workspace must never be written')
+    assert.equal(planOf(r)['docs/take.md'], 'failed')
+    await fs.rm(tmp, { recursive: true, force: true })
+  })
+
+  it('clears a staging directory an interrupted run left behind', async () => {
+    const { tmp, ws, next } = await fixture()
+    await write(ws, '.truss.incoming/VERSION', '0.0.2\n')
+    await write(ws, '.truss.incoming/half-copied.mjs', 'junk\n')
+
+    const r = await runUpgrade(next, ['--root', ws])
+    process.exitCode = 0
+    assert.equal(r.to, '0.0.2', 'the retry runs through instead of tripping over its own scratch')
+    assert.equal(await exists(ws, '.truss.incoming'), false)
+    assert.equal(await exists(ws, '.truss/half-copied.mjs'), false, 'stale staging never becomes the new engine')
+    await fs.rm(tmp, { recursive: true, force: true })
+  })
+
   it('--dry-run reports without writing', async () => {
     const { tmp, ws, next } = await fixture()
     const r = await runUpgrade(next, ['--root', ws, '--dry-run'])
