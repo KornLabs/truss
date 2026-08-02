@@ -59,6 +59,40 @@ describe('parseInitArgs', () => {
   })
 })
 
+describe('init — the §1 scaffold set', () => {
+  // D-035: what the §1 load order names ships with the workspace; everything else
+  // is on demand. open-decisions.md is the one that was wrongly cut (D-028 part 3)
+  // and is the reason this rule is now written down and tested.
+  it('creates every §1 file and none of the on-demand ones', async () => {
+    const root = await makeRoot('truss-init-scaffold-')
+    await runInit(root, ['--name', 'Scaffold', '--lang', 'English'])
+
+    for (const rel of ['AGENTS.md', 'VISION.md', 'state/current.md', 'state/decisions.md',
+                       'state/open-decisions.md', 'state/profile.md', 'state/phases.md']) {
+      await assert.doesNotReject(() => read(root, rel), `§1 file ${rel} must be scaffolded`)
+    }
+    for (const rel of ['state/risks.md', 'state/learnings.md', 'HUMAN-TODOS.md']) {
+      await assert.rejects(() => read(root, rel), `${rel} must stay on demand`)
+    }
+  })
+
+  it('ships open-decisions.md with the entry template the dashboard parses', async () => {
+    const root = await makeRoot('truss-init-od-')
+    await runInit(root, ['--name', 'Template', '--lang', 'English'])
+    const od = await read(root, 'state/open-decisions.md')
+
+    // The file is usually empty, so it cannot teach its grammar by example — the
+    // template lives in the header instead (extends D-031 to always-empty files).
+    assert.match(od, /## OD-NNN — \[question title\]/)
+    assert.match(od, /Opened: YYYY-MM-DD/)
+    assert.match(od, /\(recommended\)/)
+    assert.match(od, /\+\[upside\] \/ –\[downside\]/)
+    // …and the template must not itself trip the grammar checks.
+    const findings = await runChecks(root)
+    assert.equal(findings.filter(f => f.file === 'state/open-decisions.md').length, 0)
+  })
+})
+
 describe('init (core)', () => {
   it('scaffolds a clean, doctor-green core instance', async () => {
     const root = await makeRoot('truss-init-core-')

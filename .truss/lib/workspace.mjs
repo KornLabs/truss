@@ -11,6 +11,7 @@ import {
 import { mapMdFilesFromDiskPaths } from './commands/map.mjs'
 import { loadIgnore } from './ignore.mjs'
 import { resolveCodeRoot } from './code-root.mjs'
+import { readContextAck } from './context-ack.mjs'
 
 /**
  * OS / editor junk files that are never part of a Truss workspace and must not
@@ -340,10 +341,17 @@ export async function loadWorkspace(root) {
     }
   }
 
+  // Boot-context review record (.truss/out/context-ack.json). Loaded here, not
+  // inside the check, so checks keep reading ctx rather than the filesystem —
+  // and so the dashboard can show the same baseline the doctor judges against.
+  // null = never reviewed, which is the conservative default.
+  const contextAck = await readContextAck(root);
+
   return {
     root,
     structureTable,
     blocks,          // Map<id, BlockInfo> from AGENTS.md
+    contextAck,      // { version, acks: { 'CX-01': { tokens, date, note? } } } | null
     phases,          // { frontmatter, ordered, defs, stat }
     files,           // Map<relPath, FileContext>
     idDefs,          // Map<id, Array<{file, line}>>

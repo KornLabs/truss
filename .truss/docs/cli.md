@@ -117,6 +117,12 @@ When `state/profile.md` configures a
 switch hint when they don't). This is the live branch check — `doctor` itself
 stays purely file-based and never reads the live branch (see `branch-guard`).
 
+When `state/open-decisions.md` holds entries, it also prints an **Open** block:
+each `OD-NNN` with its title, its age in days, and — when a decision carries a
+`Challenged-by:` marker — which decision it contests. Silent when nothing is
+undecided; at most five entries, then a count. This is the one place that
+guarantees a question waiting on the human is seen at session start.
+
 ```bash
 truss status
 ```
@@ -225,6 +231,41 @@ them — they are the default now. `set` names each line it drops. Keys retired 
 D-029 (`orchestration`, `research-agent`, `review-agent`, `criticality`,
 `input-trust`, `source-citation`, `post-task-check`, `phase-lock`) are reported by
 `BL-03` as a warning naming their replacement, never as an error.
+
+---
+
+## `ack`
+
+Record that the mandatory boot context (AGENTS.md §1 load order) was read through
+and judged lean at its current size.
+
+```bash
+truss ack context                       # record the current measurement as the reviewed baseline
+truss ack context --note "24 decisions, all live"
+truss ack context --clear               # drop the baseline
+```
+
+`CX-01` judges the boot context against absolute bands (18k warn / 30k error).
+An absolute band cannot tell a bloated workspace from a legitimately big one, so
+without this command a lean project that grows past 18k carries a permanent,
+unclearable warning — and an unclearable finding trains you to stop reading
+`doctor`. The ack turns the question into *growth since the last review*.
+
+While the measurement stays within **15 %** of the reviewed baseline, `CX-01` is
+**downgraded to info** — never hidden: the current number, the baseline, the ack
+date and the re-fire ceiling all stay in the report, and `doctor --gate` is no
+longer blocked by a question that was already answered. Past the ceiling it warns
+again at full severity. **The error band (30k) is never downgraded** — an ack
+cannot silence an error, and `truss ack context` refuses to record one.
+
+The record lives in `.truss/out/context-ack.json`, gitignored like `doctor.json`:
+it is a local reading judgement, not a project fact, so it costs zero boot tokens
+and a fresh clone correctly starts unreviewed. The command is deliberately not
+available to the dashboard action executor — nothing should be able to quiet a
+budget warning without a person deciding to.
+
+The trim itself is the `cleanup` prompt (`.truss/prompts/base/cleanup.md`), which
+proposes dispositions and leaves execution to you.
 
 ---
 

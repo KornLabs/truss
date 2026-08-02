@@ -53,4 +53,6 @@ export const CHECK_CATALOG = [
   { id: 'SY-07', sev: 'I', desc: 'HUMAN-TODOS.md accumulates checked-off entries' },
   { id: 'SY-08', sev: 'W', desc: 'ritual drift — workspace state changed after current.md was last updated' },
   { id: 'SY-09', sev: 'I', desc: 'decisions.md read cost is growing large' },
+  { id: 'SY-10', sev: 'I', desc: 'open decision has been waiting a long time' },
+  { id: 'SY-11', sev: 'W', desc: 'Challenged-by: points at an open decision that does not exist' },
 ]

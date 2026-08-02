@@ -2,7 +2,7 @@
 
 Two kinds of prompts live here, distinguished only by `library.json` (no subfolders):
 
-1. **Library prompts** (15) — user-facing, served by the dashboard.
+1. **Library prompts** (16) — user-facing, served by the dashboard.
 2. **Engine-ritual prompts** (11) — invoked by the phase machine / gate; never in the manifest.
 
 ## Layout
@@ -11,17 +11,17 @@ Two kinds of prompts live here, distinguished only by `library.json` (no subfold
 |---|---|
 | `library.json` | The manifest — the index of library prompts. The dashboard serves **only** these (plus `custom/`). |
 | `base/<id>.md` | English bodies. Pure body, no frontmatter. Holds both library and engine-ritual prompts. |
-| `base-de/<id>.md` | German bodies. **Mirrors the manifest exactly** (the 15 library prompts). Engine-ritual prompts are EN-only. |
+| `base-de/<id>.md` | German bodies. **Mirrors the manifest exactly** (the 16 library prompts). Engine-ritual prompts are EN-only. |
 | `custom/<id>.md` | User-created prompts, single language, served as-is. Also holds `prefs/` overrides. |
 
 `promptIds` (used by check **RF-04**) is scanned flat from `base/` + `custom/` only.
 
-## Library prompts (the 15)
+## Library prompts (the 16)
 
 Three shelves plus one orchestration wrapper (see `library.json` for shelf/tags/flags):
 
 - **task:** `plan` · `implement` · `bug-fix` · `refactor` · `research` · `critique` · `idea-spar` · `decide` · `stress-test` · `founder-move`
-- **session:** `resume` · `handover`
+- **session:** `resume` · `handover` · `cleanup` (the canonical controlled-forgetting procedure — named by CX-01's `fix:` and by the dashboard context view; proposal-only, the human approves before anything moves)
 - **setup:** `project-kickoff` (fresh-project interview: vision, profile, tailored phase plan) · `overlay-onboard` (adopts an existing project; also the overlay `ingest` ritual — see below)
 - **orchestration:** `orchestrate` (generic wrapper; the Single|Orchestrated toggle wraps a task body as `{{MISSION}}` and injects its `orchestrationHint` as `{{HINT}}`)
 

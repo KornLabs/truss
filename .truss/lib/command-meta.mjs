@@ -17,6 +17,11 @@ export const COMMAND_META = [
   { name: 'render',    display: 'render',            summary: 'sync phase block in AGENTS.md from state/phases.md', dashboardSafe: true },
   { name: 'phase',     display: 'phase [<id>] [--override-gate]', summary: 'show phases, or gate and set the current phase', dashboardSafe: false },
   { name: 'set',       display: 'set <key> <val>',   summary: 'update a preference in the preferences block',      dashboardSafe: true },
+  // ack writes only .truss/out/ (gitignored runtime state) and never touches
+  // workspace content, but it records a human judgement — so it stays off the
+  // dashboard action executor: nothing should be able to quiet a budget warning
+  // without someone deciding to.
+  { name: 'ack',       display: 'ack context [flags]', summary: 'record that the boot context was reviewed at its current size', dashboardSafe: false },
   { name: 'init',      display: 'init [flags]',      summary: 'configure a fresh workspace (flags or interactive)', dashboardSafe: false },
   { name: 'upgrade',   display: 'upgrade [flags]',   summary: 'lift an existing workspace to this engine version', dashboardSafe: false },
   { name: 'map',       display: 'map',               summary: 'regenerate the state/map.md domain file overview',  dashboardSafe: true },

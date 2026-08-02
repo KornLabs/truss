@@ -358,3 +358,47 @@ describe('runUpgrade', () => {
     await fs.rm(tmp, { recursive: true, force: true })
   })
 })
+
+// ── Migration path for D-035: open-decisions.md returns to the baseline ──────
+// An instance that upgrades from a version without the file must NOT have it
+// written for it: everything under state/ is the project's own (SEED_ONLY,
+// D-034), and that guarantee outranks the convenience of one file. upgrade
+// reports it; ST-01 then names it with a one-step fix.
+describe('a baseline state file the workspace lacks', () => {
+  it('is reported, never written — the SEED_ONLY guarantee holds', async () => {
+    const { ws, next } = await realFixture()
+
+    // Simulate the pre-D-035 instance: the file the new baseline ships is absent.
+    await fs.rm(path.join(ws, 'state/open-decisions.md'))
+    await fs.rm(path.join(ws, '.truss/baseline/state/open-decisions.md'))
+
+    const res = await runUpgrade(next, ['--root', ws, '--dry-run'])
+    process.exitCode = 0
+    const entry = res.plan.find(p => p.rel === 'state/open-decisions.md')
+
+    assert.ok(entry, 'the missing baseline file must appear in the plan')
+    assert.equal(entry.action, 'report')
+    assert.match(entry.note, /seed file/)
+    assert.equal(await exists(ws, 'state/open-decisions.md'), false)
+  })
+
+  it('stays hands-off on a real run too, not just in a dry run', async () => {
+    const { ws, next } = await realFixture()
+    await fs.rm(path.join(ws, 'state/open-decisions.md'))
+    await fs.rm(path.join(ws, '.truss/baseline/state/open-decisions.md'))
+
+    await runUpgrade(next, ['--root', ws])
+    process.exitCode = 0
+    assert.equal(await exists(ws, 'state/open-decisions.md'), false)
+  })
+
+  it('leaves an existing one untouched, however far it has drifted', async () => {
+    const { ws, next } = await realFixture()
+    const mine = '# Open Decisions\n\n## OD-001 — mine\n\nOpened: 2026-01-01\n'
+    await fs.writeFile(path.join(ws, 'state/open-decisions.md'), mine)
+
+    await runUpgrade(next, ['--root', ws])
+    process.exitCode = 0
+    assert.equal(await read(ws, 'state/open-decisions.md'), mine)
+  })
+})

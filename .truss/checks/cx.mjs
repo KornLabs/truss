@@ -8,8 +8,9 @@
 // numbers, which a project may renumber): AGENTS.md (incl. both generated blocks)
 // + current.md + VISION.md + decisions.md + open-decisions.md + profile.md, plus
 // the current phase's `read:` targets (load-order step 6). open-decisions.md is
-// counted unconditionally (it is only conditionally loaded in §1, but a check
-// cannot know the task, so we count conservatively). Task-selected domain files,
+// counted unconditionally: it ships with every workspace (D-035), and while §1
+// loads it only when the task touches an open question, a check cannot know the
+// task — so it is counted as present, which it always is. Task-selected domain files,
 // source files, and agent-tool additions are outside this metric.
 //
 // Token factor 1.5 (not 1.35): truss files are markdown dense with tables, IDs,
@@ -20,10 +21,20 @@
 // phase-read resolution live in lib/context-budget.mjs and are SHARED with the
 // dashboard budget endpoint, so the doctor and the dashboard never diverge on
 // the number or the thresholds it is judged against.
+//
+// REVIEW ACK (lib/context-ack.mjs): an absolute band cannot distinguish a
+// bloated workspace from a legitimately big one, so once a lean project passes
+// 18k the warning would be permanent and unresolvable — and an unclearable
+// finding teaches the human to stop reading doctor. `truss ack context` records
+// that the boot context was read through and judged lean at N tokens; while the
+// measurement stays within ACK_HEADROOM of N, this finding is DOWNGRADED to
+// info. Downgraded, never hidden: the number, the reviewed baseline and the
+// re-fire ceiling stay on screen. An error-band measurement is never downgraded.
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { CONTEXT_FILES, TOKENS_PER_WORD, WARN_TOKENS, ERROR_TOKENS, wordCount, toTokens, phaseReadTargets } from '../lib/context-budget.mjs'
+import { ackVerdict } from '../lib/context-ack.mjs'
 
 export const meta = [
   { id: 'CX-01', severity: 'W', title: 'mandatory Truss boot metadata exceeds the token budget', description: `Excludes task-selected domain/source context; W ≥ ${WARN_TOKENS}, E ≥ ${ERROR_TOKENS} token-equivalent (words × 1.5)` },
@@ -63,21 +74,38 @@ export async function run(ctx) {
   const tokens = toTokens(totalWords)
 
   if (tokens >= WARN_TOKENS) {
-    const severity = tokens >= ERROR_TOKENS ? 'E' : 'W'
-    const threshold = severity === 'E' ? `${ERROR_TOKENS} error` : `${WARN_TOKENS} warn`
+    const hardSeverity = tokens >= ERROR_TOKENS ? 'E' : 'W'
+    const threshold = hardSeverity === 'E' ? `${ERROR_TOKENS} error` : `${WARN_TOKENS} warn`
     const heaviest = [...counted]
       .sort((a, b) => b.words - a.words)
       .slice(0, 3)
       .map(c => `${c.file} (≈${toTokens(c.words)})`)
       .join(', ')
 
-    findings.push({
-      id: 'CX-01', severity,
-      file: 'AGENTS.md',
-      message: `mandatory Truss boot metadata ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold. Task-selected domain/source context is not counted. Heaviest: ${heaviest}`,
-      // Cleanup prompt (S-08) with the protection clause for system-relevant sections.
-      fix: `Trim the boot context: review stale, duplicated, wrongly routed, oversized, bulk, or archive-worthy material in the always-loaded files (AGENTS.md, state/current.md, VISION.md, state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's read: targets). Move long-form material into on-demand docs/ or domain files, move bulk data to .trussignore, and archive superseded material with a one-line invalidation note. Do NOT remove system-relevant parts: the §2 structure table, the §1 load order, the generated preference/phase blocks, or canonical D-NNN decisions. Re-run doctor afterwards — the ST/BL/RF checks confirm nothing essential was lost.`,
-    })
+    const verdict = ackVerdict(ctx.contextAck?.acks?.['CX-01'], tokens, hardSeverity)
+
+    if (verdict.downgraded) {
+      // Reviewed and judged lean at `baseline`; growth since then is still
+      // inside the headroom. Report the fact, do not gate on it.
+      findings.push({
+        id: 'CX-01', severity: 'I',
+        file: 'AGENTS.md',
+        message: `mandatory Truss boot metadata ≈ ${tokens} tokens — above the ${threshold} threshold but within the reviewed baseline of ≈${verdict.baseline} (acked ${verdict.date}). Warns again above ≈${verdict.ceiling}. Heaviest: ${heaviest}`,
+        fix: `Nothing to do — this size was reviewed and judged lean. Re-review with the \`cleanup\` prompt (.truss/prompts/base/cleanup.md) and re-run \`truss ack context\` after the next real trim, or \`truss ack context --clear\` to drop the baseline and get the full warning back.`,
+      })
+    } else {
+      const staleAck = verdict.baseline
+        ? ` Grown past the reviewed baseline of ≈${verdict.baseline} (acked ${verdict.date}, re-fire ceiling ≈${verdict.ceiling}).`
+        : ''
+      findings.push({
+        id: 'CX-01', severity: hardSeverity,
+        file: 'AGENTS.md',
+        message: `mandatory Truss boot metadata ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold.${staleAck} Task-selected domain/source context is not counted. Heaviest: ${heaviest}`,
+        // The cleanup procedure itself is canonical in .truss/prompts/base/cleanup.md
+        // (protection list included) — this only names it and the way out.
+        fix: `Run the \`cleanup\` prompt (.truss/prompts/base/cleanup.md): it inventories the always-loaded files, classifies every block as keep / route / archive / drop-duplicate, and protects the §1 load order, the §2 structure table, the generated blocks and every D-NNN. If the review concludes this size is genuinely earned, record it with \`truss ack context\` — the finding then reports as info until the context grows past the reviewed baseline.`,
+      })
+    }
   }
 
   return findings

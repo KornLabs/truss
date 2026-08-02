@@ -67,7 +67,7 @@ export class AboutConceptsView extends Component {
               <tbody>
                 <tr><td>${code('current.md')}</td><td>Live focus, next actions (≤5), blockers, recently done</td></tr>
                 <tr><td>${code('decisions.md')}</td><td>Decided decisions (D-NNN); superseded, never deleted</td></tr>
-                <tr><td>${code('open-decisions.md')}</td><td>Undecided questions with options and trade-offs (OD-NNN); created at its first entry</td></tr>
+                <tr><td>${code('open-decisions.md')}</td><td>Undecided questions with options and trade-offs (OD-NNN), incl. challenges to a decision; ships with the workspace, stays when empty</td></tr>
                 <tr><td>${code('phases.md')}</td><td>Phase definitions and the ${code('current:')} pointer</td></tr>
                 <tr><td>${code('profile.md')}</td><td>Project name, language, tools, PM method, style</td></tr>
                 <tr><td>${code('risks.md')}</td><td>Project risks (R-NNN); created at its first entry</td></tr>

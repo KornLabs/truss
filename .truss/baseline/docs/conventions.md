@@ -29,9 +29,18 @@ Consequences: [what changes because of this]
 Closes: [OD-MMM or omit when none]
 Rejected: [not-chosen option — one-line why; only with Closes:, omit otherwise]
 Supersedes: [D-MMM or omit when none]
+Challenged-by: [OD-MMM while the decision is contested — the one transient field; removed when the challenge resolves]
 ```
 
+One decision per entry. If the title needs an "and" or a semicolon, it is two entries —
+a bundled entry cannot be revised in part later, and no field syntax repairs that.
+
 Superseding: add a `Superseded-by: D-MMM` line under the entry and a `> Superseded by D-MMM (YYYY-MM-DD): [reason]` note below. Never delete the original entry.
+When a new decision replaces only part of an older *bundled* entry, say which part in
+plain text after the ID on both sides — `Supersedes: D-028 (only part 3 — parts 1, 2, 4
+still hold)` — and always name what still holds, so the old entry is not misread as dead.
+This is a tolerance for entries written before the one-decision rule, not a second
+revision mode: new entries are small enough to supersede whole.
 
 Keep `Decision:`/`Rationale:`/`Consequences:` to roughly one line each —
 state/decisions.md is boot context, read every session; design detail belongs in
@@ -52,6 +61,30 @@ resolution here — never leave a "DECIDED" tombstone in open-decisions.md inste
 `Rejected:` preserves the not-chosen options in one line — without it, the OD's
 alternatives survive only in git history and "why not B?" becomes unanswerable
 from active context.
+
+**Challenging a decision.** A decision binds until it is superseded, but it is
+evidence, not scripture — and the agent that spots a wrong one must be able to say
+so. Admission test, same shape as the HT qualifier: challenge only on (a) new
+evidence the decision did not have, (b) a consequence it predicted that
+demonstrably did not hold, or (c) a contradiction with another canonical file or a
+later decision. A different preference, taste, "this could be cleaner", or not
+knowing the reasoning are not grounds — read the `Rationale:` first.
+
+The split is deliberate: **opening a challenge is the agent's to do, changing the
+decision is not.** Open it as an `OD-NNN` that names the decision and states which
+of (a)/(b)/(c) applies, and add `Challenged-by: OD-NNN` to the decision itself —
+decisions.md is boot context and open-decisions.md is not, so without that line a
+future session reads a contested decision as settled. Then:
+
+- **Human agrees** → new `D-NNN` with `Supersedes:` and `Closes:`, `Superseded-by:`
+  on the old entry, `Challenged-by:` removed.
+- **Human disagrees** → remove the OD and the `Challenged-by:` line, and add the
+  tested alternative to the upheld decision's `Rationale:` in one clause
+  ("…; alternative X was tested on YYYY-MM-DD and rejected because Y"). A rejected
+  challenge hardens the decision — the question is answered in active context
+  instead of coming back next session.
+
+doctor flags a `Challenged-by:` whose OD no longer exists (SY-11).
 
 ### HT-NNN — Human todo
 
@@ -89,8 +122,8 @@ entries pile up (SY-07).
 Opened: YYYY-MM-DD
 Context: [why this matters now]
 Options:
-- A: [option] — +[opportunity] / –[risk]
-- B: [option] — +[opportunity] / –[risk]
+- A: [short label] — [what choosing it means] +[opportunity] / –[risk]
+- B: [short label] (recommended) — [what choosing it means] +[opportunity] / –[risk]
 Trade-offs: [cross-cutting: cost, reversibility — only what the option lines don't carry]
 Leaning: [recommendation — one-line why · or: none — what input would decide it]
 Needed from human: [decision/input needed]
@@ -101,7 +134,24 @@ and risk so the human can decide without reconstructing the analysis. Give a
 `Leaning:` with its why whenever one is defensible; never fabricate confidence —
 an honest `none` plus what would resolve it beats an anchored guess.
 
-`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). `Opened:` records when the question arose; Truss never ages an entry out by the calendar. When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
+**The option lines are a machine contract.** The dashboard builds its chooser from
+them, so the shape is not cosmetic:
+
+- **Keyed** — start with `A:`, `B:`, … (or `1.`, `2.`). The key anchors the label.
+- **Label before the ` — `**, and keep it short: it is the click target in the UI,
+  not the argument. Everything explanatory goes after the dash.
+- **`+upside / –downside` at the end** of the description, in that order,
+  separated by ` / `. They are rendered as separate pro/con lines.
+- **`(recommended)`** on at most one option, and only when `Leaning:` agrees — it
+  renders as a badge. Omit it when you have no defensible leaning rather than
+  marking one for the sake of it.
+
+An entry without keyed, dashed option lines still displays, but as free text: the
+human then re-reads your prose instead of choosing. doctor warns (SY-03).
+
+`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). Because entries are removed on decision, the counter is not readable from this file alone: the next free number is one above the highest `OD-NNN` found here **or** in a `Closes:` line in state/decisions.md. `Opened:` records when the question arose; nothing expires by the calendar, but `truss status` shows each open entry with its age and doctor asks once past 30 days whether the question still stands (SY-10). When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
+
+Removing the last entry empties this file; it does not delete it. `state/open-decisions.md` is part of the §1 load order and ships with every workspace — empty is the correct state of a project with no open questions.
 
 ### R-NNN — Risk
 
