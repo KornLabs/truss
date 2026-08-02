@@ -40,7 +40,7 @@ const STATE_FILES = [
   { file: 'HUMAN-TODOS.md', purpose: 'Human-only actions (HT-NNN) — created at its first entry', owner: 'Agent writes, Human resolves' },
   { file: 'state/current.md', purpose: 'Live focus, next actions, blockers', owner: 'Agent' },
   { file: 'state/decisions.md', purpose: 'Decided decisions (D-NNN)', owner: 'Agent' },
-  { file: 'state/open-decisions.md', purpose: 'Open questions (OD-NNN) — created at its first entry', owner: 'Agent' },
+  { file: 'state/open-decisions.md', purpose: 'Open questions (OD-NNN) — ships with the workspace, stays when empty', owner: 'Agent' },
   { file: 'state/phases.md', purpose: 'Phase definitions + current pointer', owner: 'Human (current:) + Agent (defs)' },
   { file: 'state/profile.md', purpose: 'Project metadata', owner: 'Agent' },
   { file: 'state/risks.md', purpose: 'Risks (R-NNN) — created at its first entry', owner: 'Agent' },

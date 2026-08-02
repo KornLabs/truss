@@ -451,6 +451,75 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
 }
 
 // ── render ────────────────────────────────────────────────────────────────────
+// ── ack ─────────────────────────────────────────────────────────────────────
+// `truss ack context [--note "..."] [--clear]` — record that the boot context
+// was read through and judged lean at its current size. Rationale for the whole
+// mechanism (and why it is not a commit counter or a timer) lives in
+// lib/context-ack.mjs. This command only measures and writes; the judgement is
+// the human's, which is exactly why it is a deliberate command and not something
+// doctor can do to itself.
+async function runAck(args) {
+  const target = args[0]
+  if (target !== 'context') {
+    console.error(`truss ack: unknown target '${target ?? ''}'. Usage: truss ack context [--note "…"] [--clear]`)
+    process.exit(1)
+  }
+
+  const { writeContextAck, clearContextAck, ACK_HEADROOM, ACK_REL_PATH } = await import('../lib/context-ack.mjs')
+
+  if (args.includes('--clear')) {
+    const result = await clearContextAck(root)
+    if (result === 'removed') {
+      console.log('truss ack: context baseline cleared — CX-01 reports at full severity again.')
+    } else if (result === 'absent') {
+      console.log('truss ack: no context baseline was recorded.')
+    } else {
+      // Never report a failed delete as "nothing to clear": the baseline would
+      // still be silencing the warning while the human believes it is gone.
+      console.error(`truss ack: could not remove ${ACK_REL_PATH} — the baseline is STILL in effect. Delete the file manually.`)
+      process.exit(2)
+    }
+    return
+  }
+
+  // Measure with the SAME code path the check uses, so the recorded baseline and
+  // the number CX-01 judges can never be computed differently.
+  const { CONTEXT_FILES, wordCount, toTokens, phaseReadTargets, WARN_TOKENS, ERROR_TOKENS } = await import('../lib/context-budget.mjs')
+  const ctx = await loadWorkspace(root)
+
+  let words = 0
+  const seen = new Set()
+  const addRel = async (rel) => {
+    if (seen.has(rel)) return
+    seen.add(rel)
+    const f = ctx.files.get(rel)
+    if (f) { words += wordCount(f.content); return }
+    try { words += wordCount(await fs.readFile(path.join(root, rel), 'utf8')) } catch { /* missing — ignore */ }
+  }
+  for (const rel of CONTEXT_FILES) await addRel(rel)
+  for (const rel of phaseReadTargets(ctx.phases)) await addRel(rel)
+
+  const tokens = toTokens(words)
+
+  if (tokens < WARN_TOKENS) {
+    console.log(`truss ack: boot context ≈ ${tokens} tokens — already under the ${WARN_TOKENS} warn threshold, nothing to acknowledge.`)
+    return
+  }
+  if (tokens >= ERROR_TOKENS) {
+    console.error(`truss ack: boot context ≈ ${tokens} tokens is at or above the ${ERROR_TOKENS} error band — an ack does not silence an error. Trim it first (\`cleanup\` prompt).`)
+    process.exit(1)
+  }
+
+  const noteIdx = args.indexOf('--note')
+  const note = noteIdx >= 0 && args.length > noteIdx + 1 ? args[noteIdx + 1] : undefined
+
+  const entry = await writeContextAck(root, 'CX-01', { tokens, note })
+  const ceiling = Math.round(tokens * (1 + ACK_HEADROOM))
+  console.log(`truss ack: boot context reviewed at ≈ ${entry.tokens} tokens (${entry.date}).`)
+  console.log(`  CX-01 reports as info until it grows past ≈ ${ceiling}; the error band still fires unconditionally.`)
+  console.log(`  Recorded in .truss/out/context-ack.json (gitignored — local to this checkout).`)
+}
+
 async function runRender() {
   let ctx
   try {
@@ -650,6 +719,7 @@ const HANDLERS = {
   doctor:    (args) => runDoctor(args),
   render:    ()     => runRender(),
   set:       (args) => runSet(args[0], args[1]),
+  ack:       (args) => runAck(args),
   prompt:    (args) => runPrompt(root, args),
   phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),

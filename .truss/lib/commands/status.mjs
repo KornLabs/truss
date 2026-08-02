@@ -95,5 +95,65 @@ export async function runStatus(root, argv) {
     }
     console.log(`  Branch:  ${line}`)
   }
+
+  // Open decisions — questions parked on the human's desk. status is the canonical
+  // session-start command (§4), so this is the one place that guarantees a waiting
+  // question is seen. Silent when there are none: an empty open-decisions.md is the
+  // correct state of a project with nothing undecided.
+  for (const l of openDecisionLines(ctx, now, useColorGlobal)) console.log(l)
+
   console.log('')
+}
+
+const OD_SHOWN_MAX = 5
+
+/**
+ * Render the `Open:` block: one line per open decision with its age, marked when
+ * it challenges a recorded decision.
+ * @returns {string[]} lines to print (empty when there is nothing open)
+ */
+function openDecisionLines(ctx, now, useColor) {
+  const od = ctx.files.get('state/open-decisions.md')
+  if (!od) return []
+
+  // OD-NNN → D-NNN, from the `Challenged-by:` markers in decisions.md.
+  const challenges = new Map()
+  const dec = ctx.files.get('state/decisions.md')
+  if (dec) {
+    let currentD = null
+    for (const line of dec.lines) {
+      const h = line.match(/^##\s+(D-\d{3})\b/)
+      if (h) { currentD = h[1]; continue }
+      const c = line.match(/^\s*Challenged-by\s*:\s*(.+)$/i)
+      if (c && currentD) for (const id of c[1].match(/OD-\d{3}/g) || []) challenges.set(id, currentD)
+    }
+  }
+
+  const entries = []
+  for (let i = 0; i < od.lines.length; i++) {
+    const m = od.lines[i].match(/^##\s+(OD-\d{3})\s*[—–-]?\s*(.*)$/)
+    if (!m) continue
+    let days = null
+    for (let j = i + 1; j < od.lines.length && !/^##\s+/.test(od.lines[j]); j++) {
+      const o = od.lines[j].match(/^\s*opened:\s*(\d{4}-\d{2}-\d{2})\s*$/i)
+      if (o) { days = Math.floor((now - Date.parse(`${o[1]}T00:00:00Z`)) / 86_400_000); break }
+    }
+    entries.push({ id: m[1], title: m[2].trim(), days, challenges: challenges.get(m[1]) })
+  }
+  if (entries.length === 0) return []
+
+  const yel = useColor ? '\x1b[33m' : '', rst = useColor ? '\x1b[0m' : ''
+  const out = []
+  for (const [n, e] of entries.slice(0, OD_SHOWN_MAX).entries()) {
+    const label = n === 0 ? '  Open:   ' : '          '
+    const notes = []
+    if (e.days != null) notes.push(`${e.days}d`)
+    if (e.challenges) notes.push(`${yel}challenges ${e.challenges}${rst}`)
+    const suffix = notes.length ? `  (${notes.join(', ')})` : ''
+    out.push(`${label} ${e.id}${e.title ? ` — ${e.title}` : ''}${suffix}`)
+  }
+  if (entries.length > OD_SHOWN_MAX) {
+    out.push(`           … and ${entries.length - OD_SHOWN_MAX} more in state/open-decisions.md`)
+  }
+  return out
 }

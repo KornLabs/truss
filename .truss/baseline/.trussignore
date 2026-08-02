@@ -21,3 +21,15 @@
 # datasets/
 # *.tmp
 # /vendor-dump/
+
+# ── Host-agent territory (active) ───────────────────────────────────────────
+# Your AI tool discovers its own skills, commands and settings in its own
+# directory — that is where a SKILL.md goes, not into a Truss-owned path.
+# Truss does not manage them and must not report on them; git still tracks them
+# by default, so a skill you write stays shareable. Add your tool's dir if it is
+# missing here.
+.claude/
+.cursor/
+.codex/
+.gemini/
+.opencode/

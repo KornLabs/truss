@@ -35,7 +35,7 @@ export class OverviewView extends Component {
   decisionText = (od) => {
     const chosen = (od.options && od.options[this.state.odSel[od.id]]) || null;
     const note = (this.state.odNote[od.id] || '').trim();
-    if (chosen) return `${chosen.label}${chosen.desc ? ` — ${chosen.desc}` : ''}${note ? ` (${note})` : ''}`;
+    if (chosen) return `${chosen.key ? `Option ${chosen.key} — ` : ''}${chosen.label}${chosen.desc ? ` — ${chosen.desc}` : ''}${note ? ` (${note})` : ''}`;
     return note || '';
   };
 
@@ -315,7 +315,16 @@ const DecisionsModal = ({ open, onClose, decisions, handoff = [], odSel, odNote,
                     onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSel(od.id, i); } }}
                     style=${`gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid ${sel === i ? 'var(--accent-border)' : 'var(--border)'};border-radius:var(--r-sm);cursor:pointer;background:${sel === i ? 'var(--accent-soft)' : 'transparent'}`}>
                     <span style=${`margin-top:2px;width:15px;height:15px;border-radius:50%;flex:none;border:1.5px solid ${sel === i ? 'var(--accent)' : 'var(--border-strong)'};background:${sel === i ? 'var(--accent)' : 'transparent'};box-shadow:${sel === i ? 'inset 0 0 0 3px var(--bg-elev)' : 'none'}`}></span>
-                    <span style="font-size:13px"><strong>${opt.label}</strong>${opt.desc ? html`<span class="muted"> — ${opt.desc}</span>` : ''}</span>
+                    <span style="font-size:13px">
+                      ${opt.key ? html`<span class="mono dim" style="margin-right:5px">${opt.key}</span>` : ''}
+                      <strong>${opt.label}</strong>
+                      ${opt.recommended ? html`<span class="badge ok" style="margin-left:6px;font-size:10.5px">recommended</span>` : ''}
+                      ${opt.desc ? html`<span class="muted"> — ${opt.desc}</span>` : ''}
+                      ${(opt.pro || opt.con) ? html`<span class="col" style="gap:2px;margin-top:5px;font-size:12px;line-height:1.45">
+                        ${opt.pro ? html`<span><span style="color:var(--ok);font-weight:600;margin-right:5px">+</span><span class="muted">${opt.pro}</span></span>` : ''}
+                        ${opt.con ? html`<span><span style="color:var(--warn);font-weight:600;margin-right:5px">–</span><span class="muted">${opt.con}</span></span>` : ''}
+                      </span>` : ''}
+                    </span>
                   </div>`)}
               </div>`
               : html`<p class="dim" style="font-size:12px;margin-bottom:12px">No structured options in this briefing — your choice is captured as free text below.</p>`}

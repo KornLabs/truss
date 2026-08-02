@@ -81,7 +81,7 @@ describe('SY-03 entry grammar', () => {
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(good) })), 'SY-03').length, 0)
   })
   it('flags an OD entry missing Opened and an unnumbered entry, passes a complete one', async () => {
-    const good        = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: 2026-06-01\nOptions:\n- A: a\n- B: b\nTrade-offs: x\nLeaning: a\n`
+    const good        = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: 2026-06-01\nOptions:\n- A: do X — ships this week +fast / –rough edges\n- B: skip X (recommended) — wait for the rewrite +clean / –slower\nTrade-offs: x\nLeaning: B\n`
     const missingF    = `# Open Decisions\n\n## OD-001 — Should we X?\n\nLeaning: a\n`
     const unnumbered  = `# Open Decisions\n\n## Should we X?\n\nOpened: 2026-06-01\nLeaning: a\n`
     assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(good) })), 'SY-03').length, 0)
@@ -199,6 +199,101 @@ describe('CX-01 context size', () => {
   it('counts whitespace-separated read: targets (not just comma/semicolon)', async () => {
     const phases = { frontmatter: { current: 'discover' }, defs: new Map([['discover', { read: 'a.md b.md' }]]) }
     assert.equal(ids(await cx.run(ctxOf({ 'a.md': file(big(6500)), 'b.md': file(big(6500)) }, { phases })), 'CX-01').length, 1)
+  })
+})
+
+// ── SY-10 ────────────────────────────────────────────────────────────────────
+describe('SY-10 open decisions waiting a long time', () => {
+  const od = (opened) => `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: ${opened}\nOptions:\n- A: do it — now +fast / –rough\n- B: wait — later +safe / –slow\nTrade-offs: x\nLeaning: A\n`
+
+  it('nudges once an entry has been open past the threshold', async () => {
+    const f = ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(od(daysAgo(40))) })), 'SY-10')
+    assert.equal(f.length, 1)
+    assert.match(f[0].message, /OD-001 has been open for 40 days/)
+  })
+
+  it('stays silent inside the threshold and for a missing file', async () => {
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(od(daysAgo(5))) })), 'SY-10').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(od(daysAgo(29))) })), 'SY-10').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({})), 'SY-10').length, 0)
+  })
+
+  it('leaves a missing or malformed Opened: to SY-03 rather than guessing an age', async () => {
+    const noDate = `# Open Decisions\n\n## OD-001 — X?\n\nOpened: soon\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(noDate) })), 'SY-10').length, 0)
+    assert.ok(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(noDate) })), 'SY-03').length > 0)
+  })
+
+  it('ignores entries inside fenced blocks and comment blocks', async () => {
+    const fenced = '# Open Decisions\n\n```\n## OD-009 — example\n\nOpened: 2020-01-01\n```\n'
+    const comment = '# Open Decisions\n\n<!--\n## OD-NNN — template\n\nOpened: YYYY-MM-DD\n-->\n'
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(fenced) })), 'SY-10').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(comment) })), 'SY-10').length, 0)
+  })
+})
+
+// ── SY-11 ────────────────────────────────────────────────────────────────────
+describe('SY-11 stale Challenged-by markers', () => {
+  const decision = (extra = '') =>
+    `# Decisions\n\n## D-001 — Pick a stack\n\nDate: 2026-06-01\nDecision: Node.\nRationale: small runtime\nConsequences: use node --test\n${extra}`
+  const openOd = `# Open Decisions\n\n## OD-007 — Revisit the stack?\n\nOpened: ${today()}\nOptions:\n- A: keep — stay +cheap / –stale\n- B: move — switch +modern / –costly\nTrade-offs: x\nLeaning: A\n`
+
+  it('stays silent while the challenge is open', async () => {
+    const f = await sy.run(ctxOf({
+      'state/decisions.md': file(decision('Challenged-by: OD-007\n')),
+      'state/open-decisions.md': file(openOd),
+    }))
+    assert.equal(ids(f, 'SY-11').length, 0)
+  })
+
+  it('flags a marker whose OD is gone — the case RF-02 deliberately cannot see', async () => {
+    const f = await sy.run(ctxOf({
+      'state/decisions.md': file(decision('Challenged-by: OD-007\nCloses: OD-007\n')),
+      'state/open-decisions.md': file('# Open Decisions\n'),
+    }))
+    assert.equal(ids(f, 'SY-11').length, 1)
+    assert.match(ids(f, 'SY-11')[0].message, /OD-007/)
+  })
+
+  it('flags a marker when open-decisions.md is absent entirely', async () => {
+    const f = await sy.run(ctxOf({ 'state/decisions.md': file(decision('Challenged-by: OD-007\n')) }))
+    assert.equal(ids(f, 'SY-11').length, 1)
+  })
+
+  it('does not treat an inline <!-- --> in prose as a comment block', async () => {
+    // Regression: a decision body that *mentions* the comment syntax mid-sentence
+    // had the rest of its fields swallowed, so SY-03 reported them missing.
+    const inline = `# Decisions\n\n## D-001 — Ignore comment blocks\n\nDate: 2026-06-01\nDecision: skip them.\nRationale: templates live in <!-- --> blocks.\nConsequences: none.\n`
+    assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(inline) })), 'SY-03').length, 0)
+  })
+
+  it('ignores markers shown inside fenced or comment blocks', async () => {
+    const fenced = `# Decisions\n\n\u0060\u0060\u0060\nChallenged-by: OD-042\n\u0060\u0060\u0060\n`
+    const comment = `# Decisions\n\n<!-- Challenged-by: OD-042 -->\n`
+    assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(fenced) })), 'SY-11').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(comment) })), 'SY-11').length, 0)
+  })
+})
+
+// ── SY-03: the option lines are a machine contract (dashboard chooser) ───────
+describe('SY-03 option-line form', () => {
+  const wrap = (opts) => `# Open Decisions\n\n## OD-001 — X?\n\nOpened: ${today()}\nOptions:\n${opts}Trade-offs: x\nLeaning: A\n`
+
+  it('accepts keyed, dashed options with and without a recommendation', async () => {
+    const good = wrap('- A: ship — now +fast / –rough\n- B: wait (recommended) — later +safe / –slow\n')
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(good) })), 'SY-03').length, 0)
+  })
+
+  it('warns on an option without a key or without the label separator', async () => {
+    const noDash = wrap('- A: ship it right now\n')
+    const noKey  = wrap('- ship it — now +fast / –rough\n')
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(noDash) })), 'SY-03').length, 1)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(noKey) })), 'SY-03').length, 1)
+  })
+
+  it('does not treat an inline "Options: a" as an options block', async () => {
+    const inline = `# Open Decisions\n\n## OD-001 — X?\n\nOpened: ${today()}\nOptions: a\nTrade-offs: x\nLeaning: a\n`
+    assert.equal(ids(await sy.run(ctxOf({ 'state/open-decisions.md': file(inline) })), 'SY-03').length, 0)
   })
 })
 

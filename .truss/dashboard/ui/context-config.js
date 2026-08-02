@@ -10,7 +10,7 @@ export const TOKEN_PER_CHAR = 0.25; // 1 token ≈ 4 chars
 // Truss' fixed framework overhead: the §1 load order at a fresh `init` (empty
 // templates), remeasured 2026-07-25 from baseline/ via the shared words×1.5 method
 // (context-budget.mjs CONTEXT_FILES) at ≈3.2k tokens (D-028 + the fixed rules D-029
-// moved out of the preferences block; open-decisions is on demand and absent at init). This is the cost the FRAMEWORK imposes — independent of how
+// moved out of the preferences block; open-decisions ships with the workspace and is counted whether or not it holds entries). This is the cost the FRAMEWORK imposes — independent of how
 // much project content a given project has accumulated. It floors the health gauge
 // (a running project can never sit below framework overhead). Keep in sync with
 // baseline/ when the templates change.
@@ -34,8 +34,13 @@ export function budgetStatus(tokens) {
   return { tone: 'err', label: 'Heavy' };
 }
 
+// latent: [2026-08-02] this duplicates .truss/prompts/base/cleanup.md, which is now
+// the canonical cleanup procedure. Kept as a self-sufficient string because the
+// context view copies it to the clipboard synchronously and this is a browser
+// module that cannot read prompts/. Fold it into the normal prompt-serving path
+// the next time the context view is touched, so the two cannot drift.
 export const CLEANUP_PROMPT =
-  `The mandatory per-session reading (AGENTS.md §1 load order) has grown large and ` +
+  `Run the Truss \`cleanup\` prompt (.truss/prompts/base/cleanup.md) — proposal first, execution only after approval. ` +
   `risks crowding out working context. Review AGENTS.md, state/current.md, VISION.md, ` +
   `state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's ` +
   `read: targets. Identify what is stale, duplicated, in the wrong canonical file, too large, ` +

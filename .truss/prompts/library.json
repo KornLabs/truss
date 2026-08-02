@@ -137,6 +137,15 @@
     },
 
     {
+      "id": "cleanup",
+      "shelf": "session",
+      "tags": ["maintain"],
+      "recommended": false,
+      "orchestratable": false,
+      "title": { "en": "Context cleanup", "de": "Kontext aufräumen" }
+    },
+
+    {
       "id": "project-kickoff",
       "shelf": "setup",
       "tags": ["ideate", "plan"],

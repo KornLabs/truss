@@ -14,7 +14,7 @@ import { parseIgnoreRules, makePredicate, loadIgnore } from '../lib/ignore.mjs'
 import { dedupeFindings } from '../lib/severity.mjs'
 import { generateMapContent } from '../lib/commands/map.mjs'
 import { runInit } from '../lib/commands/init.mjs'
-import { makeRoot, runChecks } from './helpers.mjs'
+import { makeRoot, runChecks, ENGINE_DIR } from './helpers.mjs'
 
 const pred = (text) => makePredicate(parseIgnoreRules(text))
 
@@ -129,5 +129,39 @@ describe('end-to-end: foreign bulk folder stays out of map and doctor', () => {
     const map = await generateMapContent(root)
     assert.ok(!/data\/raw/.test(map), 'map must not list .trussignore-excluded tree')
     await fs.rm(root, { recursive: true, force: true })
+  })
+})
+
+// D-041: a skill placed where the host agent actually finds it must not turn a
+// fresh workspace yellow. Before this, `.claude/skills/<name>/SKILL.md` produced
+// ST-02 hints on the first skill a project ever added.
+describe('host-agent territory is excluded out of the box', () => {
+  it('a skill in .claude/skills/ raises no findings and stays out of the map', async () => {
+    const root = await makeRoot('truss-hostdir-')
+    await runInit(root, ['--name', 'HD', '--lang', 'English'])
+
+    const skill = path.join(root, '.claude', 'skills', 'my-skill', 'references')
+    await fs.mkdir(skill, { recursive: true })
+    await fs.writeFile(
+      path.join(root, '.claude', 'skills', 'my-skill', 'SKILL.md'),
+      '---\nname: my-skill\ndescription: t\n---\n\nDo the thing.\n',
+    )
+    for (let i = 0; i < 15; i++) await fs.writeFile(path.join(skill, `r${i}.md`), `# r${i}\n`)
+
+    const map = await generateMapContent(root)
+    assert.ok(!map.includes('.claude'), 'map must not enumerate host-agent territory')
+
+    const findings = await runChecks(root)
+    const hits = findings.filter(f => (f.file || '').includes('.claude'))
+    assert.equal(hits.length, 0, 'a host-native skill must not produce doctor findings')
+    await fs.rm(root, { recursive: true, force: true })
+  })
+
+  it('the shipped .trussignore covers the tool dirs Truss ships adapter stubs for', async () => {
+    const raw = await fs.readFile(path.join(ENGINE_DIR, 'baseline', '.trussignore'), 'utf8')
+    const active = raw.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'))
+    for (const dir of ['.claude/', '.cursor/', '.codex/', '.gemini/']) {
+      assert.ok(active.includes(dir), `${dir} must be an active .trussignore rule`)
+    }
   })
 })

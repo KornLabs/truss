@@ -54,7 +54,7 @@ the block writer.
 |---|---|
 | `current.md` | the live focus: what you're doing, next actions (≤5), blockers, recently done |
 | `decisions.md` | decided decisions, each a `D-NNN` entry; superseded, never deleted |
-| `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`); created at its first entry |
+| `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`), including challenges to recorded decisions; ships with the workspace and stays when empty |
 | `phases.md` | the phase definitions and the `current:` pointer |
 | `profile.md` | project name, language, tools, PM method, style notes |
 | `risks.md` | project, launch, safety, strategy, or blocker risks (`R-NNN`); created at its first entry |
