@@ -32,6 +32,12 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { wordCount, toTokens } from '../lib/context-budget.mjs'
+import { CHECKBOX_ANY, CHECKBOX_DONE } from '../lib/md.mjs'
+
+// Built from the shared checkbox fragments (lib/md.mjs) so this module can never
+// disagree with parseIdDefinitions about what a settled entry looks like — D-046.
+const HT_DONE_RE    = new RegExp(`^[-*]\\s+${CHECKBOX_DONE}\\s+HT-\\d{3}\\b`)
+const HT_GRAMMAR_RE = new RegExp(`^[-*]\\s+${CHECKBOX_ANY}\\s+HT-\\d{3}\\s+—\\s+\\S`)
 
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key' },
@@ -273,7 +279,7 @@ function checkHumanTodosDonePile(file, findings) {
   const done = []
   for (let i = 0; i < file.lines.length; i++) {
     if (fenced.has(i)) continue
-    if (/^[-*]\s+\[[xX]\]\s+HT-\d{3}\b/.test(file.lines[i].trimStart())) done.push(i + 1)
+    if (HT_DONE_RE.test(file.lines[i].trimStart())) done.push(i + 1)
   }
   if (done.length > HT_DONE_MAX) {
     findings.push({
@@ -587,7 +593,7 @@ function checkHumanTodosGrammar(file, findings) {
     if (!/\bHT-\d{3}\b/.test(line)) continue           // only lines that define/mention a real HT id
     const t = line.trimStart()
     if (t.startsWith('>') || t.startsWith('<!--')) continue   // doc/comment lines, not entries
-    if (!/^[-*]\s+\[[ xX]\]\s+HT-\d{3}\s+—\s+\S/.test(t)) {
+    if (!HT_GRAMMAR_RE.test(t)) {
       findings.push({
         id: 'SY-03', severity: 'W',
         file: 'HUMAN-TODOS.md', line: i + 1,

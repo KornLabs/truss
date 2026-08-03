@@ -14,6 +14,7 @@ import * as cx from '../checks/cx.mjs'
 import * as ph from '../checks/ph.mjs'
 import * as rf from '../checks/rf.mjs'
 import { loadWorkspace } from '../lib/workspace.mjs'
+import { parseIdDefinitions } from '../lib/md.mjs'
 import { makeRoot, read, runChecks, ENGINE_DIR } from './helpers.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 
@@ -153,6 +154,64 @@ describe('SY-07 checked-off HT pile-up', () => {
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(htFile(3, 5)) })), 'SY-07').length, 0)
     const fenced = '# Human ToDos\n\n```\n- [x] HT-001 — a\n- [x] HT-002 — b\n- [x] HT-003 — c\n- [x] HT-004 — d\n- [x] HT-005 — e\n- [x] HT-006 — f\n```\n\n- [ ] HT-007 — real\n'
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(fenced) })), 'SY-07').length, 0)
+  })
+})
+
+// ── D-046: one checkbox syntax across modules ───────────────────────────────
+// The bug this pins down: `- [X] HT-001 — …` counted as settled for SY-07 but
+// was invisible to parseIdDefinitions, so RF-02 warned about an ID that was
+// sitting right there — a finding with no legal way to clear it. Every module
+// that reads a task line must agree on what a checkbox looks like.
+describe('checkbox syntax is shared, not re-invented per module', () => {
+  it('parseIdDefinitions accepts every GFM checkbox state', () => {
+    const lines = [
+      '- [ ] HT-001 — open',
+      '- [x] HT-002 — done, lowercase',
+      '- [X] HT-003 — done, uppercase',
+      '* [X] HT-004 — asterisk bullet',
+      '- HT-005 — no checkbox at all',
+    ]
+    assert.deepEqual(
+      parseIdDefinitions(lines).map(d => d.id),
+      ['HT-001', 'HT-002', 'HT-003', 'HT-004', 'HT-005'],
+    )
+  })
+
+  it('SY-07 and parseIdDefinitions agree on an uppercase-X entry', async () => {
+    const ht = '# Human ToDos\n\n'
+      + Array.from({ length: 6 }, (_, i) => `- [X] HT-${String(i + 1).padStart(3, '0')} — done ${i + 1}`).join('\n')
+      + '\n'
+    // SY-07 sees six settled entries …
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(ht) })), 'SY-07').length, 1)
+    // … and every one of them is a definition, so RF-02 has nothing to report.
+    assert.equal(parseIdDefinitions(ht.split('\n')).length, 6)
+  })
+
+  it('SY-03 accepts uppercase X as valid HT grammar', async () => {
+    const ht = '# Human ToDos\n\n- [X] HT-001 — done, uppercase\n'
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(ht) })), 'SY-03').length, 0)
+  })
+
+  // The contract, asserted where it matters: every consumer must read the same
+  // three GFM states the same way. Source-grepping for stray regexes would be
+  // the weaker test — this one fails for the reason a user would notice.
+  it('all consumers treat the three GFM states alike', async () => {
+    for (const box of ['[ ]', '[x]', '[X]']) {
+      const ht = `# Human ToDos\n\n- ${box} HT-001 — a thing\n`
+      const findings = await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(ht) }))
+      assert.equal(ids(findings, 'SY-03').length, 0, `SY-03 rejects '${box}'`)
+      assert.deepEqual(
+        parseIdDefinitions(ht.split('\n')).map(d => d.id), ['HT-001'],
+        `parseIdDefinitions misses '${box}' — RF-02 would warn about a defined ID`,
+      )
+    }
+    // …and the two checked states are settled, the open one is not.
+    const pile = (box) => '# Human ToDos\n\n'
+      + Array.from({ length: 6 }, (_, i) => `- ${box} HT-${String(i + 1).padStart(3, '0')} — d${i}`).join('\n') + '\n'
+    for (const box of ['[x]', '[X]']) {
+      assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(pile(box)) })), 'SY-07').length, 1, `SY-07 misses '${box}'`)
+    }
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(pile('[ ]')) })), 'SY-07').length, 0)
   })
 })
 
