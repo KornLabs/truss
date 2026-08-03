@@ -124,6 +124,8 @@ Context: [why this matters now]
 Options:
 - A: [short label] — [what choosing it means] +[opportunity] / –[risk]
 - B: [short label] (recommended) — [what choosing it means] +[opportunity] / –[risk]
+- C: [short label] — [what choosing it means] +[opportunity] / –[risk]
+- …: as many as the question genuinely has — two is the minimum, not the shape
 Trade-offs: [cross-cutting: cost, reversibility — only what the option lines don't carry]
 Leaning: [recommendation — one-line why · or: none — what input would decide it]
 Needed from human: [decision/input needed]
@@ -137,7 +139,11 @@ an honest `none` plus what would resolve it beats an anchored guess.
 **The option lines are a machine contract.** The dashboard builds its chooser from
 them, so the shape is not cosmetic:
 
-- **Keyed** — start with `A:`, `B:`, … (or `1.`, `2.`). The key anchors the label.
+- **Keyed** — start with `A:`, `B:`, `C:`, … (or `1.`, `2.`, `3.`, …). The key anchors
+  the label. Two options are the floor, not the format: list every option the
+  question actually has — a real three- or four-way choice forced into a binary
+  hides the option the human would have picked. Beyond four, ask whether some
+  are variants of one option and say so in `Trade-offs:` instead.
 - **Label before the ` — `**, and keep it short: it is the click target in the UI,
   not the argument. Everything explanatory goes after the dash.
 - **`+upside / –downside` at the end** of the description, in that order,
