@@ -150,23 +150,42 @@ export function parseAllLinks(lines) {
   return results;
 }
 
+// Checkbox syntax — ONE source of truth for every module that reads a task
+// list. GitHub-flavoured Markdown accepts `[ ]`, `[x]` and `[X]`, and renderers
+// treat the last two as identical. Splitting this across modules is how D-046
+// happened: `parseIdDefinitions` matched only `[ x]` while SY-07 matched
+// `[xX]`, so an entry checked off with a capital X counted as settled but was
+// invisible as a definition — RF-02 then warned about an ID that was sitting
+// right there, with no legal way to clear the finding.
+//   CHECKBOX_ANY   — any state, for "is this a task line at all"
+//   CHECKBOX_DONE  — checked only, for "has this been settled"
+// Both are fragment sources, not regexes: callers interpolate them.
+export const CHECKBOX_ANY  = '\\[[ xX]\\]'
+export const CHECKBOX_DONE = '\\[[xX]\\]'
+
+/** Structured-ID token as it appears in headings and list items. */
+export const ID_TOKEN = '(?:D|HT|R|OD|L)-\\d{3}'
+
 /**
  * Find all structured IDs defined in a file (i.e. appearing as definition headings).
  * A "definition" is a heading like "## D-001 — Title" or a list item "- [ ] HT-001 — ...".
  * Returns Array<{ id: string, line: number }> (line is 1-based).
  */
+const ID_HEADING_RE = new RegExp(`^#{1,6}\\s+(${ID_TOKEN})\\b`)
+const ID_LIST_RE    = new RegExp(`^[-*]\\s+(?:${CHECKBOX_ANY}\\s+)?(${ID_TOKEN})\\b`)
+
 export function parseIdDefinitions(lines) {
   const defs = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // Heading definitions: ## D-001 — ...
-    const headingM = line.match(/^#{1,6}\s+((?:D|HT|R|OD|L)-\d{3})\b/);
+    const headingM = line.match(ID_HEADING_RE);
     if (headingM) {
       defs.push({ id: headingM[1], line: i + 1 });
       continue;
     }
     // List item definitions: - [ ] HT-001 — ... or - HT-001 —
-    const listM = line.match(/^[-*]\s+(?:\[[ x]\]\s+)?((?:D|HT|R|OD|L)-\d{3})\b/);
+    const listM = line.match(ID_LIST_RE);
     if (listM) {
       defs.push({ id: listM[1], line: i + 1 });
     }
