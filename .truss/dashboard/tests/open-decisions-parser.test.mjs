@@ -44,6 +44,35 @@ test('splits keyed options into label, description, upside and downside', () => 
   assert.equal(b.con, 'slips the date');
 });
 
+// Two options are the floor, not the format (D-048). A question with a real
+// three- or four-way answer must not be squeezed into a binary — the parser and
+// the chooser have to carry every option the briefing lists.
+test('carries more than two options, and the recommendation can be any of them', () => {
+  const MANY = `# Open Decisions
+
+## OD-002 — Which store backs the queue?
+
+Opened: 2026-06-02
+Context: the prototype outgrew the in-memory queue.
+Options:
+- A: Keep in-memory — do nothing for now +zero work / –loses jobs on restart
+- B: SQLite — one file, one dependency +survives restarts / –single writer
+- C: Redis (recommended) — a real broker +proven under load / –another service to run
+- D: SQS — hand it to the cloud +no ops at all / –vendor lock-in
+Trade-offs: C and D are the only two that survive a second worker.
+Leaning: C, we already run Redis for sessions.
+Needed from human: pick one.
+`;
+  const [od] = parseOpenDecisions(lines(MANY));
+  assert.equal(od.options.length, 4);
+  assert.deepEqual(od.options.map(o => o.key), ['A', 'B', 'C', 'D']);
+  assert.deepEqual(od.options.map(o => o.label), ['Keep in-memory', 'SQLite', 'Redis', 'SQS']);
+  // The badge follows the entry, not the position — C is neither first nor last.
+  assert.deepEqual(od.options.map(o => o.recommended), [false, false, true, false]);
+  assert.equal(od.options[3].pro, 'no ops at all');
+  assert.equal(od.options[3].con, 'vendor lock-in');
+});
+
 test('the Options block and Opened: stay out of the rendered body', () => {
   const [od] = parseOpenDecisions(lines(ENTRY));
   assert.doesNotMatch(od.body, /Ship now/);
