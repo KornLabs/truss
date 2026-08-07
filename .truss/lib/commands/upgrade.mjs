@@ -6,7 +6,7 @@
 //   mechanical  — swap .truss/ (preserving prompts/custom/), then reconcile the
 //                 baseline-derived workspace files by 3-way merge. Done here.
 //   judgment    — the hunks where the project and the baseline changed the same
-//                 place. Handed to the agent via prompts/base/upgrade.md.
+//                 place. Handed to the agent as an inline prompt in the upgrade output.
 //
 // THE MERGE BASE IS FREE. Every installed engine carries .truss/baseline/ — the
 // exact files the workspace was scaffolded from, at the installed version. So:
@@ -594,9 +594,8 @@ function printReport({ target, from, to, plan, backup, customRestored, gitignore
     L.push('')
     L.push('  Prompt for your AI tool:')
     L.push('    "Read AGENTS.md fully, then follow §1 load order. This workspace was just')
-    L.push(`      upgraded from Truss ${from} to ${to}. Run the upgrade ritual`)
-    L.push('      (.truss/prompts/base/upgrade.md): resolve the files listed above as')
-    L.push('      CONFLICT, manual, FAILED or review, taking only the new baseline rules and')
+    L.push(`      upgraded from Truss ${from} to ${to}. Resolve the files listed above:`)
+    L.push('      mark each as CONFLICT, manual, FAILED or review, taking only the new baseline rules and')
     L.push('      leaving everything project-specific intact. The old baseline is at')
     L.push(`      ${path.basename(backup)}/baseline/ if you need the before-state."`)
   }

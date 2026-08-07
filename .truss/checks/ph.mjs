@@ -247,7 +247,7 @@ export async function run(ctx) {
         id: 'PH-04', severity: 'W',
         file: 'state/phases.md',
         message: `gate: ${humanItems.length} human check${humanItems.length !== 1 ? 's' : ''} ${humanItems.length === 1 ? 'requires' : 'require'} sign-off before leaving '${current}'`,
-        fix: `Confirm each item with the human, then update current: and run render:\n${checklist}\n\n  Advocate prompt: .truss/prompts/base/gate-advocate.md`,
+        fix: `Confirm each item with the human, then update current: and run render:\n${checklist}`,
       })
     }
   }

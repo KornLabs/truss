@@ -157,34 +157,13 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
         } catch (e) { return send(res, 200, { error: e.message, present: false, list: [] }); }
       }
 
-      if (req.method === 'GET' && url === '/api/prompts') {
+       if (req.method === 'GET' && url === '/api/prompts') {
         try {
-          const baseDir = path.join(root, '.truss', 'prompts', 'base');
-          const baseDeDir = path.join(root, '.truss', 'prompts', 'base-de');
           const customDir = path.join(root, '.truss', 'prompts', 'custom');
 
-          // Curated base prompts are driven by the manifest (bilingual). Legacy files not in
-          // the manifest are ignored. Body = file content with frontmatter stripped.
-          let manifest = { prompts: [], chains: {} };
+          // Prompt library: only custom prompts remain (base prompts removed in beta.2).
+          let manifest = { prompts: [], shelves: {}, input: {} };
           try { manifest = JSON.parse(await fs.promises.readFile(path.join(root, '.truss', 'prompts', 'library.json'), 'utf-8')); } catch {}
-
-          const readBody = async (dir, id) => {
-            try { return stripFrontmatter(await fs.promises.readFile(path.join(dir, `${id}.md`), 'utf-8')); }
-            catch { return null; }
-          };
-
-          const base = await Promise.all((manifest.prompts || []).map(async m => {
-            const en = await readBody(baseDir, m.id);
-            const de = await readBody(baseDeDir, m.id);
-            return {
-              id: m.id, type: 'base', tags: m.tags || [],
-              // V4 schema: three shelves (task, session, setup), no wrapper.
-              shelf: m.shelf || 'task',
-              recommended: m.recommended || false,
-              title: m.title || { en: m.id, de: m.id },
-              body: { en: en || '', de: de || en || '' },
-            };
-          }));
 
           // Custom prompts: single language (shown in both), tags derived.
           const customFiles = await fs.promises.readdir(customDir).catch(() => []);
@@ -201,7 +180,7 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
           );
 
           return send(res, 200, {
-            prompts: [...base, ...custom],
+            prompts: custom,
             shelves: manifest.shelves || {},
             input: manifest.input || {},
           });

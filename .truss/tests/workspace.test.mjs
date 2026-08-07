@@ -426,8 +426,8 @@ describe('ST-04: stub drift detected', async () => {
 
     // .truss skeleton
     await write('.truss/VERSION', '1.0.0-alpha\n')
-    await write('.truss/prompts/base/discover-kickoff.md', 'stub\n')
-    await write('.truss/prompts/base/validate-kickoff.md', 'stub\n')
+    await write('.truss/prompts/custom/discover-kickoff.md', 'stub\n')
+    await write('.truss/prompts/custom/validate-kickoff.md', 'stub\n')
 
     const ctx = await loadWorkspace(tmpDir)
     const findings = await st.run(ctx)
@@ -1103,7 +1103,7 @@ async function scaffoldWorkspace(tag) {
     await writeFileIn(tmp, `docs/${f}`, `# ${f}\n`)
   }
   await writeFileIn(tmp, '.truss/VERSION', '1.0.0-test\n')
-  await writeFileIn(tmp, '.truss/prompts/base/discover-kickoff.md', 'stub\n')
-  await writeFileIn(tmp, '.truss/prompts/base/validate-kickoff.md', 'stub\n')
+  await writeFileIn(tmp, '.truss/prompts/custom/discover-kickoff.md', 'stub\n')
+  await writeFileIn(tmp, '.truss/prompts/custom/validate-kickoff.md', 'stub\n')
   return tmp
 }

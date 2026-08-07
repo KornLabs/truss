@@ -34,13 +34,10 @@ export function budgetStatus(tokens) {
   return { tone: 'err', label: 'Heavy' };
 }
 
-// latent: [2026-08-02] this duplicates .truss/prompts/base/cleanup.md, which is now
-// the canonical cleanup procedure. Kept as a self-sufficient string because the
-// context view copies it to the clipboard synchronously and this is a browser
-// module that cannot read prompts/. Fold it into the normal prompt-serving path
-// the next time the context view is touched, so the two cannot drift.
+// Note: cleanup procedure is self-contained here because the context view copies it
+// to the clipboard synchronously in the browser and cannot read from the filesystem.
 export const CLEANUP_PROMPT =
-  `Run the Truss \`cleanup\` prompt (.truss/prompts/base/cleanup.md) — proposal first, execution only after approval. ` +
+  `Run the Truss cleanup procedure — proposal first, execution only after approval. ` +
   `risks crowding out working context. Review AGENTS.md, state/current.md, VISION.md, ` +
   `state/decisions.md, state/open-decisions.md, state/profile.md, and the current phase's ` +
   `read: targets. Identify what is stale, duplicated, in the wrong canonical file, too large, ` +
