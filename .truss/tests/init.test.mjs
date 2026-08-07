@@ -15,15 +15,13 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, repo: null, codeRoot: null, adoptAgents: false, root: null })
+      { name: 'A', lang: 'English', overlay: false, codeRoot: null, adoptAgents: false, root: null })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, repo: null, codeRoot: null, adoptAgents: false, root: null })
+      { name: 'A B', lang: null, overlay: true, codeRoot: null, adoptAgents: false, root: null })
   })
-  it('parses --repo (spaced and =) with overlay', () => {
-    assert.deepEqual(parseInitArgs(['--overlay', '--repo', '/p/code']),
-      { name: null, lang: null, overlay: true, repo: '/p/code', codeRoot: null, adoptAgents: false, root: null })
-    assert.deepEqual(parseInitArgs(['--overlay', '--repo=https://x/y.git']),
-      { name: null, lang: null, overlay: true, repo: 'https://x/y.git', codeRoot: null, adoptAgents: false, root: null })
+  it('rejects the retired --repo flag (D-059 — init never places the code)', () => {
+    assert.throws(() => parseInitArgs(['--overlay', '--repo', '/p/code']), InitError)
+    assert.throws(() => parseInitArgs(['--overlay', '--repo=https://x/y.git']), InitError)
   })
   it('parses --root (spaced and =)', () => {
     assert.equal(parseInitArgs(['--root', '/p/ws']).root, '/p/ws')
@@ -36,17 +34,10 @@ describe('parseInitArgs', () => {
       'product/source',
     )
     assert.throws(() => parseInitArgs(['--code-root', 'product']), InitError)
-    assert.throws(
-      () => parseInitArgs(['--overlay', '--repo', '/p/code', '--code-root', 'product']),
-      InitError,
-    )
     assert.throws(() => parseInitArgs(['--overlay', '--code-root', '../code']), InitError)
   })
   it('parses explicit AGENTS.md adoption', () => {
     assert.equal(parseInitArgs(['--adopt-agents']).adoptAgents, true)
-  })
-  it('rejects --repo without --overlay', () => {
-    assert.throws(() => parseInitArgs(['--repo', '/p/code']), InitError)
   })
   it('throws on unknown flag', () => {
     assert.throws(() => parseInitArgs(['--bogus']), InitError)
@@ -55,7 +46,6 @@ describe('parseInitArgs', () => {
     assert.throws(() => parseInitArgs(['--lang']), InitError)
     assert.throws(() => parseInitArgs(['--name', '--overlay']), InitError)
     assert.throws(() => parseInitArgs(['--name']), InitError)
-    assert.throws(() => parseInitArgs(['--overlay', '--repo']), InitError)
   })
 })
 
@@ -98,10 +88,10 @@ describe('init (core)', () => {
     const root = await makeRoot('truss-init-core-')
     const res = await runInit(root, ['--name', 'Acme', '--lang', 'English'])
 
-    // phases.md = core (discover → validate → plan → build)
+    // phases.md = the core seed: ONE real phase, whose job is to write the plan
     const phases = parsePhases((await read(root, 'state/phases.md')).split('\n'))
-    assert.equal(phases.frontmatter.current, 'discover')
-    assert.deepEqual(phases.ordered, ['discover', 'validate', 'plan', 'build'])
+    assert.equal(phases.frontmatter.current, 'kickoff')
+    assert.deepEqual(phases.ordered, ['kickoff'])
 
     // placeholder substitution
     const profile = await read(root, 'state/profile.md')
@@ -109,11 +99,11 @@ describe('init (core)', () => {
     assert.match(profile, /language: English/)
     assert.match(await read(root, 'VISION.md'), /Acme/)
 
-    // rendered blocks (D-028: all preferences off → empty block + phase 1/4)
+    // rendered blocks (D-028: all preferences off → empty block + phase 1/1)
     const agents = await read(root, 'AGENTS.md')
     assert.doesNotMatch(agents, /- [\w-]+=\w+ ::/)
     assert.match(agents, /all preferences off/)
-    assert.match(await phaseBlockOf(root), /\*\*Phase 1\/4 — discover/)
+    assert.match(await phaseBlockOf(root), /\*\*Phase 1\/1 — kickoff/)
 
     assert.equal(res.conflicts.length, 0)
     assert.equal(errorsOf(await runChecks(root)).length, 0)
@@ -133,28 +123,24 @@ describe('init --overlay', () => {
     assert.equal(errorsOf(await runChecks(root)).length, 0)
   })
 
-  it('--repo <local path> symlinks the code into repo/', async () => {
+  it('leaves repo/ to the human and stays doctor-clean until it exists (D-059)', async () => {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
-    const os = await import('node:os')
-    // A throwaway "existing project" to bring in.
-    const src = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-src-'))
-    await fs.writeFile(path.join(src, 'index.js'), '// code\n')
-
     const root = await makeRoot('truss-init-repo-')
-    const res = await runInit(root, ['--name', 'Legacy', '--lang', 'English', '--overlay', '--repo', src])
+    const res = await runInit(root, ['--name', 'Legacy', '--lang', 'English', '--overlay'])
 
-    const lst = await fs.lstat(path.join(root, 'repo'))
-    assert.ok(lst.isSymbolicLink(), 'repo/ is a symlink to the source')
-    assert.equal(await read(root, 'repo/index.js'), '// code\n', 'code reachable through repo/')
-    assert.match(res.repo, /symlinked/)
+    assert.equal(res.repo, undefined, 'init reports no repo placement any more')
+    await assert.rejects(fs.lstat(path.join(root, 'repo')), 'init created nothing under repo/')
+    assert.match(
+      await read(root, '.gitignore'),
+      /repo\//,
+      'the overlay still gitignores the destination it documents',
+    )
     assert.equal(errorsOf(await runChecks(root)).length, 0)
-  })
 
-  it('--repo with a missing local path is reported, not fatal', async () => {
-    const root = await makeRoot('truss-init-repo-missing-')
-    const res = await runInit(root, ['--name', 'L', '--lang', 'English', '--overlay', '--repo', '/no/such/path'])
-    assert.match(res.repo, /not found/)
+    // …and the documented placement command produces a clean overlay too.
+    await fs.mkdir(path.join(root, 'repo'))
+    await fs.writeFile(path.join(root, 'repo', 'index.js'), '// code\n')
     assert.equal(errorsOf(await runChecks(root)).length, 0)
   })
 
@@ -276,7 +262,7 @@ describe('init no-overwrite & pre-flight', () => {
     await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
     await fs.rm(blocker, { recursive: true, force: true })
     const res = await runInit(root, ['--name', 'A', '--lang', 'English'])
-    assert.equal(res.currentPhase, 'discover')
+    assert.equal(res.currentPhase, 'kickoff')
   })
 })
 
@@ -348,7 +334,7 @@ describe('init root separation (D-024 / OD-005)', () => {
     const root = await makeRoot('truss-init-engine-')
     const target = await makeRoot('truss-init-target-')
     const res = await runInit(root, ['--name', 'T', '--lang', 'English', '--root', target])
-    assert.equal(res.currentPhase, 'discover')
+    assert.equal(res.currentPhase, 'kickoff')
     await fs.access(path.join(target, 'AGENTS.md'))
     await assert.rejects(fs.access(path.join(root, 'AGENTS.md')))
   })
@@ -356,7 +342,7 @@ describe('init root separation (D-024 / OD-005)', () => {
   it('--root pointing at the engine root behaves exactly as before', async () => {
     const root = await makeRoot('truss-init-selfroot-')
     const res = await runInit(root, ['--name', 'S', '--lang', 'English', '--root', root])
-    assert.equal(res.currentPhase, 'discover')
+    assert.equal(res.currentPhase, 'kickoff')
     await read(root, 'AGENTS.md')
   })
 

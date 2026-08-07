@@ -299,29 +299,52 @@ export function parseBlocks(lines) {
 }
 
 /**
+ * Marker for lines inside a phase section that are neither a `key: value` line
+ * nor an indented continuation of one. Non-enumerable so `Object.keys(def)`
+ * (PH-01's unknown-key scan, the dashboard parser) never sees it.
+ */
+export const PHASE_STRAY = Symbol('phase-stray-lines')
+export const PHASE_UNKNOWN_KEYS = Symbol('phase-unknown-keys')
+
+/**
  * Parse a phases.md section body (lines after the ## heading until next ##).
  * Returns a phase definition object.
- * Each line is "key: value" format.
+ *
+ * Grammar: every line is `key: value`; a wrapped value continues on an
+ * **indented** line. Anything else is free text, which this file does not
+ * accept — it would be swallowed into the preceding key and rendered verbatim
+ * into the AGENTS.md phase block, i.e. into every session boot. Such lines are
+ * collected under PHASE_STRAY instead so PH-01 can report them (D-061).
  */
 export function parsePhaseSection(lines) {
   const def = {};
+  const stray = [];
+  const unknownKeys = [];
   const knownKeys = ['label', 'name', 'purpose', 'behavior', 'allowed', 'forbidden',
     'forbidden-globs', 'read', 'exit', 'prompts'];
   let currentKey = null;
-  for (let line of lines) {
-    line = line.trimEnd();
-    const m = line.match(/^([a-z-]+):\s*(.*)$/);
+  for (let raw of lines) {
+    const line = raw.trimEnd();
+    if (!line.trim()) { currentKey = null; continue; } // blank line ends a value
+    const indented = /^\s/.test(line);
+    const m = indented ? null : line.match(/^([a-z-]+):\s*(.*)$/);
     if (m) {
       if (knownKeys.includes(m[1])) {
         currentKey = m[1];
         def[currentKey] = m[2];
       } else {
         currentKey = null; // Drop unknown keys
+        unknownKeys.push(m[1]);
       }
-    } else if (currentKey) {
+    } else if (indented && currentKey) {
       def[currentKey] += '\n' + line.trim();
+    } else {
+      currentKey = null;
+      stray.push(line.trim());
     }
   }
+  Object.defineProperty(def, PHASE_STRAY, { value: stray, enumerable: false });
+  Object.defineProperty(def, PHASE_UNKNOWN_KEYS, { value: unknownKeys, enumerable: false });
   return def;
 }
 

@@ -43,7 +43,7 @@ Some projects use Truss to manage an *existing* repository. The model is **neste
 
 **To set up overlay git:**
 
-1. `truss init --overlay --repo <path|url>` clones (URL) or symlinks (local path) the code into `repo/` for you. Otherwise: `git clone <url> repo/` or `ln -s /path/to/code repo`.
+1. Place the code under `repo/` yourself: `git clone <url> repo/` or `ln -s /path/to/code repo`. `init --overlay` prepares the workspace but never places the code.
 2. Confirm `repo/` is in `.gitignore` (overlay init adds it).
 3. Document the overlay structure in state/profile.md under Tools.
 4. Note in docs/import.md which files were imported and from where.
@@ -54,8 +54,8 @@ Three ways to put the existing code under `repo/`. The first two keep histories 
 
 | Option | How | repo/ in `.gitignore`? | Use when | Watch out |
 |---|---|---|---|---|
-| **Symlink** (default for local code) | `ln -s /path/to/code repo` (or `--repo <localpath>`) | yes | the code already lives on your machine and you want one working copy | Windows symlink friction; the symlink's branch *is* your real checkout's branch |
-| **Clone** (default for remote code) | `git clone <url> repo/` (or `--repo <url>`) | yes | you want a self-contained workspace, or the code is remote | a second checkout to keep in sync with origin |
+| **Symlink** (default for local code) | `ln -s /path/to/code repo` | yes | the code already lives on your machine and you want one working copy | Windows symlink friction; the symlink's branch *is* your real checkout's branch |
+| **Clone** (default for remote code) | `git clone <url> repo/` | yes | you want a self-contained workspace, or the code is remote | a second checkout to keep in sync with origin |
 | **Submodule** (advanced) | `git submodule add <url> repo` and **remove `repo/` from `.gitignore`** | no — the workspace tracks a pinned commit | you want the workspace to *pin/version* the exact repo commit (reproducible doc snapshots, release workspace+code together) | re-couples the histories (a gitlink SHA in workspace commits) — the opposite of the overlay's separation; adds submodule ceremony (`git submodule update`). Don't reach for this unless you specifically need the pin |
 
 Recommendation: prefer **symlink** (code in place) or **clone** (self-contained). Use a **submodule** only when pinning the repo version is an explicit goal — it trades the overlay's clean separation for reproducibility. (The Truss *source repo* itself uses a submodule for the engine; that is a packaging choice for the framework, not the model for your overlay.)
