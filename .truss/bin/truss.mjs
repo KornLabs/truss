@@ -30,11 +30,10 @@ import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { runUpgrade } from '../lib/commands/upgrade.mjs'
 import { runMap } from '../lib/commands/map.mjs'
-import { runRepoMap } from '../lib/commands/repo-map.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
 import { runPrompt } from '../lib/commands/prompt.mjs'
 import { runPhase } from '../lib/commands/phase.mjs'
-import { COMMAND_META } from '../lib/command-meta.mjs'
+import { COMMAND_META, COMMAND_BY_NAME, inspectArgs } from '../lib/command-meta.mjs'
 import { SEV_ORDER, SEV_LABEL, FAMILY_NAMES, col, dedupeFindings } from '../lib/severity.mjs'
 
 const root = resolveRoot(import.meta.url)
@@ -205,7 +204,6 @@ Init flags:
   --name <name>     project name (skips the interactive prompt)
   --lang <lang>     primary language for agent output (e.g. English)
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
-  --repo <path|url> place existing code under repo/ (overlay only)
   --code-root <dir> select one existing in-workspace code root (overlay only)
 
 Doctor flags:
@@ -222,6 +220,23 @@ Dashboard flags:
                 (one dashboard per project; a second launch opens the running one)
 
 Exit codes: 0 = clean · 1 = warnings only · 2 = errors present
+`)
+}
+
+// Per-command help. Derived from the same COMMAND_META entry the argument gate
+// validates against, so the two can never disagree about what a command accepts.
+function showCommandHelp(meta) {
+  const flags = Object.entries(meta.flags)
+  const lines = flags.length
+    ? flags.map(([name, spec]) => `  ${spec.value ? `${name} <value>` : name}`).join('\n')
+    : '  (none)'
+  console.log(`truss ${meta.display}
+  ${meta.summary}
+
+Flags:
+${lines}
+
+Run 'node .truss/bin/truss.mjs help' for the full command list.
 `)
 }
 
@@ -724,7 +739,6 @@ const HANDLERS = {
   phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
-  'repo-map': (args) => runRepoMap(root, args),
   // init targets the caller's cwd (or --root), never silently the engine's own
   // directory (D-024) — pass where the user actually stands.
   init:      (args) => runInit(root, args, process.cwd()),
@@ -736,7 +750,7 @@ const HANDLERS = {
 
 // init/phase surface user-facing fatals as a throw → exit code 2 (dashboard
 // handles its own errors internally).
-const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'repo-map'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); process.exit(0)
@@ -750,6 +764,21 @@ const handler = HANDLERS[command]
 if (!handler) {
   console.error(`truss: unknown command '${command}'. Run 'node .truss/bin/truss.mjs help'.`)
   process.exit(1)
+}
+
+// Argument gate (D-060). Every command validates its own flags here, from the
+// one declared surface — so `--help` explains a command wherever it appears
+// instead of being ignored while the command RUNS, and a typo never falls
+// through into a writing command.
+const meta = COMMAND_BY_NAME.get(command)
+if (meta) {
+  const verdict = inspectArgs(meta, args)
+  if (verdict.help) { showCommandHelp(meta); process.exit(0) }
+  if (verdict.unknown) {
+    console.error(`truss ${command}: unknown argument '${verdict.unknown}'.`)
+    console.error(`Run 'node .truss/bin/truss.mjs ${command} --help'.`)
+    process.exit(1)
+  }
 }
 
 if (THROWS_TO_EXIT_2.has(command)) {

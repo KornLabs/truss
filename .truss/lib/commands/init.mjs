@@ -8,12 +8,12 @@
 //   --name <name>   → profile.md `name:`, VISION/README titles
 //   --lang <lang>   → profile.md `language:` (the language the agent answers in)
 //   --overlay       → existing-project mode (phases ingest→operate, .gitignore +repo/)
-//   --repo <path|url> → (overlay only) bring the existing code in under repo/:
-//                       a local path is symlinked, a URL is `git clone`d (best-effort).
-//                       The nested repo/ keeps its own git history; the workspace
-//                       gitignores it, so the two never share commits.
 //   --code-root <dir> → (overlay only) use an existing relative directory instead
 //                       of repo/; no placement or .gitignore mutation.
+//
+// init never places the code itself (D-059): the workspace gitignores repo/, and
+// the human clones or symlinks into it — one documented git command instead of a
+// platform-dependent init path nobody can inspect. See docs/import.md.
 //   --root <path>   → explicit workspace target (defaults to the CLI caller's cwd).
 // Missing required answers + TTY → interactive readline; no TTY → error (no hang).
 //
@@ -25,10 +25,10 @@
 // aborts before any write. In-process callers (tests) omit invokedCwd and keep
 // the old behavior: target = the root argument.
 //
-// A project that needs a different lifecycle (software's +operate, the
-// founders-thinking concept flow) adopts a phase profile from
-// .truss/phase-profiles/ as a human-only phase change after init — see that
-// directory's README. init itself only ever scaffolds the core baseline (or the
+// A project that needs a different lifecycle gets it from the kickoff, not from
+// a shipped profile: init scaffolds a single `kickoff` phase whose job is to
+// author the real phase plan (overlay: `ingest → operate`, likewise a seed).
+// init itself only ever scaffolds the core baseline (or the
 // overlay); domain (context/) files are created on demand during the work.
 //
 // Phase source is resolved EXACTLY ONCE (overlay → core-overlay phases; else
@@ -87,7 +87,6 @@ export function parseInitArgs(argv) {
     name: null,
     lang: null,
     overlay: false,
-    repo: null,
     codeRoot: null,
     adoptAgents: false,
     root: null,
@@ -108,32 +107,20 @@ export function parseInitArgs(argv) {
     else if (a === "--adopt-agents") opts.adoptAgents = true;
     else if (a === "--name") opts.name = value("--name");
     else if (a === "--lang") opts.lang = value("--lang");
-    else if (a === "--repo") opts.repo = value("--repo");
     else if (a === "--code-root") opts.codeRoot = value("--code-root");
     else if (a === "--root") opts.root = value("--root");
     else if (a.startsWith("--name=")) opts.name = a.slice("--name=".length);
     else if (a.startsWith("--lang=")) opts.lang = a.slice("--lang=".length);
-    else if (a.startsWith("--repo=")) opts.repo = a.slice("--repo=".length);
     else if (a.startsWith("--code-root=")) opts.codeRoot = a.slice("--code-root=".length);
     else if (a.startsWith("--root=")) opts.root = a.slice("--root=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --repo --code-root --adopt-agents --root`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --code-root --adopt-agents --root`,
       );
-  }
-  if (opts.repo && !opts.overlay) {
-    throw new InitError(
-      "init: --repo only applies with --overlay (it places existing code under repo/).",
-    );
   }
   if (opts.codeRoot && !opts.overlay) {
     throw new InitError(
       "init: --code-root only applies with --overlay (it selects existing code inside the workspace).",
-    );
-  }
-  if (opts.repo && opts.codeRoot) {
-    throw new InitError(
-      "init: --repo and --code-root are mutually exclusive; place code under repo/ or select an existing directory.",
     );
   }
   if (opts.codeRoot) {
@@ -166,14 +153,6 @@ async function resolveInteractive(opts) {
         .trim()
         .toLowerCase();
       if (o === "y" || o === "yes") opts.overlay = true;
-    }
-    if (opts.overlay && !opts.repo && !opts.codeRoot) {
-      opts.repo =
-        (
-          await rl.question(
-            "Path or URL of the existing code to place under repo/ (blank to skip): ",
-          )
-        ).trim() || null;
     }
   } finally {
     rl.close();
@@ -279,47 +258,6 @@ async function gitInitMaybe(root, report) {
   } catch (err) {
     const msg = err?.message || String(err) || "unknown error";
     report.git = `git init skipped (${msg.split("\n")[0]}) — workspace is valid without git`;
-  }
-}
-
-/** A value that looks like a clonable URL rather than a local path. */
-function looksLikeUrl(v) {
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(v) || /^[^/\s]+@[^/\s]+:/.test(v); // scheme:// or scp-like git@host:path
-}
-
-/**
- * (overlay) Bring the existing code in under repo/. A local path is symlinked
- * (keeps its own .git in place); a URL is cloned. Best-effort: a failure is
- * reported but never fatal — the user can place repo/ by hand (docs/import.md).
- * Skipped under TRUSS_NO_GIT for a URL (no network in tests); symlink still runs.
- */
-async function placeRepoMaybe(root, repoArg, report) {
-  if (!repoArg) return;
-  const dest = path.join(root, "repo");
-  if (await exists(dest)) {
-    report.repo = `repo/ already exists — left as is`;
-    return;
-  }
-  try {
-    if (looksLikeUrl(repoArg)) {
-      if (process.env.TRUSS_NO_GIT) {
-        report.repo = "clone skipped (TRUSS_NO_GIT)";
-        return;
-      }
-      await execFileP("git", ["clone", repoArg, dest]);
-      report.repo = `cloned ${repoArg} → repo/`;
-    } else {
-      const src = path.resolve(repoArg);
-      if (!(await exists(src))) {
-        report.repo = `repo path not found: ${repoArg} — place repo/ by hand (docs/import.md)`;
-        return;
-      }
-      await fs.symlink(src, dest, "dir");
-      report.repo = `symlinked ${repoArg} → repo/`;
-    }
-  } catch (err) {
-    const msg = (err?.message || String(err) || "unknown error").split("\n")[0];
-    report.repo = `repo placement skipped (${msg}) — place repo/ by hand (docs/import.md)`;
   }
 }
 
@@ -638,8 +576,6 @@ export async function runInit(root, argv, invokedCwd = null) {
   const report = {};
   await gitInitMaybe(root, report);
 
-  // 6b. (overlay) Place the existing code under repo/ if --repo was given.
-  await placeRepoMaybe(root, opts.repo, report);
   const codeRootReady = codeRoot
     ? await exists(path.join(root, ...codeRoot.split("/")))
     : false;
@@ -661,7 +597,6 @@ export async function runInit(root, argv, invokedCwd = null) {
     errors: [],
     adoptedAgents: agentsPlan.adopted,
     git: report.git,
-    repo: report.repo ?? null,
   };
   printReport(root, result);
   return result;
@@ -680,7 +615,6 @@ function printReport(root, r) {
   L.push(`  Current phase:          ${r.currentPhase}`);
   L.push(`  Git:                    ${r.git}`);
   if (r.codeRoot) L.push(`  Code root:              ${r.codeRoot}/`);
-  if (r.repo) L.push(`  Repo:                   ${r.repo}`);
   if (r.conflicts.length) {
     L.push("");
     L.push(`  Skipped (already existed — not overwritten):`);
@@ -700,7 +634,6 @@ function printReport(root, r) {
     steps.push([
       `Bring your existing code in under ${r.codeRoot}/ (it keeps its own history):`,
       `     git clone <your-repo-url> ${r.codeRoot}/      # or: ln -s /path/to/code ${r.codeRoot}`,
-      "     (or re-run init with --repo <path|url> next time)",
     ]);
   }
   if (r.overlay) {

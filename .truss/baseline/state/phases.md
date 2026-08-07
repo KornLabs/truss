@@ -1,53 +1,19 @@
 ---
-current: discover
+current: kickoff
 ---
 
 > Source of truth for phase definitions. `truss render` reads this file and writes the phase block in AGENTS.md.
 > `current:` is the only human-reserved line; advancing it (a phase change) is human-only — see AGENTS.md §4 (phase exit procedure).
-> The definitions below are the project's phase plan — drafted at kickoff from this seed, agent-maintained: restructure with a D-NNN + tell the human + `truss render`; hard limits in AGENTS.md §5.
+> Grammar: inside a `## <phase-id>` section every line is `key: value`; a wrapped value continues on an indented line. Free text is not allowed there — it would be read into the preceding key and rendered into every session boot.
+> This file ships with ONE real phase. The project-kickoff replaces it with the lifecycle this project actually needs; agents keep maintaining that plan as requirements change (D-NNN + tell the human + `truss render`; hard limits in AGENTS.md §5).
 
-## discover
+## kickoff
 
-label: Discovery
-purpose: explore the idea, collect raw research, map the problem space.
-behavior: divergent — generate options, defer judgment, no premature convergence.
-allowed: domain notes, research, open questions, sketches, VISION.md sections.
-forbidden: code in repo/, final decisions without D-entry, spec documents, architecture diagrams.
-forbidden-globs: repo/**
+label: Kickoff
+purpose: turn the raw idea into a working course record — vision, profile, and the phase plan this project actually needs.
+behavior: interviewing — ask before assuming; write what the next session must know, nothing speculative.
+allowed: VISION.md, state/profile.md, the tailored phase list, first decisions and domain notes.
+forbidden: production work before the phase plan exists; inventing facts the human never stated; leaving the seeded phase list in place as if it were the plan.
 read: state/profile.md
-exit: section: VISION.md#Problem; glob: context/research*.md; pursue/park leaning noted (human)
-prompts: discover-kickoff, phase-recap
-
-## validate
-
-label: Validation
-purpose: test key assumptions with external evidence before committing to a direction.
-behavior: empirical — seek disconfirming evidence; a failed assumption is a success.
-allowed: user interviews, competitor analysis, prototype sketches, assumption logs, survey notes.
-forbidden: code in repo/, architectural decisions without validation evidence, locking the tech stack.
-forbidden-globs: repo/**
-read: state/profile.md, VISION.md
-exit: glob: context/assumptions*.md; section: VISION.md#Principles; pursue/kill/pivot decision recorded as D-entry (human)
-prompts: validate-kickoff, phase-recap
-
-## plan
-
-label: Planning
-purpose: design the solution — architecture, spec, final decisions — before building.
-behavior: convergent — reduce options to one path; every open question gets a D-NNN answer.
-allowed: architecture diagrams, specs, technical decisions (D-NNN), task breakdown, repo/ scaffold.
-forbidden: production feature code in repo/, skipping D-NNN for major technical choices, premature optimization.
-read: state/profile.md, VISION.md, state/decisions.md
-exit: glob: context/architecture*.md; no blocking open decisions (human); task breakdown in state/current.md or pm/ (human)
-prompts: plan-kickoff, phase-recap
-
-## build
-
-label: Build
-purpose: implement, iterate, and ship — the plan is the guide, not the cage.
-behavior: pragmatic — ship working software; flag plan deviations as new D-NNN; keep state/current.md accurate.
-allowed: all development and iteration work; revisiting plan decisions with D-NNN update; refactoring.
-forbidden: silent deviations from plan (must D-NNN); skipping session ritual; accumulating unbounded state/current.md next list (≤5).
-read: state/profile.md, state/decisions.md, state/current.md
-exit: all launch criteria met (human); doctor clean (human); human sign-off (human)
-prompts: build-kickoff, phase-recap
+exit: section: VISION.md#Problem; phase plan tailored to this project and recorded as a D-entry (human); human sign-off (human)
+prompts: project-kickoff, phase-recap

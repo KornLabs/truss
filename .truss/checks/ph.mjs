@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseExitItems, globToRegex } from '../lib/render.mjs'
-import { parseHeadings, headingToAnchor, parsePhaseList } from '../lib/md.mjs'
+import { parseHeadings, headingToAnchor, parsePhaseList, PHASE_STRAY, PHASE_UNKNOWN_KEYS } from '../lib/md.mjs'
 import { loadIgnore } from '../lib/ignore.mjs'
 import { gitChangedPaths } from '../lib/git.mjs'
 import { resolveCodeRoot } from '../lib/code-root.mjs'
@@ -68,7 +68,27 @@ export async function run(ctx) {
 
   // ── PH-01: Grammar ──────────────────────────────────────────────────────────
   for (const [phaseId, def] of defs) {
+    // Free text inside a phase section (D-061). The block is rendered verbatim
+    // into AGENTS.md, so a stray line would otherwise land in every session boot
+    // — silently, when it follows a key doctor does not otherwise validate.
+    for (const line of def[PHASE_STRAY] ?? []) {
+      findings.push({
+        id: 'PH-01', severity: 'E',
+        file: 'state/phases.md',
+        message: `phase '${phaseId}': line is neither 'key: value' nor an indented continuation — '${line.length > 60 ? line.slice(0, 57) + '…' : line}'`,
+        fix: 'Inside a phase section every line is "key: value"; wrap long values on an indented line. Move notes above the first "## <phase-id>" heading.',
+      })
+    }
+
     // Unknown keys
+    for (const key of def[PHASE_UNKNOWN_KEYS] ?? []) {
+      findings.push({
+        id: 'PH-01', severity: 'E',
+        file: 'state/phases.md',
+        message: `phase '${phaseId}': unknown key '${key}'`,
+        fix: `Remove '${key}'. Known keys: ${[...KNOWN_KEYS].join(', ')}.`,
+      })
+    }
     for (const key of Object.keys(def)) {
       if (!KNOWN_KEYS.has(key)) {
         findings.push({

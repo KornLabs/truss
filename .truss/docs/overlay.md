@@ -56,7 +56,7 @@ exclude its contents. The path must be an existing relative POSIX directory
 inside the workspace; absolute paths, traversal, backslashes, and
 Truss-managed top-level paths are invalid.
 
-`repo/` remains the default and the only destination managed by `--repo`.
+`repo/` remains the default location for the code checkout.
 Exactly one code root is supported; use a directory containing multiple
 checkouts when a project genuinely needs several.
 
@@ -73,18 +73,14 @@ git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 ```
 
-## Step 2 — Initialise as an overlay, bringing your code in
+## Step 2 — Initialise as an overlay, then bring your code in
 
 ```bash
-# Local code → symlinked into repo/ (keeps its own .git in place):
-node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English --repo /path/to/code
-
-# Or a remote → cloned into repo/:
-node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English --repo https://github.com/you/code.git
+node .truss/bin/truss.mjs init --overlay --name "My Project" --lang English
 ```
 
-`--repo` is optional. Without it, init still sets up the overlay; place the code
-yourself afterwards:
+`init` never places the code itself — it sets up the overlay and gitignores
+`repo/`. Put the checkout there yourself, with one git command you can read:
 
 ```bash
 git clone <your-repo-url> repo/      # or: ln -s /path/to/code repo
@@ -96,8 +92,7 @@ Symlink (local code in place), clone (self-contained), or — only if you need t
 git histories separate (the overlay default); a submodule deliberately couples
 them.
 
-Run with no flags in a terminal to be asked interactively (it offers the `--repo`
-step when you choose overlay).
+Run with no flags in a terminal to be asked interactively.
 
 ## Step 3 — Check health
 
@@ -170,16 +165,15 @@ per branch/focus) rather than flipping a single checkout — see
 
 ## When the overlay's two phases are the wrong fit
 
-The overlay is `ingest → operate`: import an existing system, then run it. If your
-"existing project" is actually still an *idea or prototype* — not yet built — the
-overlay is too coarse. Use a fresh `init` (core `discover → validate → plan →
-build`) or a [phase profile](../phase-profiles/README.md) (`founders-thinking` for
-think-it-through work, `software` for build-then-operate) instead. The
-`overlay-onboard` prompt will flag this if your answers point that way — and can
-author a project-specific phase model when no standard track fits.
+The overlay seeds `ingest → operate`: import an existing system, then run it. If
+your "existing project" is actually still an *idea or prototype* — not yet built
+— use a fresh `init` instead: it seeds a single `kickoff` phase whose job is to
+author the lifecycle from the idea. Either way the seed is not the plan: the
+`overlay-onboard` prompt flags a bad fit and authors a project-specific phase
+model when the default two phases don't match how the project actually runs.
 
 ## See also
 
 - [import.md](../baseline/docs/import.md) — the file-by-file mapping table.
 - [git.md](../baseline/docs/git.md) — overlay git mechanics and commit discipline.
-- [cli.md](cli.md) — `init`, `--overlay`, `--repo`, and `phase` reference.
+- [cli.md](cli.md) — `init`, `--overlay`, `--code-root`, and `phase` reference.

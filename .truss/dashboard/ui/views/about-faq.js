@@ -39,13 +39,15 @@ const FAQ_DATA = [
         workspace commits and code commits on separate git histories. Use overlay for existing codebases.</p>` },
     { q: 'How do I bring an existing repo in?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        Use ${code('truss init --overlay --repo <path|url>')}. A local path is <strong>symlinked</strong> into
-        ${code('repo/')}; a URL is <strong>cloned</strong>. Either way, the code keeps its own git history,
-        gitignored from the workspace.</p>` },
+        Put your existing code under ${code('repo/')} yourself (or point at it with
+        ${code('--code-root <dir>')}), then run ${code('truss init --overlay')}. Truss
+        scaffolds the workspace around that code; it does not clone, symlink, or move
+        your repository for you.</p>` },
     { q: 'Does Truss work on Windows?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        Yes. Use PowerShell. Note that creating symlinks requires <strong>Developer Mode</strong> or an elevated
-        shell. If symlinking fails, pass a git URL to ${code('--repo')} instead — the repo is cloned.</p>` },
+        Yes. Use PowerShell. Truss does not rely on symlinks or clone your code for overlay
+        setup; place the repository under ${code('repo/')} yourself (or set
+        ${code('--code-root <dir>')}) and then run ${code('truss init --overlay')}.</p>` },
   ]},
 
   { title: 'Doctor & Health', icon: Icons.Stethoscope, items: [
@@ -87,12 +89,12 @@ const FAQ_DATA = [
         When the current phase's exit criteria look met. The agent runs ${code('doctor --gate')}, writes an
         HT-NNN summary of what was accomplished, and stops. <strong>You</strong> make the call and run
         ${code('truss phase <next-phase>')}.</p>` },
-    { q: 'What is a phase profile?',
+    { q: 'Which phases does a fresh workspace start with?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
-        An alternative seed lifecycle. The default seed is <strong>discover → validate → plan → build</strong>;
-        the ${code('software')} profile adds an ${code('operate')} phase, ${code('founders-thinking')} is for
-        conceptual exploration. Whatever the seed, the kickoff tailors it into a project-specific plan, and
-        agents restructure it later when requirements change (with a D-NNN and a note to you).</p>` },
+        Exactly one: <strong>kickoff</strong>. Truss ships no ready-made lifecycle, because a generic one would
+        be content it cannot know. The kickoff interviews you and writes the phase plan this project actually
+        needs; agents restructure it later when requirements change (with a D-NNN and a note to you). An
+        existing codebase starts from the overlay seed ${code('ingest → operate')} instead.</p>` },
     { q: 'What does the gate advocate do?',
       a: () => html`<p class="measure" style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin:0">
         Off unless you set it. Turned on, the agent spawns an adversarial <strong>review subagent</strong> at

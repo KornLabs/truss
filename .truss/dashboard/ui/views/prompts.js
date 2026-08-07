@@ -3,21 +3,19 @@ import { Card, CardHead, Badge, Button, Icons, Modal, Chip, SearchInput, Segment
 import { api } from '../api.js';
 import { favorites, presets as presetStore, lang as langStore } from '../store.js';
 
-// V3 library: prompts live on two shelves (task, session) plus one generic
-// orchestration wrapper. Every base body fills the SAME tokens; orchestration is a
-// mode (Single | Orchestrated) that wraps a task body, not a separate prompt.
+// V4 library: prompts live on three shelves (task, session, setup). Every base
+// body fills the SAME tokens. There is no orchestration wrapper — how work is
+// delegated is the `subagents` preference's job, not a prompt's (D-054).
 const TOKENS = {
   INPUT:       { label: 'Task',        multiline: true,  hint: 'Goal + what this is about' },
-  MISSION:     { label: 'Mission',     multiline: true,  hint: 'The task to execute' },
   CONSTRAINTS: { label: 'Constraints', multiline: false, hint: 'Optional — must / avoid' },
   POINTERS:    { label: 'Pointers',    multiline: false, hint: 'Optional — files/links to read first' },
-  HINT:        { label: 'Hint',        multiline: false, hint: 'Optional — how this work decomposes' },
 };
-const SHELF_ORDER = ['task', 'session', 'orchestration'];
+const SHELF_ORDER = ['task', 'session', 'setup'];
 const SHELF_FALLBACK = {
   task: { en: 'Task prompts', de: 'Task-Prompts' },
   session: { en: 'Session & workflow', de: 'Session & Workflow' },
-  orchestration: { en: 'Orchestration', de: 'Orchestrierung' },
+  setup: { en: 'Setup', de: 'Einrichtung' },
 };
 
 const tokensIn = (body) => Object.keys(TOKENS).filter(t => (body || '').includes(`{{${t}}}`));
@@ -32,7 +30,7 @@ export class PromptsView extends Component {
     q: '', activeTag: null, scope: 'all', lang: langStore.get(),
     favs: favorites.all(), presets: presetStore.all(),
     sel: null, editing: false, draft: '', customId: '', busy: false, flyId: null,
-    values: {}, mode: 'single', savingPreset: false, presetName: '',
+    values: {}, savingPreset: false, presetName: '',
   };
 
   componentDidMount() { this.fetch(); }
@@ -55,30 +53,13 @@ export class PromptsView extends Component {
 
   titleOf = (p) => p.type === 'custom' ? p.title.en : (p.title[this.state.lang] || p.title.en);
   bodyOf = (p) => p.type === 'custom' ? p.body.en : (p.body[this.state.lang] || p.body.en);
-  orchestrator = () => this.state.prompts.find(p => p.wrapper);
 
-  // The text the user actually copies: the body with tokens filled, and — in
-  // orchestrated mode — wrapped in the generic orchestrator with the task as MISSION.
-  composed = (sel, values, mode) => {
-    if (!sel) return '';
-    const filled = fillTokens(this.bodyOf(sel), values);
-    if (mode === 'orchestrated' && sel.orchestratable) {
-      const wrap = this.orchestrator();
-      if (wrap) {
-        return fillTokens(this.bodyOf(wrap), {
-          MISSION: filled,
-          HINT: sel.orchestrationHint || '',
-          CONSTRAINTS: values.CONSTRAINTS || '',
-        });
-      }
-    }
-    return filled;
-  };
+  // The text the user actually copies: the body with its tokens filled.
+  composed = (sel, values) => sel ? fillTokens(this.bodyOf(sel), values) : '';
 
   open = (p, preset) => this.setState({
     sel: p, editing: false, draft: this.bodyOf(p), customId: '',
     values: preset ? { ...preset.values } : {},
-    mode: preset ? (preset.mode || 'single') : 'single',
     savingPreset: false, presetName: preset ? preset.name : '',
   });
   openPreset = (preset) => {
@@ -86,15 +67,15 @@ export class PromptsView extends Component {
     if (base) this.open(base, preset);
     else window.toast && window.toast(`Base prompt "${preset.baseId}" no longer exists`, 'warn');
   };
-  openNew = () => this.setState({ sel: { id: '', type: 'new', title: { en: '', de: '' }, body: { en: '', de: '' }, tags: [], shelf: 'custom' }, editing: true, draft: '', customId: '', values: {}, mode: 'single' });
+  openNew = () => this.setState({ sel: { id: '', type: 'new', title: { en: '', de: '' }, body: { en: '', de: '' }, tags: [], shelf: 'custom' }, editing: true, draft: '', customId: '', values: {} });
   close = () => this.setState({ sel: null, editing: false, savingPreset: false });
 
   setValue = (tok, v) => this.setState(s => ({ values: { ...s.values, [tok]: v } }));
 
   savePreset = () => {
-    const { sel, presetName, values, mode } = this.state;
+    const { sel, presetName, values } = this.state;
     const name = (presetName || '').trim() || `${this.titleOf(sel)} preset`;
-    const next = presetStore.save({ name, baseId: sel.id, values: { ...values }, mode });
+    const next = presetStore.save({ name, baseId: sel.id, values: { ...values } });
     this.setState({ presets: next, savingPreset: false });
     window.toast && window.toast(`Preset saved: ${name}`, 'ok');
   };
@@ -157,7 +138,6 @@ export class PromptsView extends Component {
           <div class="row" style="gap:8px;min-width:0">
             <span class="badge ${p.type === 'custom' ? 'accent' : 'neutral'}">${p.type}</span>
             ${p.recommended ? html`<span class="badge accent" title="Recommended — curated start-here prompt" style="padding:1px 6px;display:inline-flex;align-items:center;gap:3px"><${Icons.Star} filled=${true} />rec</span>` : ''}
-            ${p.orchestratable ? html`<span class="badge neutral" title="Can run orchestrated (multi-agent)" style="padding:1px 6px;display:inline-flex;align-items:center;gap:3px"><${Icons.Git} />multi</span>` : ''}
             <strong style="font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.titleOf(p)}</strong>
           </div>
           <button class="icon-btn" style=${`width:28px;height:28px;color:${fav ? 'var(--warn)' : 'var(--text-3)'}`} aria-label="Favorite"
@@ -170,7 +150,7 @@ export class PromptsView extends Component {
       <//>`;
   }
 
-  render(_, { prompts, loading, error, q, activeTag, scope, lang, favs, presets, sel, editing, draft, customId, busy, values, mode, savingPreset, presetName }) {
+  render(_, { prompts, loading, error, q, activeTag, scope, lang, favs, presets, sel, editing, draft, customId, busy, values, savingPreset, presetName }) {
     const tagCounts = {};
     prompts.forEach(p => (p.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
     const tags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
@@ -186,7 +166,7 @@ export class PromptsView extends Component {
     const showPresets = presets.length > 0 && !activeTag && scope === 'all';
 
     const selTokens = sel ? tokensIn(this.bodyOf(sel)) : [];
-    const preview = sel ? this.composed(sel, values, mode) : '';
+    const preview = sel ? this.composed(sel, values) : '';
 
     return html`
       <${Card}>
@@ -223,7 +203,6 @@ export class PromptsView extends Component {
                     </div>
                     <div class="row wrap" style="gap:5px">
                       <span class="dim mono" style="font-size:11px">${pr.baseId}</span>
-                      ${pr.mode === 'orchestrated' ? html`<span class="badge neutral" style="font-size:10px">orchestrated</span>` : ''}
                     </div>
                   <//>`)}
               </div>
@@ -267,13 +246,6 @@ export class PromptsView extends Component {
                 ${busy ? html`<${Spinner} />` : ''} ${sel.type === 'custom' ? 'Save changes' : 'Save as custom prompt'}<//>
             </div>
           ` : html`
-            ${sel.orchestratable ? html`
-              <div class="row between wrap" style="gap:10px;margin-bottom:12px;align-items:center">
-                <span class="dim" style="font-size:12px">Run mode</span>
-                <${Segmented} value=${mode} onChange=${m => this.setState({ mode: m })}
-                  options=${[{ value: 'single', label: 'Single agent' }, { value: 'orchestrated', label: 'Orchestrated' }]} />
-              </div>` : ''}
-
             ${selTokens.length > 0 ? html`
               <div class="col" style="gap:10px;margin-bottom:14px">
                 <span class="dim" style="font-size:12px">Your input ${'— fill what you can; empty fields keep their {{placeholder}}'}</span>
@@ -302,8 +274,8 @@ export class PromptsView extends Component {
             <div class="row wrap" style="gap:8px;margin-top:18px;justify-content:flex-end">
               ${sel.type === 'custom' ? html`<${Button} variant="danger" icon=${Icons.Trash} disabled=${busy} onClick=${this.deleteCustom}>Delete<//>` : ''}
               ${sel.type === 'base' && selTokens.length > 0 ? html`<${Button} icon=${Icons.Star} onClick=${() => this.setState({ savingPreset: true })}>Save as preset<//>` : ''}
-              ${sel.type !== 'orchestration-generated' ? html`<${Button} icon=${Icons.Edit} onClick=${() => this.setState({ editing: true, draft: this.bodyOf(sel), customId: '' })}>Edit<//>` : ''}
-              <${Button} variant="primary" icon=${Icons.Copy} onClick=${() => copyText(preview, mode === 'orchestrated' ? 'Orchestration prompt copied' : 'Prompt copied')}>Copy prompt<//>
+              <${Button} icon=${Icons.Edit} onClick=${() => this.setState({ editing: true, draft: this.bodyOf(sel), customId: '' })}>Edit<//>
+              <${Button} variant="primary" icon=${Icons.Copy} onClick=${() => copyText(preview, 'Prompt copied')}>Copy prompt<//>
             </div>
           `}`}
       <//>`;

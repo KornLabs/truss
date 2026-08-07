@@ -96,7 +96,7 @@ export const PREFS_GROUPS = [
   { title: 'AUTONOMY',               keys: ['subagents', 'gate-advocate'] },
   { title: 'RIGOR & VERIFICATION',   keys: ['verify-inputs'] },
   { title: 'WORKFLOW',               keys: ['scope', 'auto-commit'] },
-  { title: 'RESPONSE',               keys: ['response-style', 'control-word'] },
+  { title: 'RESPONSE',               keys: ['control-word'] },
 ]
 
 /**
