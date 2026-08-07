@@ -43,7 +43,7 @@ const FILE_ALLOWLIST = {
 };
 
 const TAG_RULES = [
-  [/research/, 'research'], [/orchestrat|large-task|multi-agent/, 'orchestration'],
+  [/research/, 'research'],
   [/refactor/, 'refactor'], [/migrat|legacy/, 'migration'], [/audit|red-team|review/, 'review'],
   [/recap/, 'recap'], [/kickoff/, 'kickoff'], [/\bplan/, 'planning'], [/build/, 'build'],
   [/discover/, 'discovery'], [/validate/, 'validation'], [/maintenance/, 'maintenance'],
@@ -178,13 +178,8 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
             const de = await readBody(baseDeDir, m.id);
             return {
               id: m.id, type: 'base', tags: m.tags || [],
-              // V3 schema: two shelves + a generic orchestration wrapper.
+              // V4 schema: three shelves (task, session, setup), no wrapper.
               shelf: m.shelf || 'task',
-              orchestratable: m.orchestratable || false,
-              orchestrationHint: m.orchestrationHint || '',
-              wrapper: m.wrapper || false,
-              // Legacy V2 fields (chains) kept for backward compatibility; null in V3.
-              chain: m.chain || null, step: m.step || null, role: m.role || null,
               recommended: m.recommended || false,
               title: m.title || { en: m.id, de: m.id },
               body: { en: en || '', de: de || en || '' },
@@ -201,8 +196,6 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
               const bodyText = stripFrontmatter(raw);
               const title = fm.title || id;
               return { id, type: 'custom', tags: deriveTags(id, fm), shelf: 'custom',
-                orchestratable: false, orchestrationHint: '', wrapper: false,
-                chain: null, step: null, role: null,
                 title: { en: title, de: title }, body: { en: bodyText, de: bodyText } };
             })
           );
@@ -211,7 +204,6 @@ export async function startDashboard({ root, port = 3741, openBrowser = false, r
             prompts: [...base, ...custom],
             shelves: manifest.shelves || {},
             input: manifest.input || {},
-            chains: manifest.chains || {},
           });
         } catch (e) { return send(res, 500, { error: e.message }); }
       }

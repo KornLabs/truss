@@ -83,9 +83,9 @@ export const favorites = {
   },
 };
 
-// Presets = a saved invocation of a base prompt: { id, name, baseId, values, mode }.
-// `values` holds the input tokens (INPUT/CONSTRAINTS/POINTERS); `mode` is 'single'
-// or 'orchestrated'. Read-only-safe: client-side only, like favorites. This is the
+// Presets = a saved invocation of a base prompt: { id, name, baseId, values }.
+// `values` holds the input tokens (INPUT/CONSTRAINTS/POINTERS). Read-only-safe:
+// client-side only, like favorites. This is the
 // lightweight alternative to free-form custom prompts — it captures "my usual way of
 // asking for X" without re-authoring a whole prompt.
 export const presets = {

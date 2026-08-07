@@ -18,7 +18,6 @@ export const PREFS_CATALOG = [
   { key: 'auto-commit',     values: ['off', 'suggest', 'on'],                   default: 'off', omit: ['off'] },
   { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],                   default: 'off', omit: ['off'] },
   { key: 'branch-guard',    values: ['off', 'strict'],                          default: 'off', omit: ['off'] },
-  { key: 'response-style',  values: ['off', 'compact', 'maxcompact'],           default: 'off', omit: ['off'] },
   { key: 'control-word',    values: ['off'],                                    default: 'off', omit: ['off'], free: true },
 ]
 
@@ -35,6 +34,7 @@ export const RETIRED_KEYS = new Map([
   ['source-citation', 'belongs in state/profile.md § Style & moral as a one-line preference'],
   ['post-task-check', 'now a fixed rule — AGENTS.md §4 runs doctor before reporting done'],
   ['phase-lock',      'now a fixed rule — AGENTS.md §4 names the conflict and asks'],
+  ['response-style',  'now a fixed rule — AGENTS.md §4: record and report are two artefacts; the response form follows the task'],
 ])
 
 // Keys whose value is free-form (not restricted to the listed values).

@@ -7,10 +7,7 @@ const bold = (lead, rest) => html`<li style="margin-bottom:7px"><strong>${lead}<
 // The default seed lifecycle — what a fresh init installs before the kickoff
 // tailors it to the project.
 const PHASES = [
-  { id: 'discover', label: 'Discover', desc: 'Divergent — generate options, no code' },
-  { id: 'validate', label: 'Validate', desc: 'Seek disconfirming evidence' },
-  { id: 'plan', label: 'Plan', desc: 'Convergent — every open Q gets a D-NNN' },
-  { id: 'build', label: 'Build', desc: 'Ship' },
+  { id: 'kickoff', label: 'Kickoff', desc: 'Interview — turn the idea into vision, profile, and the real phase plan' },
 ];
 
 export class AboutConceptsView extends Component {
@@ -110,7 +107,8 @@ export class AboutConceptsView extends Component {
           <p class="measure" style="margin:0 0 16px">
             Every project gets its <strong>own phase plan</strong> — a linear lifecycle tailored to the project.
             The kickoff drafts it from the vision; agents keep it in sync with reality as requirements change.
-            This is the default seed a fresh workspace starts from:
+            Truss ships no ready-made lifecycle. A fresh workspace starts with one real phase, whose job is to
+            produce the plan:
           </p>
           <div style="display:flex;gap:6px;align-items:stretch;flex-wrap:wrap;margin-bottom:16px">
             ${PHASES.map((p, i) => html`
@@ -124,7 +122,7 @@ export class AboutConceptsView extends Component {
           <ul class="measure" style="margin:0;padding-left:18px">
             ${bold('Phase changes are human-only.', html`The agent runs ${code('doctor --gate')}, writes an HT-NNN summary, and stops. You decide when to advance ${code('current:')}.`)}
             ${bold('The plan is agent-maintained — never silently.', html`When requirements change, an agent restructures the future phases (rename, add, split, drop) with a mandatory D-NNN and tells you. Loosening the <em>current</em> phase's guardrails or exit criteria needs your explicit ok first.`)}
-            ${bold('Phase profiles are alternative seeds:', 'software (adds operate), founders-thinking (concept/park), overlay (ingest → operate).')}
+            ${bold('The seeded phase is not the plan.', html`Leaving it in place is an explicit ${code('forbidden')} of the kickoff phase. An existing codebase starts from the overlay seed (ingest → operate) instead.`)}
           </ul>
         </div>
       <//>
@@ -177,8 +175,10 @@ export class AboutConceptsView extends Component {
           <${CardHead} icon=${Icons.Star} title="Prompts" />
           <div class="measure" style="font-size:13px;line-height:1.65;color:var(--text)">
             <p style="margin:0 0 10px">
-              A small prompt library — task prompts (plan, implement, bug-fix, refactor, research, critique),
-              session prompts (resume, handover), and one orchestration wrapper.
+              A small prompt library — task prompts (plan, implement, critique, decide),
+              session prompts (resume, handover, cleanup), and setup rituals (project-kickoff,
+              overlay-onboard, upgrade). No prompt per method: how work is decomposed follows from the task
+              and the subagents preference.
             </p>
             <p class="muted" style="margin:0;font-size:12.5px">
               Intentionally lightweight: a one-line mandate and the result bar, leaving the method to the agent.

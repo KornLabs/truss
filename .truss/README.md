@@ -47,10 +47,6 @@ Includes submodules for handling markdown parsing (`md.mjs`), project scaffoldin
 The designated output directory for generated artifacts and diagnostic reports.
 When commands like `truss doctor` are run, the engine outputs the results (e.g., `doctor.html`, `doctor.json`) to this folder for easy viewing and debugging of the project's structural health.
 
-### `phase-profiles/`
-
-Ready-made alternative phase lists for project types that need a different lifecycle than the core four phases (`software` adds an `operate` phase; `founders-thinking` ends in a concept/pursue-park call). A human adopts one by copying it over `state/phases.md` and running `truss render` — see `phase-profiles/README.md`.
-
 ### `prefs/`
 
 Contains system preferences, behavioral modifiers, and configuration templates for AI agents.
@@ -58,7 +54,7 @@ These preferences (e.g., `auto-commit`, `subagents`, `clarify`, `scope`) dictate
 
 ### `prompts/`
 
-The prompt library plus the engine-ritual prompts. See `prompts/README.md` for the model: `library.json` (manifest of the 13 user-facing prompts), `base/` + `base-de/` (EN/DE bodies), and `custom/` (user-created prompts).
+The prompt library plus the engine-ritual prompts. See `prompts/README.md` for the model: `library.json` (manifest of the 10 user-facing prompts), `base/` + `base-de/` (EN/DE bodies), and `custom/` (user-created prompts).
 
 ### `tests/`
 

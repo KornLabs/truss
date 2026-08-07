@@ -27,7 +27,6 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 ├── docs/                # product documentation (concepts, cli, architecture)
 ├── baseline/            # the pristine workspace skeleton `init` scaffolds from
 ├── prompts/             # prompt library + engine-ritual prompts (see its README)
-├── phase-profiles/      # alternative lifecycles (see its README)
 ├── prefs/               # behaviour text fragments per preference value
 ├── dashboard/           # the local web dashboard (server + UI)
 ├── tests/               # the engine test suite + fixtures
@@ -37,10 +36,11 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 ## Design rules worth knowing
 
 **1. Single source of truth for the command surface.** Every command is declared
-once in `lib/command-meta.mjs` (name, help summary, and whether the dashboard may
-invoke it). Both `truss help` and the dashboard action whitelist derive from
-that one list, so "documented but not dispatched" or "whitelisted but not
-implemented" drift cannot happen.
+once in `lib/command-meta.mjs` (name, help summary, accepted flags, and whether
+the dashboard may invoke it). `truss help`, the per-command `--help` text, the
+argument gate that rejects unknown flags, and the dashboard action whitelist all
+derive from that one list, so "documented but not dispatched", "whitelisted but
+not implemented", or "accepted but undocumented" drift cannot happen.
 
 **2. Writer ownership is explicit.** Mutation is limited to command-owned
 surfaces:

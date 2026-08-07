@@ -78,6 +78,8 @@ Truss wraps your project in two ways: **drop-in:** places the workspace beside y
 
 This repo is the _source_ of the `.truss/` engine folder. Copy that one folder into a project of its own and run `init` there. Everything else here, README and docs included, you don't need.
 
+`.truss/` is **executable code**, not documentation: `init`, `doctor`, and the dashboard are Node scripts you will be running, and your agent will be running them too. The clone below is pinned to a release tag rather than `main` — `main` is the development branch and can carry unreleased changes. Read the folder before you run it, the same as any dependency.
+
 Run these commands:
 
 **macOS / Linux:**
@@ -86,7 +88,7 @@ Run these commands:
 # In an empty or existing project directory:
 
 # 1. Drop the engine in — just the .truss/ folder, nothing else.
-git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
+git clone --depth 1 --branch v1.0.0-alpha.8 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 
 # 2. Scaffold a fresh workspace next to the engine.
@@ -105,7 +107,7 @@ node .truss/bin/truss.mjs doctor
 # In an empty or existing project directory:
 
 # 1. Drop the engine in.
-git clone --depth 1 https://github.com/KornLabs/truss.git $env:TEMP\truss
+git clone --depth 1 --branch v1.0.0-alpha.8 https://github.com/KornLabs/truss.git $env:TEMP\truss
 Copy-Item -Recurse $env:TEMP\truss\.truss .\.truss
 Remove-Item -Recurse -Force $env:TEMP\truss
 
@@ -139,17 +141,15 @@ The product documentation lives inside the engine under [`.truss/docs/`](.truss/
 
 ### Existing codebase (overlay)
 
-Run `init`, answer `y` at `Overlay an existing project? (y/N)`, give the path or URL of your code. As flags, if you'd rather skip the questions:
+Put your code under `repo/` yourself — clone it, symlink it, or move it — then scaffold around it:
 
 ```bash
-node .truss/bin/truss.mjs init --overlay --repo /path/to/code   # path → symlinked, URL → cloned
+node .truss/bin/truss.mjs init --overlay
 ```
 
-> **Windows note:** creating symlinks requires Developer Mode (or an elevated shell). If symlinking fails, pass a git URL instead — the repo is cloned under `repo/`.
+Truss never places, clones, or moves code: where your repository comes from and how it is checked out stays your call, and the workspace only points at the result. Overlay sets up an import-first phase flow (`ingest → operate`) and expects your code under `repo/` with its own git history, gitignored here so commits never mix. The `ingest` phase first asks you the context the code can't reveal, then surveys it. Full walkthrough: [.truss/docs/overlay.md](.truss/docs/overlay.md).
 
-Overlay sets up an import-first phase flow (`ingest → operate`) and nests your code under `repo/` with its own git history, gitignored here so commits never mix. The `ingest` phase first asks you the context the code can't reveal, then surveys it. Full walkthrough: [.truss/docs/overlay.md](.truss/docs/overlay.md).
-
-Code already inside the workspace (a tracked submodule, say)? Leave it and just point at it: `init --overlay --code-root product`. Truss records `code-root: product` in `state/profile.md`, and checks, branch status, phase evidence, `map`, and `repo-map` share that one boundary. Nothing moves.
+Code sitting somewhere else in the workspace (a tracked submodule, say)? Point at it instead: `init --overlay --code-root product`. Truss records `code-root: product` in `state/profile.md`, and checks, branch status, phase evidence, and `map` share that one boundary. Nothing moves.
 
 ### What your agent needs
 
@@ -164,7 +164,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 ### Truth lives in files
 
 1. **Plain Markdown is the single source of truth.** No database, no hidden state, no server. A workspace is a folder of text you can read, edit, diff, and version — and any agent can use it.
-2. **Every fact has exactly one home.** Link, never copy. Two files holding the same truth is treated as a bug, and the reference checks catch it. Agents stop reconciling contradictory copies because there are none.
+2. **Every fact has exactly one home.** Link, never copy — a convention the structure supports rather than a guarantee the tooling enforces. The checks verify the mechanical half: that every reference resolves, that IDs are unique and never reused, that generated blocks match their source. Whether two paragraphs say the same thing in different words is a judgement the agent makes, guided by the routing table that gives each fact one address.
 3. **One boot file, open standard.** `AGENTS.md` follows the [agents.md](https://agents.md) convention; `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and the Copilot stub are one-liners pointing at it.
 4. **Structured IDs, never reused.** `D-NNN` decisions, `OD-NNN` open questions, `HT-NNN` human to-dos, `R-NNN` risks, `L-NNN` learnings. Decisions get superseded, never deleted. Any claim in the workspace traces back to one numbered entry and its reasoning.
 
@@ -173,7 +173,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 5. **The mandatory boot set stays small.** About 3.2k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
 6. **Load the smallest context that answers the task, then stop.** The routing table says where information lives; the generated `state/map.md` adds per-file token estimates. Domain knowledge loads on demand, not by default.
 7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and the read-cost check flags a boot set that has grown expensive. Truss never ages content out by the calendar: a project that rests for two weeks resumes exactly where it stopped, and relevance decides what goes, not the date.
-8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior, response style: each is a setting in a generated block, changed through `truss set` or the dashboard, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
+8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior: each is a setting in a generated block, changed through `truss set` or the dashboard, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
 
 <p align="center">
   <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — boot metadata: mandatory Truss reading and per-file breakdown" width="820">
@@ -191,12 +191,12 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 ### Light by construction
 
 13. **Subscription-first.** Truss never calls a model. Your agent does the thinking through the plan you already pay for, which is what keeps Truss free to run and genuinely tool-agnostic.
-14. **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`, no lockfile, no build step — and a codebase small enough to audit before you let an agent run it.
+14. **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`, no lockfile, no build step, nothing fetched at runtime. One exception, vendored rather than installed: the dashboard renders with Preact and htm, shipped as a single 13 KB minified file (`.truss/vendor/preact-htm.mjs`). It is third-party code that runs in your browser, and being minified it is not the part you can read before trusting it — everything else is plain, unminified source you can.
 15. **Structure grows on observed need.** Domain files are created when a topic earns one. No premade backlog, no empty folders, no per-folder index files.
 16. **The dashboard is a view, not a second truth.** It renders the same Markdown, binds to `127.0.0.1` only, and writes through a token-guarded CLI whitelist (or not at all, with `--read-only`). Nothing runs in the background.
 17. **Overlay leaves your repo alone.** Nested code keeps its own git history; a `code-root` setting draws one boundary that checks, maps, and branch status all share. Truss wraps the project, it doesn't absorb it.
 18. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Turn it off again: `truss set control-word off`.
-19. **Prompts are mandates, not method scripts.** The shipped prompt library in the dashboard (`plan`, `implement`, `research`, `critique`, `resume`, `handover`, …) states the mandate and the result bar in a few lines and leaves the method to the agent — the house rules already live in `AGENTS.md`. Your own sit beside them: save from the dashboard or with `truss prompt save <id>`.
+19. **Prompts are mandates, not method scripts.** The shipped prompt library in the dashboard (`plan`, `implement`, `critique`, `decide`, `resume`, `handover`, …) states the mandate and the result bar in a few lines and leaves the method to the agent — the house rules already live in `AGENTS.md`. Your own sit beside them: save from the dashboard or with `truss prompt save <id>`.
 
 ## How it works
 
@@ -216,7 +216,7 @@ my-project/
 
 A session in practice: the agent boots per the load order, runs `truss status` as its temporal anchor (date, phase, health, branch), states what it will do, and starts. It writes back as it goes: each finished unit of work lands in `state/current.md` and its owning files the moment it is done. The session end is a safety net — verify the state, route what is still loose, and run `doctor` to confirm the workspace still agrees with itself.
 
-Phases give the work a shape. A fresh workspace seeds `discover → validate → plan → build`; the kickoff tailors that into a project-specific plan, and agents restructure the plan when requirements change — always with a decision entry and a note to you. Each phase declares what is allowed, what is forbidden, which files to read, and the exit criteria the gate checks. Alternative lifecycles ship as [phase profiles](.truss/phase-profiles/README.md); the full mental model is in [concepts.md](.truss/docs/concepts.md).
+Phases give the work a shape. A fresh workspace seeds a single `kickoff` phase; the kickoff ritual replaces it with a plan cut for your project, and agents restructure that plan when requirements change — always with a decision entry and a note to you. Each phase declares what is allowed, what is forbidden, which files to read, and the exit criteria the gate checks. The full mental model is in [concepts.md](.truss/docs/concepts.md).
 
 ## Your side of the loop
 
@@ -248,7 +248,6 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | moving an existing project to a newer Truss version |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | how the engine is built (contributors) |
 | [.truss/prompts/README.md](.truss/prompts/README.md) | the prompt library |
-| [.truss/phase-profiles/README.md](.truss/phase-profiles/README.md) | alternative lifecycles |
 | [.truss/dashboard/README.md](.truss/dashboard/README.md) | the local dashboard |
 
 ## Contributing
@@ -257,7 +256,11 @@ Issues and pull requests are welcome. Keep the **zero-dependency** rule intact, 
 
 ## Status
 
-`1.0.0-alpha.8`. For you that means: the engine and its test suite are stable and Truss is in daily use on real projects, so it is safe to try on one of yours.
+`1.0.0-alpha.8` — alpha, and the version number is the honest part.
+
+What is verified: the engine has a test suite that runs green in CI on every push, and Truss is in daily use on exactly one project — its own development. That is real usage, and it is a single data point.
+
+What is not: it has not been through a stranger's project, on a stranger's machine, with a stranger's AI tool. Expect rough edges in the first hour and command surface to still move before `1.0.0`. Try it on a project you can afford to have opinions about, tell us what broke, and keep the tag pinned so an upgrade is something you choose.
 
 ## License
 

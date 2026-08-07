@@ -80,6 +80,8 @@ Truss umschließt dein Projekt auf zwei Arten: **Drop-in:** legt den Workspace n
 
 Dieses Repo ist die _Quelle_ des `.truss/`-Engine-Ordners. Kopiere genau diesen einen Ordner in ein eigenes Projekt und führe `init` dort aus. Alles andere, README und Doku eingeschlossen, wird nicht benötigt.
 
+`.truss/` ist **ausführbarer Code**, keine Dokumentation: `init`, `doctor` und das Dashboard sind Node-Skripte, die du ausführst — und die dein Agent ausführt. Der Clone unten ist auf einen Release-Tag gepinnt statt auf `main`; `main` ist der Entwicklungszweig und kann unveröffentlichte Änderungen tragen. Lies den Ordner, bevor du ihn ausführst, wie bei jeder anderen Abhängigkeit auch.
+
 Führe folgende Befehle aus:
 
 **macOS / Linux:**
@@ -88,7 +90,7 @@ Führe folgende Befehle aus:
 # In einem leeren oder bestehenden Projektverzeichnis:
 
 # 1. Engine hineinlegen — nur den .truss/-Ordner, sonst nichts.
-git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
+git clone --depth 1 --branch v1.0.0-alpha.8 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 
 # 2. Frischen Workspace neben der Engine scaffolden.
@@ -107,7 +109,7 @@ node .truss/bin/truss.mjs doctor
 # In einem leeren oder bestehenden Projektverzeichnis:
 
 # 1. Engine hineinlegen.
-git clone --depth 1 https://github.com/KornLabs/truss.git $env:TEMP\truss
+git clone --depth 1 --branch v1.0.0-alpha.8 https://github.com/KornLabs/truss.git $env:TEMP\truss
 Copy-Item -Recurse $env:TEMP\truss\.truss .\.truss
 Remove-Item -Recurse -Force $env:TEMP\truss
 
@@ -141,17 +143,15 @@ Die Produktdokumentation lebt innerhalb der Engine unter [`.truss/docs/`](.truss
 
 ### Bestehende Codebasis (Overlay)
 
-`init` ausführen, bei `Overlay an existing project? (y/N)` mit `y` antworten, Pfad oder URL des Codes angeben. Als Flags, wenn du die Fragen überspringen willst:
+Leg deinen Code selbst unter `repo/` — klonen, symlinken oder verschieben — und scaffolde dann darum herum:
 
 ```bash
-node .truss/bin/truss.mjs init --overlay --repo /path/to/code   # Pfad → symlinked, URL → geklont
+node .truss/bin/truss.mjs init --overlay
 ```
 
-> **Windows-Hinweis:** Symlinks erfordern den Entwicklermodus (oder eine erhöhte Shell). Schlägt das Symlinken fehl, übergib stattdessen eine Git-URL — das Repo wird unter `repo/` geklont.
+Truss platziert, klont und verschiebt keinen Code: woher dein Repository kommt und wie es ausgecheckt wird, bleibt deine Entscheidung; der Workspace zeigt nur auf das Ergebnis. Overlay richtet einen Import-first-Phasenfluss ein (`ingest → operate`) und erwartet deinen Code mit eigener Git-Historie unter `repo/` — hier gitignored, so vermischen sich Commits nie. Die `ingest`-Phase fragt dich erst nach dem Kontext, den der Code nicht verraten kann, und sichtet ihn dann. Kompletter Walkthrough: [.truss/docs/overlay.md](.truss/docs/overlay.md).
 
-Overlay richtet einen Import-first-Phasenfluss ein (`ingest → operate`) und bettet deinen Code mit eigener Git-Historie unter `repo/` ein — hier gitignored, so vermischen sich Commits nie. Die `ingest`-Phase fragt dich erst nach dem Kontext, den der Code nicht verraten kann, und sichtet ihn dann. Kompletter Walkthrough: [.truss/docs/overlay.md](.truss/docs/overlay.md).
-
-Liegt dein Code schon im Workspace (etwa als getracktes Submodul)? Lass ihn liegen und zeig nur darauf: `init --overlay --code-root product`. Truss trägt `code-root: product` in `state/profile.md` ein, und Checks, Branch-Status, Phasen-Evidenz, `map` und `repo-map` teilen sich diese eine Grenze. Verschoben wird nichts.
+Liegt dein Code woanders im Workspace (etwa als getracktes Submodul)? Zeig stattdessen darauf: `init --overlay --code-root product`. Truss trägt `code-root: product` in `state/profile.md` ein, und Checks, Branch-Status, Phasen-Evidenz und `map` teilen sich diese eine Grenze. Verschoben wird nichts.
 
 ### Was dein Agent braucht
 
@@ -166,7 +166,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 ### Wahrheit lebt in Dateien
 
 1. **Reines Markdown ist die einzige Quelle der Wahrheit.** Keine Datenbank, kein versteckter State, kein Server. Ein Workspace ist ein Ordner aus Text, den du lesen, editieren, diffen und versionieren kannst — und jeder Agent kann Truss nutzen.
-2. **Jeder Fakt hat genau ein Zuhause.** Verlinken, nie kopieren. Zwei Dateien mit derselben Wahrheit gelten als Bug, und die Referenz-Checks fangen ihn. Agenten hören auf, widersprüchliche Kopien abzugleichen, weil es keine gibt.
+2. **Jeder Fakt hat genau ein Zuhause.** Verlinken, nie kopieren — eine Konvention, die die Struktur stützt, keine Garantie, die das Werkzeug erzwingt. Die Checks prüfen die mechanische Hälfte: dass jede Referenz auflöst, dass IDs eindeutig und nie wiederverwendet sind, dass generierte Blöcke zu ihrer Quelle passen. Ob zwei Absätze dasselbe mit anderen Worten sagen, ist ein Urteil des Agenten — geleitet von der Routing-Tabelle, die jedem Fakt genau eine Adresse gibt.
 3. **Eine Boot-Datei, offener Standard.** `AGENTS.md` folgt der [agents.md](https://agents.md)-Konvention; `CLAUDE.md`, `GEMINI.md`, `.cursorrules` und der Copilot-Stub sind Einzeiler, die auf sie zeigen.
 4. **Strukturierte IDs, nie wiederverwendet.** `D-NNN` Entscheidungen, `OD-NNN` offene Fragen, `HT-NNN` Human-To-dos, `R-NNN` Risiken, `L-NNN` Learnings. Entscheidungen werden supersedet, nie gelöscht. Jede Behauptung im Workspace führt zu genau einem nummerierten Eintrag samt Begründung zurück.
 
@@ -175,7 +175,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 3,2k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
 6. **Den kleinsten Kontext laden, der die Aufgabe beantwortet — dann stoppen.** Die Routing-Tabelle sagt, wo Information lebt; die generierte `state/map.md` ergänzt Token-Schätzungen pro Datei. Domain-Wissen lädt bei Bedarf, nicht per Default.
 7. **Kontrolliertes Vergessen.** Überholtes wandert mit einer einzeiligen Invalidierungsnotiz nach `archive/`. Längen-Checks warnen, wenn eine State-Datei ihren Fokus verliert, und der Lesekosten-Check meldet ein teuer gewordenes Boot-Set. Truss lässt nichts nach Kalender verfallen: Ein Projekt, das zwei Wochen ruht, macht genau dort weiter, wo es aufgehört hat, und über das Aussortieren entscheidet Relevanz statt Datum.
-8. **Präferenzen statt Prompt-Wiederholung.** Nachfragen vs. selbst entscheiden, Input-Prüfung, Subagent-Einsatz, Commit-Verhalten, Antwortstil: jede ist eine Einstellung in einem generierten Block, geändert über `truss set` oder das Dashboard, beachtet von jeder künftigen Session. Alle starten auf `off`, ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
+8. **Präferenzen statt Prompt-Wiederholung.** Nachfragen vs. selbst entscheiden, Input-Prüfung, Subagent-Einsatz, Commit-Verhalten: jede ist eine Einstellung in einem generierten Block, geändert über `truss set` oder das Dashboard, beachtet von jeder künftigen Session. Alle starten auf `off`, ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
 
 <p align="center">
   <img src=".github/dashboard-context-budget.png" alt="Truss-Dashboard — Boot-Metadaten: Truss-Pflichtlektüre und Aufschlüsselung pro Datei" width="820">
@@ -193,12 +193,12 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 ### Leicht durch Konstruktion
 
 13. **Subscription-first.** Truss ruft nie ein Modell auf. Dein Agent denkt über den Plan, den du ohnehin bezahlst — genau das hält Truss kostenlos im Betrieb und wirklich tool-agnostisch.
-14. **Null Abhängigkeiten.** Node ≥ 20 ist die einzige Voraussetzung. Kein `npm install`, kein Lockfile, kein Build-Schritt — und eine Codebasis, die klein genug ist, um sie zu auditieren, bevor du einen Agenten darauf loslässt.
+14. **Null Abhängigkeiten.** Node ≥ 20 ist die einzige Voraussetzung. Kein `npm install`, kein Lockfile, kein Build-Schritt, nichts, was zur Laufzeit nachgeladen wird. Eine Ausnahme, vendored statt installiert: das Dashboard rendert mit Preact und htm, ausgeliefert als eine einzelne 13-KB-Minified-Datei (`.truss/vendor/preact-htm.mjs`). Das ist Fremdcode, der in deinem Browser läuft, und minifiziert ist er genau der Teil, den du nicht lesen kannst, bevor du ihm vertraust — alles andere ist unminifizierter Quelltext, den du lesen kannst.
 15. **Struktur wächst mit beobachtetem Bedarf.** Domain-Dateien entstehen, wenn ein Thema sich eine verdient. Kein vorsorglicher Backlog, keine leeren Ordner, keine Index-Dateien pro Verzeichnis.
 16. **Das Dashboard ist eine Sicht, keine zweite Wahrheit.** Es rendert dasselbe Markdown, bindet nur an `127.0.0.1` und schreibt über eine token-geschützte CLI-Whitelist (oder gar nicht, mit `--read-only`). Nichts läuft im Hintergrund.
 17. **Overlay lässt dein Repo in Ruhe.** Eingebetteter Code behält seine eigene Git-Historie; eine `code-root`-Einstellung zieht eine Grenze, die Checks, Maps und Branch-Status gemeinsam nutzen. Truss umschließt das Projekt, es absorbiert es nicht.
 18. **Ein Kontrollwort als Session-Kanarienvogel.** Opt-in: Nach `truss set control-word TRUSS` beginnt jede Agenten-Antwort mit `` `TRUSS — ` ``. Verschwindet der Marker mitten in der Session, degradiert der Kontext — Zeit für eine neue Session. Abschalten: `truss set control-word off`.
-19. **Prompts sind Mandate, keine Methodenskripte.** Die mitgelieferte Prompt-Library im Dashboard (`plan`, `implement`, `research`, `critique`, `resume`, `handover`, …) benennt Mandat und Ergebnislatte in wenigen Zeilen und überlässt die Methode dem Agenten — die Hausregeln stehen bereits in `AGENTS.md`. Eigene Prompts kommen daneben: im Dashboard speichern oder `truss prompt save <id>`.
+19. **Prompts sind Mandate, keine Methodenskripte.** Die mitgelieferte Prompt-Library im Dashboard (`plan`, `implement`, `critique`, `decide`, `resume`, `handover`, …) benennt Mandat und Ergebnislatte in wenigen Zeilen und überlässt die Methode dem Agenten — die Hausregeln stehen bereits in `AGENTS.md`. Eigene Prompts kommen daneben: im Dashboard speichern oder `truss prompt save <id>`.
 
 ## Wie es funktioniert
 
@@ -218,7 +218,7 @@ my-project/
 
 Eine Session in der Praxis: Der Agent bootet nach Load-Order, führt `truss status` als zeitlichen Anker aus (Datum, Phase, Health, Branch), sagt, was er vorhat, und legt los. Zurückgeschrieben wird fortlaufend: Jede fertige Arbeitseinheit landet in `state/current.md` und ihren Dateien, sobald sie abgeschlossen ist. Das Session-Ende ist ein Sicherheitsnetz — Stand prüfen, Übriges routen und per `doctor` bestätigen, dass der Workspace noch mit sich selbst übereinstimmt.
 
-Phasen geben der Arbeit eine Form. Ein frischer Workspace startet mit dem Seed `discover → validate → plan → build`; das Kickoff schneidet ihn auf das Projekt zu, und Agenten restrukturieren den Plan, wenn sich Anforderungen ändern — immer mit Entscheidungseintrag und Notiz an dich. Jede Phase deklariert, was erlaubt ist, was verboten, welche Dateien zu lesen sind und welche Exit-Kriterien das Gate prüft. Alternative Lebensläufe liegen als [Phase-Profile](.truss/phase-profiles/README.md) bei; das volle Denkmodell steht in [concepts.md](.truss/docs/concepts.md).
+Phasen geben der Arbeit eine Form. Ein frischer Workspace startet mit einer einzigen `kickoff`-Phase; das Kickoff-Ritual ersetzt sie durch einen auf dein Projekt zugeschnittenen Plan, und Agenten restrukturieren diesen Plan, wenn sich Anforderungen ändern — immer mit Entscheidungseintrag und Notiz an dich. Jede Phase deklariert, was erlaubt ist, was verboten, welche Dateien zu lesen sind und welche Exit-Kriterien das Gate prüft. Das volle Denkmodell steht in [concepts.md](.truss/docs/concepts.md).
 
 ## Deine Seite des Loops
 
@@ -250,7 +250,6 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | ein bestehendes Projekt auf eine neuere Truss-Version heben |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | wie die Engine gebaut ist (Contributors) |
 | [.truss/prompts/README.md](.truss/prompts/README.md) | die Prompt-Library |
-| [.truss/phase-profiles/README.md](.truss/phase-profiles/README.md) | alternative Lebensläufe |
 | [.truss/dashboard/README.md](.truss/dashboard/README.md) | das lokale Dashboard |
 
 ## Contributing
@@ -259,7 +258,11 @@ Issues und Pull Requests sind willkommen. Halte die **Null-Abhängigkeiten**-Reg
 
 ## Status
 
-`1.0.0-alpha.8`. Für dich heißt das: Engine und Test-Suite sind stabil, und Truss ist auf echten Projekten im täglichen Einsatz — du kannst es gefahrlos an einem deiner Projekte ausprobieren.
+`1.0.0-alpha.8` — Alpha, und die Versionsnummer ist der ehrliche Teil.
+
+Belegt ist: Die Engine hat eine Test-Suite, die bei jedem Push grün in der CI läuft, und Truss ist auf genau einem Projekt im täglichen Einsatz — seiner eigenen Entwicklung. Das ist echte Nutzung, und es ist ein einzelner Datenpunkt.
+
+Nicht belegt ist: Truss war noch nicht im Projekt eines Fremden, auf dessen Maschine, mit dessen KI-Werkzeug. Rechne in der ersten Stunde mit Kanten, und damit, dass sich die Befehlsfläche bis `1.0.0` noch bewegt. Probier es an einem Projekt aus, bei dem du dir eine Meinung leisten kannst, sag uns, was kaputtging, und halte den Tag gepinnt, damit ein Upgrade eine Entscheidung bleibt.
 
 ## License
 

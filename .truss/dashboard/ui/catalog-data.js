@@ -16,7 +16,6 @@ export const PREFERENCE_GROUPS = [
     { key: 'branch-guard', label: 'Branch guard', values: ['off', 'strict'], def: 'off', desc: 'Refuse to work while the code-root branch differs from state/current.md. Reporting the mismatch is already a fixed rule in AGENTS.md §4.' },
   ]},
   { title: 'Response & session', items: [
-    { key: 'response-style', label: 'Verbosity', values: ['off', 'compact', 'maxcompact'], def: 'off', desc: 'How terse responses are: compact (no filler) or maxcompact (telegraphic — form compressed, never content). Off leaves your AI tool its own style.' },
     { key: 'control-word', label: 'Control word', values: ['off'], free: true, def: 'off', suggestions: ['TRUSS'],
       desc: 'Have the agent open every response with `<WORD> — …`. If the marker goes missing, the session may be losing context. Pick Off, a preset, or your own word.' },
   ]},
