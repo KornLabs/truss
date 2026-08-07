@@ -13,6 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
 
 import {
   ACK_HEADROOM, ACK_REL_PATH, ACKABLE,
@@ -21,7 +22,7 @@ import {
 import * as cx from '../checks/cx.mjs'
 
 const execFileP = promisify(execFile)
-const ENGINE = path.join(new URL('..', import.meta.url).pathname)
+const ENGINE = path.join(fileURLToPath(import.meta.url), '..', '..')
 
 const ids = (findings, id) => findings.filter(f => f.id === id)
 const big = (words) => '# Big\n\n' + Array(words).fill('lorem').join(' ') + '\n'
