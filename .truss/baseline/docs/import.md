@@ -27,7 +27,7 @@ Document the mapping in a section below this line before starting to move files.
 
 ## Step 2 — Set the phase correctly
 
-An overlay starts in `ingest` (import the system), then moves to `operate` (run it). Stay in `ingest` until the system is mapped and summarised; then `node .truss/bin/truss.mjs phase operate` (a human action — it updates `current:` and re-renders). If the project is actually still an idea/prototype rather than an existing system, the overlay is the wrong fit — use a fresh core `init` or a phase profile (see `.truss/phase-profiles/README.md`).
+An overlay starts in `ingest` (import the system), then moves to `operate` (run it). Stay in `ingest` until the system is mapped and summarised; then `node .truss/bin/truss.mjs phase operate` (a human action — it updates `current:` and re-renders). If the project is actually still an idea/prototype rather than an existing system, the overlay is the wrong fit — use a fresh `init`, whose seeded `kickoff` phase authors the lifecycle from the idea. Either way the seeded phases are a starting point, not the plan: replace them with the lifecycle this project really runs (D-NNN + `truss render`).
 
 ## Step 3 — Fill state files
 
@@ -38,7 +38,7 @@ An overlay starts in `ingest` (import the system), then moves to `operate` (run 
 
 ## Step 4 — Place the existing codebase
 
-The code lives **nested** under a single `repo/` directory inside the workspace (gitignored, its own git history — see docs/git.md). `truss init --overlay --repo <path|url>` does this for you (symlink a local path, clone a URL). If you didn't pass `--repo`, place it now:
+The code lives **nested** under a single `repo/` directory inside the workspace (gitignored, its own git history — see docs/git.md). `init` never places it for you — one readable git command does:
 
 1. `git clone <url> repo/` (or `ln -s /path/to/code repo`). Multiple codebases go in as `repo/<name>/`.
 2. Confirm `repo/` is in `.gitignore` (overlay init adds it).

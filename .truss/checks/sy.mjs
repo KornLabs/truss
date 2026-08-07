@@ -4,7 +4,7 @@
 // SY-02  —  retired (age-based staleness; a resting project is not a broken one) — id not reused
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
-// SY-08  W  ritual drift — state/ or context/ changed on a later day than current.md (D-010)
+// SY-08  W  ritual drift — state/ or context/ changed well after current.md (D-010, D-058)
 // SY-09  I  state/decisions.md read cost grown large (≥ 6000 token-equivalent) — archive nudge
 // SY-10  I  an open decision has been open ≥ 30 days — does the question still stand?
 // SY-11  W  Challenged-by: names an OD that does not exist (stale challenge marker)
@@ -45,7 +45,7 @@ export const meta = [
   { id: 'SY-05', severity: 'W', title: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
-  { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'Day-granular mtime comparison of state/ + context/ vs current.md; same-day edits never fire (D-010)' },
+  { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'mtime comparison of state/ + context/ vs current.md, with a grace window for the write-back that follows a change (D-010, D-058)' },
   { id: 'SY-09', severity: 'I', title: 'decisions.md read cost is growing large', description: '≥ 6000 token-equivalent (words × 1.5) → check for compressible superseded/absorbed entries (archive/decisions.md)' },
   { id: 'SY-10', severity: 'I', title: 'open decision has been waiting a long time', description: 'Opened: ≥ 30 days ago → decide it, re-brief it, or drop it; not SY-02 (that aged all state, this asks about a question waiting on a human)' },
   { id: 'SY-11', severity: 'W', title: 'Challenged-by: points at an open decision that does not exist', description: 'The challenge was resolved or removed but the marker on the decision stayed' },
@@ -55,6 +55,9 @@ const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done']
 const HT_DONE_MAX           = 5
 const DECISIONS_TOKENS_MAX  = 6000 // one third of the CX-01 warn budget (18k)
 const OD_STALE_DAYS         = 30   // set, not derived — info only; correct it at the first false alarm
+// SY-08 grace window: how long state may be newer than current.md before it is
+// drift rather than a work unit still in progress. Set, not derived (D-058).
+const RITUAL_GRACE_MS       = 90 * 60 * 1000
 
 
 /**
@@ -85,18 +88,22 @@ export async function run(ctx) {
 
   // ── SY-08: ritual drift — state changed after current.md's last update ─────
   // D-010: drift becomes *visible* in-band; no host hooks, no enforcement.
-  // Day-granular ON PURPOSE: mid-session doctor runs (AGENTS.md §4) see
-  // domain edits before current.md is refreshed at session end — those
-  // same-day gaps must not fire. Only a change on a LATER day than
-  // current.md's last touch is drift evidence. mtime-based, no git shell-out
-  // (checks stay pure file reads); a fresh clone writes uniform mtimes, so it
-  // stays quiet too. Scope: the agent-owned ritual write surfaces (state/ and
-  // context/) minus current.md itself and the script-generated map.md;
-  // HUMAN-TODOS.md is excluded — humans check things off at any time.
+  // Event-granular since D-058: the calendar-day comparison it replaced could
+  // not fire within the day most sessions live in, so the one mechanism backing
+  // the write-back rule was silent exactly when it was needed. It now compares
+  // mtimes directly, with a fixed grace window (RITUAL_GRACE_MS) that absorbs
+  // the normal order inside one work unit — edit a state or domain file, then
+  // write current.md minutes later. Longer than that is drift, same day or not.
+  // mtime-based, no git shell-out (checks stay pure file reads); a fresh clone
+  // writes near-uniform mtimes, so it stays quiet too. Scope: the agent-owned
+  // ritual write surfaces (state/ and context/) minus current.md itself and the
+  // script-generated map.md; HUMAN-TODOS.md is excluded — humans check things
+  // off at any time.
   if (current?.stat) {
-    const localDay = (ms) => {
+    const stamp = (ms) => {
       const d = new Date(ms)
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` +
+        ` ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
     }
     const candidates = (ctx.mdFiles || []).filter(rel =>
       (rel.startsWith('state/') || rel.startsWith('context/'))
@@ -108,11 +115,15 @@ export async function run(ctx) {
         if (!newest || st.mtimeMs > newest.mtimeMs) newest = { rel, mtimeMs: st.mtimeMs }
       } catch { /* deleted between walk and stat — irrelevant */ }
     }
-    if (newest && localDay(newest.mtimeMs) > localDay(current.stat.mtimeMs)) {
+    const behindMs = newest ? newest.mtimeMs - current.stat.mtimeMs : 0
+    if (behindMs > RITUAL_GRACE_MS) {
+      const behind = behindMs >= 36 * 3600_000
+        ? `${Math.round(behindMs / 86_400_000)} days`
+        : `${Math.round(behindMs / 3_600_000)}h`
       findings.push({
         id: 'SY-08', severity: 'W',
         file: 'state/current.md',
-        message: `workspace state changed after current.md's last update — ${newest.rel} was modified on ${localDay(newest.mtimeMs)}, current.md last on ${localDay(current.stat.mtimeMs)}; the session-end ritual may have been skipped`,
+        message: `workspace state changed after current.md's last update — ${newest.rel} was modified ${behind} later (${stamp(newest.mtimeMs)} vs ${stamp(current.stat.mtimeMs)}); the write-back per work unit may have been skipped`,
         fix: `Refresh state/current.md (focus / next / recently-done) so it reflects the newer state — AGENTS.md §4. If it is still accurate, saving it again clears this.`,
       })
     }

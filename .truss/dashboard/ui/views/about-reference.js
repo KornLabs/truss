@@ -12,14 +12,13 @@ const sev = (s) => {
 };
 
 const COMMANDS = [
-  { cmd: 'init', flags: '--name, --lang, --overlay, --repo, --code-root', desc: 'Scaffold a fresh workspace' },
+  { cmd: 'init', flags: '--name, --lang, --overlay, --code-root', desc: 'Scaffold a fresh workspace' },
   { cmd: 'status', flags: '—', desc: 'Compact workspace status summary' },
   { cmd: 'doctor', flags: '--gate, --json, --html, --fix-prompt', desc: 'Check workspace health (read-only)' },
   { cmd: 'render', flags: '—', desc: 'Sync phase block in AGENTS.md from phases.md' },
   { cmd: 'phase', flags: '[id]', desc: 'List phases or set current phase' },
   { cmd: 'set', flags: '<key> <value>', desc: 'Change an agent preference' },
   { cmd: 'map', flags: '—', desc: 'Regenerate state/map.md domain overview' },
-  { cmd: 'repo-map', flags: '—', desc: 'Print a bounded read-only code-root map' },
   { cmd: 'dashboard', flags: '--port, --no-open, --read-only', desc: 'Start local web dashboard' },
   { cmd: 'prompt', flags: 'save|reset|delete <id>', desc: 'Manage custom prompts' },
   { cmd: 'help', flags: '—', desc: 'List all commands' },

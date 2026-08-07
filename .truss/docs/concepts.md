@@ -87,18 +87,23 @@ including every non-ignored Markdown file under `context/`.
 
 Every project gets its **own phase plan** — a linear lifecycle tailored to the
 project, drafted at kickoff from the vision and maintained by agents as the
-project evolves. What `init` installs is the seed:
+project evolves. Truss ships **no ready-made lifecycle**: `init` installs a
+single real phase,
 
 ```
-discover  →  validate  →  plan  →  build
+kickoff
 ```
 
-`discover` is divergent (generate options, no code yet); `validate` seeks
-disconfirming evidence; `plan` is convergent (every open question gets a
-`D-NNN`); `build` ships. The kickoff renames, drops, splits, or adds phases so
-the plan fits the project (e.g. a launch, migration, or operate phase). Each
-phase declares its `allowed`, `forbidden`, `forbidden-globs`, the files to
-`read`, and the `exit` criteria that must be met to leave it.
+whose job is to produce the plan. `kickoff` is an interview phase — it turns the
+raw idea into `VISION.md`, `state/profile.md`, and the phase list this project
+actually needs (e.g. discovery, validation, launch, migration, or operate
+phases), and it forbids leaving that seeded list in place as if it were the
+plan. Each phase declares its `allowed`, `forbidden`, `forbidden-globs`, the
+files to `read`, and the `exit` criteria that must be met to leave it.
+
+Inside a `## <phase-id>` section, every line is `key: value`; a wrapped value
+continues on an **indented** line. Free text is not allowed there — the file is
+rendered into every session boot, so `PH-01` reports any other line.
 
 Three rules define the phase protocol:
 
@@ -123,11 +128,8 @@ gate first and refuses the transition unless it passes or a human deliberately
 uses `--override-gate`; the flag is explicit confirmation, not actor
 authentication.
 
-**Phase profiles** are alternative seeds for the kickoff tailoring (e.g.
-`software` adds an `operate` phase; `founders-thinking` ends in a concept/park
-call). See [phase-profiles/README.md](../phase-profiles/README.md).
 An existing codebase uses the **overlay** flow (`ingest → operate`) via
-`init --overlay`.
+`init --overlay` — also a seed the onboarding replaces with the real plan.
 
 ## 6. Checks (the doctor)
 
@@ -177,11 +179,14 @@ and values is in [cli.md](cli.md#set).
 ## 8. Prompts
 
 Truss ships a small **prompt library** — task prompts (`plan`, `implement`,
-`bug-fix`, `refactor`, `research`, `critique`, …), session prompts (`resume`,
-`handover`), and one orchestration wrapper — plus a set of engine-ritual prompts
-the phase machine uses internally. Prompts are intentionally lightweight: a
-one-line mandate and the result bar, leaving the method to the agent, because the
-house rules already live in `AGENTS.md`. Details:
+`critique`, `decide`), session prompts (`resume`, `handover`, `cleanup`), and
+setup rituals (`project-kickoff`, `overlay-onboard`, `upgrade`) — plus three
+engine-ritual prompts the phase machine uses internally. There is deliberately
+no prompt per method (research, refactoring, stress-testing, orchestration):
+how the work is decomposed follows from the task and the `subagents`
+preference, not from picking a different prompt. Prompts are intentionally
+lightweight: a one-line mandate and the result bar, leaving the method to the
+agent, because the house rules already live in `AGENTS.md`. Details:
 [prompts/README.md](../prompts/README.md).
 
 ## 9. The dashboard

@@ -436,18 +436,44 @@ describe('risk migration bridge', () => {
   })
 
   describe('bundled phase fixtures', () => {
-    it('parses every bundled profile with the same list grammar', async () => {
-      for (const name of ['software', 'founders-thinking']) {
-        const root = await makeRoot(`truss-profile-${name}-`)
+    it('parses every shipped phase seed with the same list grammar', async () => {
+      // The engine ships exactly two seeds — the core `kickoff` phase and the
+      // overlay `ingest → operate` pair. Both must parse clean and reference
+      // only prompts that exist (there are no phase profiles any more).
+      for (const [name, seed] of [
+        ['core', path.join('baseline', 'state', 'phases.md')],
+        ['overlay', path.join('baseline', 'overlay', 'phases.md')],
+      ]) {
+        const root = await makeRoot(`truss-seed-${name}-`)
         await runInit(root, ['--name', name, '--lang', 'English'])
-        const profile = await fs.readFile(path.join(ENGINE_DIR, 'phase-profiles', `${name}.md`), 'utf8')
-        await fs.writeFile(path.join(root, 'state', 'phases.md'), profile)
+        const content = await fs.readFile(path.join(ENGINE_DIR, seed), 'utf8')
+        await fs.writeFile(path.join(root, 'state', 'phases.md'), content)
         const ctx = await loadWorkspace(root)
         const findings = [...await ph.run(ctx), ...await rf.run(ctx)]
         assert.equal(findings.filter(f => f.id === 'PH-01').length, 0, name)
         assert.equal(findings.filter(f => f.id === 'RF-04').length, 0, name)
         await fs.rm(root, { recursive: true, force: true })
       }
+    })
+
+    it('reports free text inside a phase section instead of swallowing it (D-061)', async () => {
+      // The block is rendered verbatim into AGENTS.md, i.e. into every session
+      // boot. A line after `behavior:` used to be appended to that value and
+      // shipped silently; PH-01 now names it.
+      const root = await makeRoot('truss-phase-freetext-')
+      await runInit(root, ['--name', 'Freetext', '--lang', 'English'])
+      const phasesPath = path.join(root, 'state', 'phases.md')
+      const raw = await fs.readFile(phasesPath, 'utf8')
+      await fs.writeFile(
+        phasesPath,
+        raw.replace(/^(behavior: .*)$/m, '$1\n\nA stray note the parser must not absorb.\n'),
+      )
+      const ctx = await loadWorkspace(root)
+      const findings = await ph.run(ctx)
+      const stray = findings.filter(f => f.id === 'PH-01' && /stray note/.test(f.message))
+      assert.equal(stray.length, 1, JSON.stringify(findings))
+      assert.doesNotMatch(ctx.phases.defs.get('kickoff').behavior, /stray note/)
+      await fs.rm(root, { recursive: true, force: true })
     })
 
     it('accepts the artifact produced by the official overlay onboarding ritual', async () => {
@@ -481,7 +507,10 @@ describe('risk migration bridge', () => {
           ['-c', 'user.name=Truss Test', '-c', 'user.email=truss@example.invalid', 'commit', '-m', 'baseline'],
           { cwd: src }
         )
-        await runInit(root, ['--name', 'Overlay', '--lang', 'English', '--overlay', '--repo', src])
+        await runInit(root, ['--name', 'Overlay', '--lang', 'English', '--overlay'])
+        // init no longer places the code (D-059) — the human does, with one
+        // documented command. The check surface is identical either way.
+        await fs.symlink(src, path.join(root, 'repo'), 'dir')
         await fs.writeFile(path.join(src, 'blocked.js'), 'export const value = 2\n')
         await fs.writeFile(path.join(src, 'ignored.js'), 'export const ignored = 2\n')
         await fs.writeFile(path.join(root, '.trussignore'), 'repo/ignored.js\n')
@@ -585,10 +614,11 @@ describe('doctor exit codes (CLI)', () => {
   })
 })
 
-// ── SY-08 ritual drift (D-010) ───────────────────────────────────────────────
+// ── SY-08 ritual drift (D-010, D-058) ────────────────────────────────────────
 describe('SY-08 ritual drift', () => {
   // Real files + real mtimes: SY-08 stats ctx.root/<rel> for every state/ and
-  // context/ candidate from ctx.mdFiles and compares local days.
+  // context/ candidate from ctx.mdFiles and compares them directly, with a
+  // 90-minute grace window for the write-back that follows a change.
   async function driftRoot() {
     const root = await makeRoot('truss-sy08-')
     await fs.mkdir(path.join(root, 'state'), { recursive: true })
@@ -615,13 +645,29 @@ describe('SY-08 ritual drift', () => {
     assert.match(ids(f, 'SY-08')[0].message, /decisions\.md/)
     await fs.rm(root, { recursive: true, force: true })
   })
-  it('stays quiet for same-day edits and when current.md is newest', async () => {
+  it('fires SAME day once the gap exceeds the grace window (D-058)', async () => {
     const root = await driftRoot()
-    // Same day (both just written) → quiet.
+    // current.md written 4h ago, decisions.md just now — same calendar day.
+    const old = new Date(Date.now() - 4 * 3600_000)
+    await fs.utimes(path.join(root, 'state', 'current.md'), old, old)
+    const f = await sy.run(await ctxFor(root))
+    assert.equal(ids(f, 'SY-08').length, 1)
+    assert.match(ids(f, 'SY-08')[0].message, /4h later/)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  it('stays quiet inside the grace window and when current.md is newest', async () => {
+    const root = await driftRoot()
+    // Both just written → quiet.
+    assert.equal(ids(await sy.run(await ctxFor(root)), 'SY-08').length, 0)
+    // A work unit in progress: state edited 30 min before current.md → quiet.
+    const halfHour = new Date(Date.now() - 30 * 60_000)
+    await fs.utimes(path.join(root, 'state', 'current.md'), halfHour, halfHour)
     assert.equal(ids(await sy.run(await ctxFor(root)), 'SY-08').length, 0)
     // current.md refreshed after older state → quiet.
     const old = new Date(Date.now() - 3 * DAY)
     await fs.utimes(path.join(root, 'state', 'decisions.md'), old, old)
+    const now = new Date()
+    await fs.utimes(path.join(root, 'state', 'current.md'), now, now)
     assert.equal(ids(await sy.run(await ctxFor(root)), 'SY-08').length, 0)
     await fs.rm(root, { recursive: true, force: true })
   })

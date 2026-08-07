@@ -10,17 +10,17 @@ Read AGENTS.md fully first and follow its §1 load order.
 Project: <what it is and the problem it solves>
 My role & how we work: <your role, decision style, language>
 Vision / goal: <what success looks like>
-Current phase: <discover · validate · plan · build   (or: ingest, for an existing codebase)>
+Current phase: <kickoff   (or: ingest, for an existing codebase)>
 
 Please:
 1. Fill VISION.md (#Problem first) and state/profile.md from the above — ask me wherever it's thin instead of guessing.
 2. Confirm we're in the right phase (run: truss phase) and set state/current.md with the focus and the first concrete next steps.
 3. Then start the current phase.`;
 
-const INSTALL_MAC = `git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
+const INSTALL_MAC = `git clone --depth 1 --branch v1.0.0-alpha.8 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss`;
 
-const INSTALL_WIN = `git clone --depth 1 https://github.com/KornLabs/truss.git $env:TEMP\\truss
+const INSTALL_WIN = `git clone --depth 1 --branch v1.0.0-alpha.8 https://github.com/KornLabs/truss.git $env:TEMP\\truss
 Copy-Item -Recurse $env:TEMP\\truss\\.truss .\\.truss
 Remove-Item -Recurse -Force $env:TEMP\\truss`;
 
@@ -51,17 +51,17 @@ export class AboutStartView extends Component {
             <div style="font-weight:600;margin-bottom:4px">New project</div>
             <div style="margin-bottom:8px">${code('truss init')}</div>
             <p class="muted" style="margin:0;font-size:12.5px;line-height:1.55">
-              Scaffolds the seed lifecycle <strong>discover → validate → plan → build</strong> — the
-              kickoff then tailors it to your project. Use when starting something fresh
-              and you want to think before you build.
+              Scaffolds one real phase: <strong>kickoff</strong>. That kickoff then writes the
+              project's actual phase plan. Use when starting something fresh and you want
+              the lifecycle to come from the project, not from a generic seed.
             </p>
           </div>
           <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
             <div style="font-weight:600;margin-bottom:4px">Existing codebase</div>
-            <div style="margin-bottom:8px">${code('truss init --overlay --repo <path|url>')}</div>
+            <div style="margin-bottom:8px">${code('truss init --overlay')}</div>
             <p class="muted" style="margin:0;font-size:12.5px;line-height:1.55">
-              Installs the <strong>ingest → operate</strong> flow and nests your code under ${code('repo/')}
-              (symlinked or cloned, kept on its own git history).
+              Installs the <strong>ingest → operate</strong> flow around code you already placed
+              under ${code('repo/')} (or pointed to with ${code('--code-root <dir>')}).
             </p>
           </div>
         </div>

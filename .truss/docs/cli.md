@@ -30,8 +30,7 @@ truss init --name "My Project" --lang English
 |---|---|
 | `--name <name>` | project name (used in `profile.md`, VISION/README titles); skips the interactive prompt |
 | `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
-| `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore` |
-| `--repo <path\|url>` | (overlay only) bring the existing code in under `repo/`: a local path is symlinked, a URL is `git clone`d. Best-effort — a failure is reported, never fatal |
+| `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore`. `init` never places the code itself — clone or symlink it into `repo/` yourself |
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
@@ -43,7 +42,7 @@ the remaining paths are listed in `truss-init-rollback.txt`.
 
 `--code-root` does not relocate the workspace, the `.truss/` engine, or Truss
 state. It writes the normalized POSIX path to `state/profile.md`; status,
-branch-guard, phase evidence, code-root checks, `map`, and `repo-map` then use
+branch-guard, phase evidence, code-root checks, and `map` then use
 that same boundary. The directory must already exist inside the workspace and
 must not be a Truss-managed top-level path. Absolute paths, backslashes, and
 `..` traversal are rejected. Omit the option for the standard `repo/` overlay.
@@ -51,11 +50,11 @@ must not be a Truss-managed top-level path. Absolute paths, backslashes, and
 With no flags in a TTY, `init` asks interactively. With no TTY and missing
 required answers it errors instead of hanging.
 
-For the full existing-project flow, see
-[overlay.md](overlay.md). The installed phases are a seed: the kickoff tailors
-them to the project, and agents may restructure the plan later (D-NNN + telling
-the human; advancing `current:` stays human-only) — see
-[../phase-profiles/README.md](../phase-profiles/README.md).
+For the full existing-project flow, see [overlay.md](overlay.md). The installed
+phase is a seed, not a plan: a fresh workspace ships one `kickoff` phase, and
+the kickoff replaces it with the lifecycle this project actually needs. Agents
+may restructure the plan later (D-NNN + telling the human; advancing `current:`
+stays human-only) — see [concepts.md §5](concepts.md#5-phases).
 
 ---
 
@@ -129,19 +128,6 @@ truss status
 
 ---
 
-## `repo-map`
-
-Print a compact, read-only orientation map for the configured code root.
-It respects the workspace `.trussignore` and the code checkout's own
-`.gitignore`/`.trussignore`, and has fixed limits: depth 3, 500 files scanned,
-200 output lines. It never writes a map file.
-
-```bash
-truss repo-map
-```
-
----
-
 ## `doctor`
 
 Check workspace health. Runs every check family (see
@@ -202,7 +188,7 @@ the preferences block in `AGENTS.md` is rewritten.
 
 ```bash
 truss set verify-inputs on
-truss set response-style compact
+truss set clarify ask
 ```
 
 ### Preference keys
@@ -216,7 +202,6 @@ truss set response-style compact
 | `auto-commit` | off · suggest · on | off |
 | `gate-advocate` | off · on · agentic | off |
 | `branch-guard` | off · strict | off |
-| `response-style` | off · compact · maxcompact | off |
 | `control-word` | `off` or any short word | off |
 
 Every key defaults to `off`, and `off` renders **no directive line** — a fresh
@@ -229,8 +214,9 @@ Upgrading from an older instance: existing `key=off` directives stay readable an
 `doctor` accepts them, but the next `set` of any key rewrites the block without
 them — they are the default now. `set` names each line it drops. Keys retired in
 D-029 (`orchestration`, `research-agent`, `review-agent`, `criticality`,
-`input-trust`, `source-citation`, `post-task-check`, `phase-lock`) are reported by
-`BL-03` as a warning naming their replacement, never as an error.
+`input-trust`, `source-citation`, `post-task-check`, `phase-lock`) and
+`response-style`, retired before the beta freeze, are reported by `BL-03` as a
+warning naming their replacement, never as an error.
 
 ---
 
