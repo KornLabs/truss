@@ -683,15 +683,14 @@ function bootPromptLines(r) {
     return [
       '"Read AGENTS.md fully, then follow §1 load order. This is a fresh project —',
       "  don't start anything yet. Run the project-kickoff ritual",
-      "  (.truss/prompts/base/project-kickoff.md, also on the dashboard's Setup shelf):",
+      "  (on the dashboard's Setup shelf):",
       "  interview me to turn my idea into VISION.md, state/profile.md and a phase plan,",
       "  and probe for anything missing or vague. My idea/vision: <paste your idea, your",
       '  role, and what you want to achieve here>."',
     ];
   }
   const ritual =
-    "run the overlay-onboard ritual (.truss/prompts/base/overlay-onboard.md, " +
-    "also on the dashboard's Setup shelf) to onboard";
+    "run the overlay-onboard ritual (on the dashboard's Setup shelf) to onboard";
   if (!r.codeRootReady) {
     return [
       `"Once ${r.codeRoot}/ holds your code, read AGENTS.md fully, then follow §1 load`,

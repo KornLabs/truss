@@ -270,7 +270,6 @@ export async function loadWorkspace(root) {
   // ── Collect all prompt IDs from prompt library ────────────────────────────
   const promptIds = new Set();
   const promptDirs = [
-    resolve('.truss', 'prompts', 'base'),
     resolve('.truss', 'prompts', 'custom'),
   ];
   for (const dir of promptDirs) {

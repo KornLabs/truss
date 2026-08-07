@@ -16,4 +16,4 @@ allowed: VISION.md, state/profile.md, the tailored phase list, first decisions a
 forbidden: production work before the phase plan exists; inventing facts the human never stated; leaving the seeded phase list in place as if it were the plan.
 read: state/profile.md
 exit: section: VISION.md#Problem; phase plan tailored to this project and recorded as a D-entry (human); human sign-off (human)
-prompts: project-kickoff, phase-recap
+prompts:

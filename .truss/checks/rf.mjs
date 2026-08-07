@@ -175,8 +175,8 @@ export async function run(ctx) {
           findings.push({
             id: 'RF-04', severity: 'W',
             file: 'state/phases.md',
-            message: `phase '${phaseId}': prompt '${promptId}' not found in .truss/prompts/base/ or prompts/custom/`,
-            fix: `Create .truss/prompts/base/${promptId}.md or remove '${promptId}' from phase '${phaseId}' prompts`,
+            message: `phase '${phaseId}': prompt '${promptId}' not found in prompts/custom/`,
+            fix: `Create .truss/prompts/custom/${promptId}.md or remove '${promptId}' from phase '${phaseId}' prompts`,
           });
         }
       }

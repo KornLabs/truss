@@ -157,10 +157,33 @@ describe('host-agent territory is excluded out of the box', () => {
     await fs.rm(root, { recursive: true, force: true })
   })
 
+  // `.agents/skills/` is the cross-client convention Codex actually reads. A
+  // user who follows it instead of a tool-specific path must not be punished
+  // for it — same rule as .claude/, same test.
+  it('a skill in the cross-client .agents/skills/ path is host territory too', async () => {
+    const root = await makeRoot('truss-agentsdir-')
+    await runInit(root, ['--name', 'AD', '--lang', 'English'])
+
+    const skill = path.join(root, '.agents', 'skills', 'my-skill')
+    await fs.mkdir(skill, { recursive: true })
+    await fs.writeFile(
+      path.join(skill, 'SKILL.md'),
+      '---\nname: my-skill\ndescription: t\n---\n\nDo the thing.\n',
+    )
+
+    const map = await generateMapContent(root)
+    assert.ok(!map.includes('.agents'), 'map must not enumerate the cross-client skill path')
+
+    const findings = await runChecks(root)
+    const hits = findings.filter(f => (f.file || '').includes('.agents'))
+    assert.equal(hits.length, 0, 'a cross-client skill must not produce doctor findings')
+    await fs.rm(root, { recursive: true, force: true })
+  })
+
   it('the shipped .trussignore covers the tool dirs Truss ships adapter stubs for', async () => {
     const raw = await fs.readFile(path.join(ENGINE_DIR, 'baseline', '.trussignore'), 'utf8')
     const active = raw.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'))
-    for (const dir of ['.claude/', '.cursor/', '.codex/', '.gemini/']) {
+    for (const dir of ['.agents/', '.claude/', '.cursor/', '.codex/', '.gemini/']) {
       assert.ok(active.includes(dir), `${dir} must be an active .trussignore rule`)
     }
   })

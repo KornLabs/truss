@@ -28,6 +28,9 @@
 # Truss does not manage them and must not report on them; git still tracks them
 # by default, so a skill you write stays shareable. Add your tool's dir if it is
 # missing here.
+# `.agents/skills/` is the cross-client convention (Codex reads it; the Agent
+# Skills spec leaves the location open) — it is host territory like the rest.
+.agents/
 .claude/
 .cursor/
 .codex/
