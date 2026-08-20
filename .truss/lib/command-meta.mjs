@@ -60,7 +60,14 @@ export const COMMAND_META = [
       '--name': { value: true }, '--lang': { value: true },
       '--overlay': {}, '--code-root': { value: true },
       '--adopt-agents': {}, '--root': { value: true },
+      '--skills': { value: true },
     },
+  },
+  {
+    name: 'skills', display: 'skills <list|add|remove> [group]',
+    dashboardSafe: false,
+    summary: 'manage baseline skill groups',
+    flags: {},
   },
   {
     name: 'upgrade', display: 'upgrade [flags]', dashboardSafe: false,
