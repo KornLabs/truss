@@ -75,12 +75,12 @@ test('singleInstance: second launch for same project returns the running one', a
   } finally { a.server.close(); }
 });
 
-test('config: bands are floor 3.2k / green 18k / yellow 30k', () => {
-  assert.equal(TRUSS_BASELINE, 3196);
-  assert.equal(THRESHOLDS.floor, 3196);
+test('config: bands are floor 4.5k / green 18k / yellow 30k', () => {
+  assert.equal(TRUSS_BASELINE, 4544);
+  assert.equal(THRESHOLDS.floor, 4544);
   assert.equal(THRESHOLDS.green, 18000);
   assert.equal(THRESHOLDS.yellow, 30000);
-  assert.equal(budgetStatus(3196).tone, 'ok');
+  assert.equal(budgetStatus(4544).tone, 'ok');
   assert.equal(budgetStatus(9341).tone, 'ok'); // truss forge itself — a healthy mature project
   assert.equal(budgetStatus(18000).tone, 'ok');
   assert.equal(budgetStatus(18001).tone, 'warn');
