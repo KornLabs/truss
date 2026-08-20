@@ -1,134 +1,129 @@
-// lib/skill-groups.mjs — discover and filter baseline skill/agent groups.
-//
-// Skills and agents live in baseline/.claude/skills/<prefix>-<name>/
-// and baseline/.claude/agents/<prefix>-<name>.md respectively. The prefix
-// (everything before the first '-') defines the group. Files without a
-// recognisable prefix fall into the 'misc' group.
-//
-// Shared by init.mjs (exclude selection) and skills.mjs (list/add/remove).
-// Zero external dependencies — node: built-ins only.
+// lib/skill-groups.mjs — discover baseline skill groups without a separate catalog.
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { writeFileAtomic } from './scaffold.mjs'
 
-const CLAUDE_DIR = '.claude'
-const SKILLS_DIR = path.join(CLAUDE_DIR, 'skills')
-const AGENTS_DIR = path.join(CLAUDE_DIR, 'agents')
+export const SKILL_SELECTION_REL = '.claude/.truss-skills.json'
+export class SkillSelectionError extends Error {}
 
-/** Extract the group prefix from a filename or directory name. */
-function groupOf(name) {
-  const i = name.indexOf('-')
-  return i > 0 ? name.slice(0, i) : 'misc'
+async function entriesAt(absPath) {
+  try {
+    return await fs.readdir(absPath, { withFileTypes: true })
+  } catch (err) {
+    if (err.code === 'ENOENT') return []
+    throw err
+  }
+}
+
+function prefixOf(name) {
+  const dash = name.indexOf('-')
+  return dash === -1 ? null : name.slice(0, dash)
 }
 
 /**
- * Scan the baseline's .claude/skills/ and .claude/agents/ to discover groups.
+ * Scan the baseline's Claude assets and group them by their shared name prefix.
+ * A singleton prefix is treated as misc so standalone names such as
+ * `code-reviewer.md` do not accidentally become a category.
  *
- * @param {string} baselineDir  Absolute path to the baseline directory.
  * @returns {Promise<Map<string, {skills: string[], agents: string[]}>>}
- *   Sorted map of groupId → { skills (dir names), agents (file names) }.
  */
 export async function discoverGroups(baselineDir) {
+  const skillsDir = path.join(baselineDir, '.claude', 'skills')
+  const agentsDir = path.join(baselineDir, '.claude', 'agents')
+  const [skillEntries, agentEntries] = await Promise.all([
+    entriesAt(skillsDir),
+    entriesAt(agentsDir),
+  ])
+  const assets = [
+    ...skillEntries
+      .filter(entry => entry.isDirectory())
+      .map(entry => ({ kind: 'skill', name: entry.name })),
+    ...agentEntries
+      .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+      .map(entry => ({ kind: 'agent', name: entry.name })),
+  ].sort((a, b) => a.name.localeCompare(b.name))
+  const prefixCounts = new Map()
+  for (const { name } of assets) {
+    const prefix = prefixOf(name)
+    if (prefix) prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1)
+  }
+
   const groups = new Map()
-
-  const ensure = (id) => {
-    if (!groups.has(id)) groups.set(id, { skills: [], agents: [] })
-    return groups.get(id)
+  for (const asset of assets) {
+    const prefix = prefixOf(asset.name)
+    const group = prefix && prefixCounts.get(prefix) > 1 ? prefix : 'misc'
+    if (!groups.has(group)) groups.set(group, { skills: [], agents: [] })
+    groups.get(group)[`${asset.kind}s`].push(asset.name)
   }
-
-  // Skills — each subdirectory is one skill.
-  const skillsPath = path.join(baselineDir, SKILLS_DIR)
-  try {
-    const entries = await fs.readdir(skillsPath, { withFileTypes: true })
-    for (const e of entries) {
-      if (!e.isDirectory()) continue
-      const g = groupOf(e.name)
-      ensure(g).skills.push(e.name)
-    }
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err
-  }
-
-  // Agents — each .md file is one agent.
-  const agentsPath = path.join(baselineDir, AGENTS_DIR)
-  try {
-    const entries = await fs.readdir(agentsPath, { withFileTypes: true })
-    for (const e of entries) {
-      if (!e.isFile() || !e.name.endsWith('.md')) continue
-      const g = groupOf(e.name)
-      ensure(g).agents.push(e.name)
-    }
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err
-  }
-
-  // Return sorted by group id.
   return new Map([...groups.entries()].sort(([a], [b]) => a.localeCompare(b)))
 }
 
-/**
- * Build a set of relative path prefixes to exclude from applyTree.
- *
- * @param {Map<string, {skills: string[], agents: string[]}>} allGroups
- * @param {Set<string>} selected  Group IDs to KEEP.
- * @returns {Set<string>}  Relative path prefixes to exclude.
- */
-export function buildExcludes(allGroups, selected) {
+/** Build baseline-relative path prefixes for groups omitted from a selection. */
+export function buildExcludes(groups, selected) {
   const excludes = new Set()
-  for (const [id, group] of allGroups) {
-    if (selected.has(id)) continue
-    for (const s of group.skills) {
-      excludes.add(path.join(SKILLS_DIR, s))
-    }
-    for (const a of group.agents) {
-      excludes.add(path.join(AGENTS_DIR, a))
-    }
+  for (const [group, assets] of groups) {
+    if (selected.has(group)) continue
+    for (const skill of assets.skills) excludes.add(`.claude/skills/${skill}`)
+    for (const agent of assets.agents) excludes.add(`.claude/agents/${agent}`)
   }
   return excludes
 }
 
-/**
- * One-line description per group for interactive display.
- * @param {{skills: string[], agents: string[]}} group
- * @returns {string}
- */
-export function groupSummary(group) {
-  const parts = []
-  if (group.skills.length) parts.push(`${group.skills.length} skill${group.skills.length === 1 ? '' : 's'}`)
-  if (group.agents.length) parts.push(`${group.agents.length} agent${group.agents.length === 1 ? '' : 's'}`)
-  return parts.join(', ')
-}
-
-/**
- * Check which groups are installed in a workspace.
- *
- * @param {string} root  Workspace root.
- * @param {Map<string, {skills: string[], agents: string[]}>} allGroups
- * @returns {Promise<Map<string, boolean>>}  groupId → at least one file present.
- */
-export async function installedGroups(root, allGroups) {
-  const result = new Map()
-  for (const [id, group] of allGroups) {
-    let found = false
-    for (const s of group.skills) {
-      try {
-        await fs.access(path.join(root, SKILLS_DIR, s))
-        found = true
-        break
-      } catch { /* not installed */ }
-    }
-    if (!found) {
-      for (const a of group.agents) {
-        try {
-          await fs.access(path.join(root, AGENTS_DIR, a))
-          found = true
-          break
-        } catch { /* not installed */ }
-      }
-    }
-    result.set(id, found)
+/** Parse an init selection into its enabled baseline groups. */
+export function selectedGroupsFor(value, groups) {
+  if (value === null || value === 'all') return new Set(groups.keys())
+  if (value === 'none') return new Set()
+  const selected = new Set(value.split(',').map(group => group.trim()).filter(Boolean))
+  if (selected.size === 0 || [...selected].some(group => !groups.has(group))) {
+    throw new SkillSelectionError(
+      `--skills expects all, none, or comma-separated groups: ${[...groups.keys()].join(', ')}`,
+    )
   }
-  return result
+  return selected
 }
 
-export { CLAUDE_DIR, SKILLS_DIR, AGENTS_DIR }
+export function selectionContent(groups, selected) {
+  if (selected.size === groups.size) return null
+  return `${JSON.stringify({ groups: [...selected].sort() }, null, 2)}\n`
+}
+
+/**
+ * Read explicit opt-ins. Absence means all groups remain enabled, including
+ * groups introduced by a future engine upgrade.
+ */
+export async function readSelectedGroups(root, groups) {
+  const configPath = path.join(root, SKILL_SELECTION_REL)
+  let raw
+  try {
+    raw = await fs.readFile(configPath, 'utf8')
+  } catch (err) {
+    if (err.code === 'ENOENT') return new Set(groups.keys())
+    throw err
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new SkillSelectionError(`invalid skill selection state at ${SKILL_SELECTION_REL}`)
+  }
+  if (!parsed || !Array.isArray(parsed.groups) || parsed.groups.some(group => typeof group !== 'string')) {
+    throw new SkillSelectionError(`invalid skill selection state at ${SKILL_SELECTION_REL}`)
+  }
+  return new Set(parsed.groups.filter(group => groups.has(group)))
+}
+
+/** Persist an opt-in selection; an all-groups selection removes the override. */
+export async function writeSelectedGroups(root, groups, selected) {
+  const configPath = path.join(root, SKILL_SELECTION_REL)
+  const content = selectionContent(groups, selected)
+  if (content === null) {
+    try {
+      await fs.unlink(configPath)
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err
+    }
+    return
+  }
+  await writeFileAtomic(configPath, content)
+}

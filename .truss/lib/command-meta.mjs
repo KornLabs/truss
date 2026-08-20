@@ -64,6 +64,12 @@ export const COMMAND_META = [
     },
   },
   {
+    name: 'skills', display: 'skills <list|add|remove> [group]',
+    dashboardSafe: false,
+    summary: 'manage baseline skill groups',
+    flags: {},
+  },
+  {
     name: 'upgrade', display: 'upgrade [flags]', dashboardSafe: false,
     summary: 'lift an existing workspace to this engine version',
     flags: { '--force': {}, '--dry-run': {}, '-n': {}, '--root': { value: true } },
