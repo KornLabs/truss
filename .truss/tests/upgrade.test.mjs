@@ -189,6 +189,28 @@ describe('planBaseline', () => {
 })
 
 describe('runUpgrade', () => {
+  it('does not add newly introduced assets from opted-out skill groups', async () => {
+    const ws = await makeRoot('truss-upgrade-skills-')
+    await runInit(ws, ['--name', 'Opt out', '--lang', 'English', '--skills', 'none'])
+    await fs.writeFile(path.join(ws, '.truss/VERSION'), '0.0.1\n')
+
+    const next = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-upgrade-skills-next-'))
+    await fs.cp(path.join(ENGINE_DIR, 'baseline'), path.join(next, '.truss/baseline'), { recursive: true })
+    await fs.writeFile(path.join(next, '.truss/VERSION'), '0.0.2\n')
+    await write(
+      next,
+      '.truss/baseline/.claude/skills/marketing-new/SKILL.md',
+      '# Newly introduced marketing skill\n',
+    )
+
+    const result = await runUpgrade(next, ['--root', ws])
+    assert.equal(await exists(ws, '.claude/skills/marketing-new/SKILL.md'), false)
+    assert.equal(
+      result.plan.some(entry => entry.rel === '.claude/skills/marketing-new/SKILL.md'),
+      false,
+    )
+  })
+
   it('swaps the engine, reconciles the baseline, and never writes project state', async () => {
     const { tmp, ws, next } = await fixture()
     const before = {

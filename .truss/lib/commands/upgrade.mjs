@@ -59,6 +59,7 @@ import { promisify } from 'node:util'
 import { parseBlocks } from '../md.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
 import { isGitCheckout } from '../git.mjs'
+import { buildExcludes, discoverGroups, readSelectedGroups } from '../skill-groups.mjs'
 
 const execFileP = promisify(execFile)
 
@@ -81,6 +82,9 @@ const NOT_SCAFFOLDED = ['overlay/']
 
 const startsWithAny = (rel, prefixes) =>
   prefixes.some((p) => (p.endsWith('/') ? rel.startsWith(p) : rel === p))
+
+const isExcluded = (rel, prefixes) =>
+  prefixes?.has(rel) || [...(prefixes ?? [])].some(prefix => rel.startsWith(`${prefix}/`))
 
 export const isSeedOnly = (rel) => startsWithAny(rel, SEED_ONLY)
 
@@ -179,9 +183,9 @@ async function walkRel(dir, rel = '') {
  * @returns {Promise<Array<{rel:string, action:string, note:string}>>}
  *   action ∈ write | merge | report | skip
  */
-export async function planBaseline(target, baseDir, theirsDir) {
+export async function planBaseline(target, baseDir, theirsDir, { exclude = null } = {}) {
   const rels = [...new Set([...await walkRel(baseDir), ...await walkRel(theirsDir)])]
-    .filter((rel) => !startsWithAny(rel, NOT_SCAFFOLDED))
+    .filter((rel) => !startsWithAny(rel, NOT_SCAFFOLDED) && !isExcluded(rel, exclude))
     .sort()
   const plan = []
 
@@ -456,7 +460,15 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   // --dry-run writes nothing, so it must never be gated on a clean tree: it is
   // exactly what a cautious user wants to run BEFORE committing.
   if (opts.dryRun) {
-    const plan = await planBaseline(target, path.join(oldEngine, 'baseline'), path.join(newEngine, 'baseline'))
+    const theirsDir = path.join(newEngine, 'baseline')
+    const groups = await discoverGroups(theirsDir)
+    const selected = await readSelectedGroups(target, groups)
+    const plan = await planBaseline(
+      target,
+      path.join(oldEngine, 'baseline'),
+      theirsDir,
+      { exclude: buildExcludes(groups, selected) },
+    )
     printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true }
   }
@@ -537,7 +549,14 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   // ── Baseline reconciliation, base read from the backup ──
   const baseDir = path.join(backup, 'baseline')
   const theirsDir = path.join(oldEngine, 'baseline')
-  const plan = await planBaseline(target, baseDir, theirsDir)
+  const groups = await discoverGroups(theirsDir)
+  const selected = await readSelectedGroups(target, groups)
+  const plan = await planBaseline(
+    target,
+    baseDir,
+    theirsDir,
+    { exclude: buildExcludes(groups, selected) },
+  )
   await applyPlan(target, plan, baseDir, theirsDir)
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 

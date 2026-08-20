@@ -34,6 +34,7 @@ truss init --name "My Project" --lang English
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
+| `--skills <selection>` | install `all` groups (default), `none`, or comma-separated group IDs such as `superpowers,ecc`. In a TTY without this option, init offers an interactive group choice. `.claude/SOURCES.md` is always installed as provenance |
 
 `init` scaffolds the directory it is invoked from (or `--root`), never silently
 the engine's install location. Before the first write it probes that the target
@@ -55,6 +56,27 @@ phase is a seed, not a plan: a fresh workspace ships one `kickoff` phase, and
 the kickoff replaces it with the lifecycle this project actually needs. Agents
 may restructure the plan later (D-NNN + telling the human; advancing `current:`
 stays human-only) — see [concepts.md §5](concepts.md#5-phases).
+
+---
+
+## `skills`
+
+List, add, or remove baseline skill groups after initialization. Groups are
+discovered from the `.claude/skills/` directories and `.claude/agents/` files in
+the installed baseline; no separate catalog is maintained.
+
+```bash
+truss skills list
+truss skills add context7
+truss skills remove marketing
+truss skills add all
+```
+
+`add` never overwrites an existing skill or agent. `remove` deletes only
+unchanged baseline assets from the selected group, including that group's
+agents; existing or modified files are preserved. A restricted selection is
+stored in `.claude/.truss-skills.json` so future upgrades do not reinstall
+opted-out groups; the file is absent when every group is enabled.
 
 ---
 

@@ -63,6 +63,14 @@ import {
   CodeRootError,
   normalizeCodeRoot,
 } from "../code-root.mjs";
+import {
+  buildExcludes,
+  discoverGroups,
+  selectedGroupsFor,
+  selectionContent,
+  SKILL_SELECTION_REL,
+  SkillSelectionError,
+} from "../skill-groups.mjs";
 
 const execFileP = promisify(execFile);
 
@@ -90,6 +98,7 @@ export function parseInitArgs(argv) {
     codeRoot: null,
     adoptAgents: false,
     root: null,
+    skills: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -109,13 +118,15 @@ export function parseInitArgs(argv) {
     else if (a === "--lang") opts.lang = value("--lang");
     else if (a === "--code-root") opts.codeRoot = value("--code-root");
     else if (a === "--root") opts.root = value("--root");
+    else if (a === "--skills") opts.skills = value("--skills");
     else if (a.startsWith("--name=")) opts.name = a.slice("--name=".length);
     else if (a.startsWith("--lang=")) opts.lang = a.slice("--lang=".length);
     else if (a.startsWith("--code-root=")) opts.codeRoot = a.slice("--code-root=".length);
     else if (a.startsWith("--root=")) opts.root = a.slice("--root=".length);
+    else if (a.startsWith("--skills=")) opts.skills = a.slice("--skills=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --code-root --adopt-agents --root`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --code-root --adopt-agents --root --skills`,
       );
   }
   if (opts.codeRoot && !opts.overlay) {
@@ -134,8 +145,8 @@ export function parseInitArgs(argv) {
 }
 
 /** Fill missing answers interactively when stdin is a TTY; otherwise leave them. */
-async function resolveInteractive(opts) {
-  if (opts.name && opts.lang) return;
+async function resolveInteractive(opts, groups) {
+  if (opts.name && opts.lang && opts.skills !== null) return;
   if (!process.stdin.isTTY) return;
   const rl = readline.createInterface({
     input: process.stdin,
@@ -153,6 +164,30 @@ async function resolveInteractive(opts) {
         .trim()
         .toLowerCase();
       if (o === "y" || o === "yes") opts.overlay = true;
+    }
+    if (opts.skills === null) {
+      console.log("\nInstall skill groups? (enter number, comma-separated, or 'a' for all, 'n' for none):\n");
+      const ordered = [...groups];
+      for (const [index, [group, assets]] of ordered.entries()) {
+        const agents = assets.agents.length
+          ? `, ${assets.agents.length} agent${assets.agents.length === 1 ? "" : "s"}`
+          : "";
+        const examples = assets.skills
+          .slice(0, 3)
+          .map(name => name.slice(name.indexOf("-") + 1).replaceAll("-", " "))
+          .join(", ");
+        console.log(` ${index + 1}. ${group} — ${assets.skills.length} skills${agents}${examples ? ` (${examples}${assets.skills.length > 3 ? ", …" : ""})` : ""}`);
+      }
+      const choice = (await rl.question("\nChoice [a]: ")).trim().toLowerCase() || "a";
+      if (choice === "a") opts.skills = "all";
+      else if (choice === "n") opts.skills = "none";
+      else {
+        const numbers = choice.split(",").map(value => Number(value.trim()));
+        if (!numbers.every(number => Number.isInteger(number) && number >= 1 && number <= ordered.length)) {
+          throw new InitError("init: skill selection must be 'a', 'n', or valid group numbers.");
+        }
+        opts.skills = [...new Set(numbers)].map(number => ordered[number - 1][0]).join(",");
+      }
     }
   } finally {
     rl.close();
@@ -340,13 +375,35 @@ async function assertDeletable(root) {
  */
 export async function runInit(root, argv, invokedCwd = null) {
   const opts = parseInitArgs(argv);
-  await resolveInteractive(opts);
+  root = await resolveWorkspaceRoot(root, opts, invokedCwd);
+  const trussDir = path.join(root, ".truss");
+  const baselineDir = path.join(trussDir, "baseline");
+  if (!(await exists(baselineDir))) {
+    throw new InitError(
+      `init: baseline not found at ${baselineDir} — is this a truss clone?`,
+    );
+  }
+  const groups = await discoverGroups(baselineDir);
+  await resolveInteractive(opts, groups);
   if (!opts.name || !opts.lang) {
     throw new InitError(
       "init: --name and --lang are required (or run in a TTY to answer interactively).",
     );
   }
-  root = await resolveWorkspaceRoot(root, opts, invokedCwd);
+  let selectedGroups;
+  try {
+    selectedGroups = selectedGroupsFor(opts.skills, groups);
+  } catch (err) {
+    if (err instanceof SkillSelectionError) throw new InitError(`init: ${err.message}`);
+    throw err;
+  }
+  const skillExcludes = buildExcludes(groups, selectedGroups);
+  const skillSelection = selectionContent(groups, selectedGroups);
+  if (skillSelection !== null && await exists(path.join(root, SKILL_SELECTION_REL))) {
+    throw new InitError(
+      `init: existing ${SKILL_SELECTION_REL} conflicts with the requested skill selection; no files were changed.`,
+    );
+  }
   if (opts.codeRoot) {
     try { await assertExistingCodeRoot(root, opts.codeRoot); }
     catch (err) {
@@ -355,14 +412,6 @@ export async function runInit(root, argv, invokedCwd = null) {
     }
   }
   const codeRoot = opts.overlay ? (opts.codeRoot || "repo") : null;
-
-  const trussDir = path.join(root, ".truss");
-  const baselineDir = path.join(trussDir, "baseline");
-  if (!(await exists(baselineDir))) {
-    throw new InitError(
-      `init: baseline not found at ${baselineDir} — is this a truss clone?`,
-    );
-  }
 
   // Resolve and validate every prerequisite before the first workspace write.
   const phasesContent = await resolvePhasesContent(
@@ -392,7 +441,7 @@ export async function runInit(root, argv, invokedCwd = null) {
       `| ${codeRoot}/ (on demand) |`,
     );
   }
-  const inventory = await inventoryTree(baselineDir, root);
+  const inventory = await inventoryTree(baselineDir, root, { exclude: skillExcludes });
   const mapPath = path.join(root, "state", "map.md");
   try {
     const mapStat = await fs.lstat(mapPath);
@@ -481,6 +530,7 @@ export async function runInit(root, argv, invokedCwd = null) {
   await assertDeletable(root);
 
   try {
+    if (skillSelection !== null) await prewrite(SKILL_SELECTION_REL, skillSelection);
     await prewrite("state/phases.md", phasesContent);
     for (const rel of ["VISION.md", "README.md", "state/profile.md"]) {
       const raw = await fs.readFile(path.join(baselineDir, rel), "utf8");
@@ -519,7 +569,7 @@ export async function runInit(root, argv, invokedCwd = null) {
       }
     }
 
-    baseRes = await applyTree(baselineDir, root);
+    baseRes = await applyTree(baselineDir, root, { exclude: skillExcludes });
     created.push(...baseRes.written);
     if (baseRes.errors.length > 0) {
       const first = baseRes.errors[0];
@@ -591,6 +641,7 @@ export async function runInit(root, argv, invokedCwd = null) {
     overlay: opts.overlay,
     codeRoot,
     codeRootReady,
+    skills: [...selectedGroups],
     currentPhase: currentId,
     baselineWritten: baseRes.written.length,
     conflicts,

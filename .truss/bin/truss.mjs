@@ -33,6 +33,7 @@ import { runMap } from '../lib/commands/map.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
 import { runPrompt } from '../lib/commands/prompt.mjs'
 import { runPhase } from '../lib/commands/phase.mjs'
+import { runSkills } from '../lib/commands/skills.mjs'
 import { COMMAND_META, COMMAND_BY_NAME, inspectArgs } from '../lib/command-meta.mjs'
 import { SEV_ORDER, SEV_LABEL, FAMILY_NAMES, col, dedupeFindings } from '../lib/severity.mjs'
 
@@ -205,6 +206,7 @@ Init flags:
   --lang <lang>     primary language for agent output (e.g. English)
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
   --code-root <dir> select one existing in-workspace code root (overlay only)
+  --skills <groups> all (default), none, or comma-separated baseline groups
 
 Doctor flags:
   --gate        also run PH-04 phase-exit checks
@@ -739,6 +741,7 @@ const HANDLERS = {
   phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
+  skills:    (args) => runSkills(root, args),
   // init targets the caller's cwd (or --root), never silently the engine's own
   // directory (D-024) — pass where the user actually stands.
   init:      (args) => runInit(root, args, process.cwd()),
@@ -750,7 +753,7 @@ const HANDLERS = {
 
 // init/phase surface user-facing fatals as a throw → exit code 2 (dashboard
 // handles its own errors internally).
-const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); process.exit(0)
