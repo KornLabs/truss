@@ -139,10 +139,12 @@ export async function writeFileSafe(absPath, content) {
  *
  * @param {string} srcDir   Absolute path of the source tree (e.g. the baseline).
  * @param {string} destDir  Absolute path of the destination root (e.g. the workspace root).
+ * @param {object} [opts]
+ * @param {Set<string>} [opts.exclude]  Relative path prefixes to skip (e.g. '.claude/skills/ecc-api-design').
  * @returns {Promise<{written: string[], skipped: string[], errors: Array<{path: string, error: string}>}>}
  *   Paths are absolute destination paths. `errors` pairs each failed path with its message.
  */
-export async function applyTree(srcDir, destDir) {
+export async function applyTree(srcDir, destDir, { exclude = null } = {}) {
   const result = { written: [], skipped: [], errors: [] }
 
   /** @param {string} relDir  path relative to srcDir, '' at the root */
@@ -158,6 +160,10 @@ export async function applyTree(srcDir, destDir) {
 
     for (const entry of entries) {
       const rel = relDir ? path.join(relDir, entry.name) : entry.name
+      // Skip excluded paths (whole subtrees).
+      if (exclude && [...exclude].some(p => rel === p || rel.startsWith(p + path.sep))) {
+        continue
+      }
       if (entry.isDirectory()) {
         await walk(rel)
       } else if (entry.isFile()) {
@@ -183,3 +189,4 @@ export async function applyTree(srcDir, destDir) {
   await walk('')
   return result
 }
+
