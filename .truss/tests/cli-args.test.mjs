@@ -88,6 +88,12 @@ describe('inspectArgs', () => {
     assert.deepEqual(inspectArgs(set, ['control-word', '--anything']), {})
     assert.deepEqual(inspectArgs(prompt, ['save', 'my-id', '--not-a-flag']), {})
   })
+
+  it('routes skills help and unknown flags through the shared argument gate', () => {
+    const skills = COMMAND_BY_NAME.get('skills')
+    assert.deepEqual(inspectArgs(skills, ['list', '--help']), { help: true })
+    assert.deepEqual(inspectArgs(skills, ['list', '--bogus']), { unknown: '--bogus' })
+  })
 })
 
 describe('argument gate (real CLI)', () => {

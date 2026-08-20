@@ -12,6 +12,14 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+function isExcluded(rel, exclude) {
+  if (!exclude) return false
+  const normalized = rel.split(path.sep).join('/')
+  return [...exclude].some(prefix =>
+    normalized === prefix || normalized.startsWith(`${prefix}/`),
+  )
+}
+
 /** Atomically create or replace a whole file. Throws without touching the target on failure. */
 export async function writeFileAtomic(absPath, content) {
   await fs.mkdir(path.dirname(absPath), { recursive: true })
@@ -29,7 +37,7 @@ export async function writeFileAtomic(absPath, content) {
  * Read and inventory a source tree before init writes. Existing destination
  * files are conflicts to preserve; non-directory parent components are fatal.
  */
-export async function inventoryTree(srcDir, destDir) {
+export async function inventoryTree(srcDir, destDir, { exclude = null } = {}) {
   const result = { files: [], conflicts: [], errors: [] }
 
   const walk = async (relDir) => {
@@ -43,6 +51,7 @@ export async function inventoryTree(srcDir, destDir) {
 
     for (const entry of entries) {
       const rel = relDir ? path.join(relDir, entry.name) : entry.name
+      if (isExcluded(rel, exclude)) continue
       if (entry.isDirectory()) {
         await walk(rel)
         continue
@@ -139,8 +148,6 @@ export async function writeFileSafe(absPath, content) {
  *
  * @param {string} srcDir   Absolute path of the source tree (e.g. the baseline).
  * @param {string} destDir  Absolute path of the destination root (e.g. the workspace root).
- * @param {object} [opts]
- * @param {Set<string>} [opts.exclude]  Relative path prefixes to skip (e.g. '.claude/skills/ecc-api-design').
  * @returns {Promise<{written: string[], skipped: string[], errors: Array<{path: string, error: string}>}>}
  *   Paths are absolute destination paths. `errors` pairs each failed path with its message.
  */
@@ -160,10 +167,7 @@ export async function applyTree(srcDir, destDir, { exclude = null } = {}) {
 
     for (const entry of entries) {
       const rel = relDir ? path.join(relDir, entry.name) : entry.name
-      // Skip excluded paths (whole subtrees).
-      if (exclude && [...exclude].some(p => rel === p || rel.startsWith(p + path.sep))) {
-        continue
-      }
+      if (isExcluded(rel, exclude)) continue
       if (entry.isDirectory()) {
         await walk(rel)
       } else if (entry.isFile()) {
@@ -189,4 +193,3 @@ export async function applyTree(srcDir, destDir, { exclude = null } = {}) {
   await walk('')
   return result
 }
-

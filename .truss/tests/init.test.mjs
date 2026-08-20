@@ -15,9 +15,9 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, codeRoot: null, adoptAgents: false, root: null })
+      { name: 'A', lang: 'English', overlay: false, codeRoot: null, adoptAgents: false, root: null, skills: null })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, codeRoot: null, adoptAgents: false, root: null })
+      { name: 'A B', lang: null, overlay: true, codeRoot: null, adoptAgents: false, root: null, skills: null })
   })
   it('rejects the retired --repo flag (D-059 — init never places the code)', () => {
     assert.throws(() => parseInitArgs(['--overlay', '--repo', '/p/code']), InitError)
@@ -38,6 +38,10 @@ describe('parseInitArgs', () => {
   })
   it('parses explicit AGENTS.md adoption', () => {
     assert.equal(parseInitArgs(['--adopt-agents']).adoptAgents, true)
+  })
+  it('parses skill selection', () => {
+    assert.equal(parseInitArgs(['--skills', 'superpowers,ecc']).skills, 'superpowers,ecc')
+    assert.equal(parseInitArgs(['--skills=none']).skills, 'none')
   })
   it('throws on unknown flag', () => {
     assert.throws(() => parseInitArgs(['--bogus']), InitError)
@@ -107,6 +111,35 @@ describe('init (core)', () => {
 
     assert.equal(res.conflicts.length, 0)
     assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  describe('init --skills', () => {
+    it('installs no skill or agent assets for none but preserves provenance', async () => {
+      const root = await makeRoot('truss-init-skills-none-')
+      await runInit(root, ['--name', 'None', '--lang', 'English', '--skills', 'none'])
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+
+      await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'SOURCES.md')))
+      await assert.rejects(fs.access(path.join(root, '.claude', 'skills')))
+      await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
+    })
+
+    it('installs all groups by default and selected groups on request', async () => {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+      const allRoot = await makeRoot('truss-init-skills-all-')
+      await runInit(allRoot, ['--name', 'All', '--lang', 'English'])
+      await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'marketing-seo-audit')))
+      await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'agents', 'ecc-architect.md')))
+
+      const selectedRoot = await makeRoot('truss-init-skills-selected-')
+      await runInit(selectedRoot, ['--name', 'Selected', '--lang', 'English', '--skills', 'superpowers,ecc'])
+      await assert.doesNotReject(() => fs.access(path.join(selectedRoot, '.claude', 'skills', 'superpowers-brainstorming')))
+      await assert.doesNotReject(() => fs.access(path.join(selectedRoot, '.claude', 'agents', 'ecc-architect.md')))
+      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'skills', 'marketing-seo-audit')))
+      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'agents', 'anthropic-code-architect.md')))
+    })
   })
 })
 
