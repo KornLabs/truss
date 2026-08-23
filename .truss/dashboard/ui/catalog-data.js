@@ -46,7 +46,7 @@ export const CHECK_CATALOG = [
   { id: 'ST-07', sev: 'W', desc: 'Truss map is outdated' },
   { id: 'ST-08', sev: 'W', desc: 'AGENTS.md is missing a numbered top-level section' },
   { id: 'SY-01', sev: 'W', desc: 'current.md missing a required key' },
-  { id: 'SY-03', sev: 'W', desc: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / HUMAN-TODOS)' },
+  { id: 'SY-03', sev: 'W', desc: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / findings / HUMAN-TODOS)' },
   { id: 'SY-05', sev: 'W', desc: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', sev: 'W', desc: 'decided open-decision entry still present (tombstone)' },
   { id: 'SY-07', sev: 'I', desc: 'HUMAN-TODOS.md accumulates checked-off entries' },

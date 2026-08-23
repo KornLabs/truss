@@ -101,11 +101,15 @@ describe('SY-03 entry grammar', () => {
     const badRisk = `# Risks\n\n## R-001 — Launch slip\n\nSeverity: medium\n`
     const goodLearning = `# Learnings\n\n## L-001 — Context drift\n\nTrigger: missed canonical file\nSystemic cause: load rule was vague\nAdjustment: tightened routing\n`
     const badLearning = `# Learnings\n\n## L-001 — Context drift\n\nTrigger: missed canonical file\n`
+    const goodFinding = `# Truss Findings\n\n## TF-001 — Init wizard too long\n\nDate: 2026-08-23\nObserved: init asks four questions\nImpact: onboarding friction\nSuggestion: collapse to one prompt\n`
+    const badFinding = `# Truss Findings\n\n## TF-001 — Init wizard too long\n\nObserved: init asks four questions\n`
     assert.equal(ids(await sy.run(ctxOf({ 'state/risks.md': file(emptyRisks) })), 'SY-03').length, 0)
     assert.equal(ids(await sy.run(ctxOf({ 'state/risks.md': file(goodRisk) })), 'SY-03').length, 0)
     assert.equal(ids(await sy.run(ctxOf({ 'state/risks.md': file(badRisk) })), 'SY-03').length, 1)
     assert.equal(ids(await sy.run(ctxOf({ 'state/learnings.md': file(goodLearning) })), 'SY-03').length, 0)
     assert.equal(ids(await sy.run(ctxOf({ 'state/learnings.md': file(badLearning) })), 'SY-03').length, 1)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/truss-findings.md': file(goodFinding) })), 'SY-03').length, 0)
+    assert.equal(ids(await sy.run(ctxOf({ 'state/truss-findings.md': file(badFinding) })), 'SY-03').length, 1)
   })
   it('ignores OD entries shown inside fenced code blocks', async () => {
     const od = '# Open Decisions\n\n```\n## OD-009 — example, no fields\n```\n\n## OD-001 — real\n\nOpened: 2026-06-01\nOptions: a\nTrade-offs: x\nLeaning: a\n'

@@ -18,7 +18,7 @@ export const meta = [
 ];
 
 // ID prefixes that are "structured" and require definitions
-const TRACKED_PREFIXES = new Set(['D', 'HT', 'R', 'OD', 'L']);
+const TRACKED_PREFIXES = new Set(['D', 'HT', 'R', 'OD', 'L', 'TF']);
 
 // Files exempt from RF-01 link checking (e.g., external links, anchors-only links)
 function isExternalLink(href) {
@@ -147,7 +147,7 @@ export async function run(ctx) {
       id: 'RF-02', severity: 'W',
       file: first.file, line: first.line,
       message: `reference to '${id}' but no definition found in any file`,
-      fix: `Define '${id}' in its canonical file (D/OD → state/decisions.md or state/open-decisions.md; HT → HUMAN-TODOS.md; R → state/risks.md; L → state/learnings.md)`,
+      fix: `Define '${id}' in its canonical file (D/OD → state/decisions.md or state/open-decisions.md; HT → HUMAN-TODOS.md; R → state/risks.md; L → state/learnings.md; TF → state/truss-findings.md)`,
     });
   }
 

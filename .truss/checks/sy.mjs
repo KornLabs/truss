@@ -2,7 +2,7 @@
 //
 // SY-01  W  state/current.md missing a required key
 // SY-02  —  retired (age-based staleness; a resting project is not a broken one) — id not reused
-// SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / HUMAN-TODOS list form)
+// SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / findings TF-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 // SY-08  W  ritual drift — state/ or context/ changed well after current.md (D-010, D-058)
 // SY-09  I  state/decisions.md read cost grown large (≥ 6000 token-equivalent) — archive nudge
@@ -41,7 +41,7 @@ const HT_GRAMMAR_RE = new RegExp(`^[-*]\\s+${CHECKBOX_ANY}\\s+HT-\\d{3}\\s+—\\
 
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key' },
-  { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / HUMAN-TODOS)' },
+  { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / findings / HUMAN-TODOS)' },
   { id: 'SY-05', severity: 'W', title: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
@@ -136,6 +136,7 @@ export async function run(ctx) {
   checkOpenDecisionsGrammar(ctx.files.get('state/open-decisions.md'), findings)
   checkRisksGrammar(ctx.files.get('state/risks.md'), findings)
   checkLearningsGrammar(ctx.files.get('state/learnings.md'), findings)
+  checkFindingsGrammar(ctx.files.get('state/truss-findings.md'), findings)
   checkHumanTodosGrammar(ctx.files.get('HUMAN-TODOS.md'), findings)
 
   // ── SY-05: code-root checkout present but branch: undeclared ───────────────
@@ -482,6 +483,39 @@ function checkLearningsGrammar(file, findings) {
       i + 1,
       m[1],
       missingFields(body, ['Trigger', 'Systemic cause', 'Adjustment'])
+    )
+  }
+}
+
+// ── truss-findings.md: check heading format + upstream-feedback fields ──
+function checkFindingsGrammar(file, findings) {
+  if (!file) return
+  const { lines } = file
+  const fenced = ignoredLines(lines)
+
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i)) continue
+    // Only check level-2 headings that aren't the file title.
+    if (!/^##\s+\S/.test(lines[i])) continue
+
+    const m = lines[i].match(/^##\s+(TF-\d{3})\b/)
+    if (!m) {
+      findings.push({
+        id: 'SY-03', severity: 'W',
+        file: 'state/truss-findings.md', line: i + 1,
+        message: `finding entry must be numbered '## TF-NNN — title'`,
+        fix: `Number the entry '## TF-NNN — title'. See docs/conventions.md.`,
+      })
+      continue
+    }
+
+    const body = entryBody(lines, i, fenced)
+    warnMissingFields(
+      findings,
+      'state/truss-findings.md',
+      i + 1,
+      m[1],
+      missingFields(body, ['Date', 'Observed', 'Impact', 'Suggestion'])
     )
   }
 }

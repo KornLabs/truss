@@ -166,7 +166,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 1. **Plain Markdown is the single source of truth.** No database, no hidden state, no server. A workspace is a folder of text you can read, edit, diff, and version — and any agent can use it.
 2. **Every fact has exactly one home.** Link, never copy — a convention the structure supports rather than a guarantee the tooling enforces. The checks verify the mechanical half: that every reference resolves, that IDs are unique and never reused, that generated blocks match their source. Whether two paragraphs say the same thing in different words is a judgement the agent makes, guided by the routing table that gives each fact one address.
 3. **One boot file, open standard.** `AGENTS.md` follows the [agents.md](https://agents.md) convention; `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, and the Copilot stub are one-liners pointing at it.
-4. **Structured IDs, never reused.** `D-NNN` decisions, `OD-NNN` open questions, `HT-NNN` human to-dos, `R-NNN` risks, `L-NNN` learnings. Decisions get superseded, never deleted. Any claim in the workspace traces back to one numbered entry and its reasoning.
+4. **Structured IDs, never reused.** `D-NNN` decisions, `OD-NNN` open questions, `HT-NNN` human to-dos, `R-NNN` risks, `L-NNN` learnings, `TF-NNN` findings about Truss itself (opt-out at init with `--findings off`). Decisions get superseded, never deleted. Any claim in the workspace traces back to one numbered entry and its reasoning.
 
 ### Context is a budget
 

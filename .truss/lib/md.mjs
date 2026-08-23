@@ -84,10 +84,10 @@ export function parseTrussMarker(line) {
 }
 
 /** Regex for structured IDs used in truss workspaces. */
-const ID_RE = /\b(D|HT|R|OD|L)-(\d{3})\b/g;
+const ID_RE = /\b(D|HT|R|OD|L|TF)-(\d{3})\b/g;
 
 /**
- * Find all structured IDs (D-NNN, HT-NNN, R-NNN, OD-NNN, L-NNN) in a string.
+ * Find all structured IDs (D-NNN, HT-NNN, R-NNN, OD-NNN, L-NNN, TF-NNN) in a string.
  * Returns Array<string> (e.g. ['D-001', 'HT-003']).
  */
 export function findIds(text) {
@@ -164,7 +164,7 @@ export const CHECKBOX_ANY  = '\\[[ xX]\\]'
 export const CHECKBOX_DONE = '\\[[xX]\\]'
 
 /** Structured-ID token as it appears in headings and list items. */
-export const ID_TOKEN = '(?:D|HT|R|OD|L)-\\d{3}'
+export const ID_TOKEN = '(?:D|HT|R|OD|L|TF)-\\d{3}'
 
 /**
  * Find all structured IDs defined in a file (i.e. appearing as definition headings).
