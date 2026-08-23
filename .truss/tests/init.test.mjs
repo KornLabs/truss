@@ -3,7 +3,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { runInit, parseInitArgs, InitError } from '../lib/commands/init.mjs'
+import { runInit, parseInitArgs, stripFindings, InitError } from '../lib/commands/init.mjs'
 import { parsePhases, parseBlocks } from '../lib/md.mjs'
 import { makeRoot, runChecks, errorsOf, read } from './helpers.mjs'
 
@@ -15,9 +15,9 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, codeRoot: null, adoptAgents: false, root: null, skills: null })
+      { name: 'A', lang: 'English', overlay: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, codeRoot: null, adoptAgents: false, root: null, skills: null })
+      { name: 'A B', lang: null, overlay: true, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
   })
   it('rejects the retired --repo flag (D-059 — init never places the code)', () => {
     assert.throws(() => parseInitArgs(['--overlay', '--repo', '/p/code']), InitError)
@@ -42,6 +42,10 @@ describe('parseInitArgs', () => {
   it('parses skill selection', () => {
     assert.equal(parseInitArgs(['--skills', 'superpowers,ecc']).skills, 'superpowers,ecc')
     assert.equal(parseInitArgs(['--skills=none']).skills, 'none')
+    assert.equal(parseInitArgs(['--findings', 'off']).findings, false)
+    assert.equal(parseInitArgs(['--findings=off']).findings, false)
+    assert.equal(parseInitArgs(['--findings=on']).findings, true)
+    assert.throws(() => parseInitArgs(['--findings', 'maybe']), InitError)
   })
   it('throws on unknown flag', () => {
     assert.throws(() => parseInitArgs(['--bogus']), InitError)
@@ -140,6 +144,61 @@ describe('init (core)', () => {
       await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'skills', 'marketing-seo-audit')))
       await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'agents', 'anthropic-code-architect.md')))
     })
+  })
+})
+
+describe('init --findings', () => {
+  it('mentions the findings channel by default and keeps it on demand', async () => {
+    const root = await makeRoot('truss-init-findings-on-')
+    const res = await runInit(root, ['--name', 'FOn', '--lang', 'English'])
+
+    assert.equal(res.findings, 'on')
+    assert.match(await read(root, 'AGENTS.md'), /state\/truss-findings\.md/)
+    assert.match(await read(root, 'AGENTS.md'), /TF-NNN truss findings/)
+    assert.match(await read(root, 'docs/conventions.md'), /### TF-NNN/)
+    await assert.rejects(() => read(root, 'state/truss-findings.md'), 'the file stays on demand')
+  })
+
+  it('omits every mention when off and stays doctor-green', async () => {
+    const root = await makeRoot('truss-init-findings-off-')
+    const res = await runInit(root, ['--name', 'FOff', '--lang', 'English', '--findings', 'off'])
+
+    assert.equal(res.findings, 'off')
+    for (const rel of ['AGENTS.md', 'docs/conventions.md']) {
+      const content = await read(root, rel)
+      assert.doesNotMatch(content, /truss-findings/, `${rel} must not mention the channel`)
+      assert.doesNotMatch(content, /TF-/, `${rel} must not reference TF ids`)
+    }
+    assert.doesNotMatch(await read(root, 'docs/conventions.md'), /## Profile[\s\S]*### TF-NNN/, 'no stray grammar block left behind')
+    assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('refuses to leave remnants when the baseline drifts out of the stripping contract', () => {
+    const baseline = [
+      '| state/learnings.md (on demand) | A | systemic weaknesses |',
+      '| state/truss-findings.md (on demand) | A | friction with Truss itself |',
+      '',
+      'IDs: L-NNN learnings · TF-NNN truss findings — sequential, never reused.',
+      'writing your first D-/R-/L-/TF- entry or a new file type this session',
+      '### TF-NNN — Truss finding (upstream feedback)',
+      '',
+      '```markdown',
+      '## TF-NNN — [short finding title]',
+      '```',
+      '',
+      '## Profile',
+    ].join('\n') + '\n'
+    const clean = stripFindings(baseline)
+    assert.doesNotMatch(clean, /truss-findings|TF-/, 'every mention must go')
+    assert.match(clean, /## Profile/, 'the anchor heading must survive')
+    // Drift in any of the three exact-match spots must fail loudly, not silently:
+    for (const drifted of [
+      baseline.replace(' · ', '\t'),                       // IDs fragment changed
+      baseline.replace('D-/R-/L-/TF-', 'D-/R-/L- /TF-'),   // §6 fragment changed
+      `${baseline}\n\nstray reference to TF-001`,          // remnant added elsewhere
+    ]) {
+      assert.throws(() => stripFindings(drifted), InitError)
+    }
   })
 })
 

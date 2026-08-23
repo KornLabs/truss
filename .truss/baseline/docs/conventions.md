@@ -14,6 +14,7 @@ IDs are sequential integers, zero-padded to three digits. Never reused. Issued i
 | R-NNN | state/risks.md | A | Risk |
 | OD-NNN | state/open-decisions.md | A | Open decision briefing |
 | L-NNN | state/learnings.md | A | Learning from systemic agent weakness |
+| TF-NNN | state/truss-findings.md | A | Finding about Truss itself from long-term use |
 
 ## Entry grammars
 
@@ -193,6 +194,25 @@ structurally fixed. Ordinary product bugs go to the repo issue tracker, a test,
 a local domain task, or `pm/`. If a bug exposes a technical decision, record a
 D-NNN; if it creates project, launch, or safety exposure, record an R-NNN.
 
+### TF-NNN — Truss finding (upstream feedback)
+
+```markdown
+## TF-NNN — [short finding title]
+
+Date: YYYY-MM-DD
+Observed: [what Truss did or failed to do]
+Impact: [the extra work, confusion, or breakage it causes]
+Suggestion: [what Truss should change]
+```
+
+For friction caused by Truss itself during long-term use — logic errors,
+unclean rules, rules that break over time, boot-context cost, awkward
+workflows. Not for this project's own bugs (repo issue tracker) and not for
+systemic agent weaknesses with a local fix (`L-NNN`): a finding is feedback
+*upstream*, meant to be filed against the Truss repository once confirmed.
+Workspaces initialised with `--findings off` have no findings channel; do not
+create the file there.
+
 ## Profile
 
 `state/profile.md` is boot context, read every session — a config sheet, not a
@@ -212,7 +232,8 @@ belongs in the file that owns the topic, linked from here.
 
 ### On-demand state files
 
-`state/open-decisions.md`, `state/risks.md`, `state/learnings.md`, and
+`state/open-decisions.md`, `state/risks.md`, `state/learnings.md`,
+`state/truss-findings.md`, and
 `HUMAN-TODOS.md` do not exist until their first entry (AGENTS.md §2). Create
 each as `# [Title]` plus the first entry in the grammar above — no boilerplate
 header comments. When the last entry leaves (decided, archived), the file may

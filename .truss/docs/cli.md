@@ -35,6 +35,7 @@ truss init --name "My Project" --lang English
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
 | `--skills <selection>` | install `all` groups (default), `none`, or comma-separated group IDs such as `superpowers,ecc`. In a TTY without this option, init offers an interactive group choice. `.claude/SOURCES.md` is always installed as provenance |
+| `--findings <on\|off>` | collect agent findings about Truss itself in `state/truss-findings.md` (default `on`). With `off`, every AGENTS.md / conventions mention of the channel is omitted — zero boot cost for instances that do not want it. Decision is fixed at init time |
 
 `init` scaffolds the directory it is invoked from (or `--root`), never silently
 the engine's install location. Before the first write it probes that the target

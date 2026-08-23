@@ -99,6 +99,7 @@ export function parseInitArgs(argv) {
     adoptAgents: false,
     root: null,
     skills: null,
+    findings: true,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -119,6 +120,12 @@ export function parseInitArgs(argv) {
     else if (a === "--code-root") opts.codeRoot = value("--code-root");
     else if (a === "--root") opts.root = value("--root");
     else if (a === "--skills") opts.skills = value("--skills");
+    else if (a === "--findings" || a.startsWith("--findings=")) {
+      const v = a === "--findings" ? value("--findings") : a.slice("--findings=".length);
+      if (v !== "on" && v !== "off")
+        throw new InitError(`init: --findings expects 'on' or 'off', got '${v}'`);
+      opts.findings = v === "on";
+    }
     else if (a.startsWith("--name=")) opts.name = a.slice("--name=".length);
     else if (a.startsWith("--lang=")) opts.lang = a.slice("--lang=".length);
     else if (a.startsWith("--code-root=")) opts.codeRoot = a.slice("--code-root=".length);
@@ -126,7 +133,7 @@ export function parseInitArgs(argv) {
     else if (a.startsWith("--skills=")) opts.skills = a.slice("--skills=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --code-root --adopt-agents --root --skills`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --code-root --adopt-agents --root --skills --findings`,
       );
   }
   if (opts.codeRoot && !opts.overlay) {
@@ -203,12 +210,45 @@ async function readMaybe(absPath) {
 }
 
 /**
+ * The findings channel (state/truss-findings.md, TF-NNN) is opt-out at init
+ * time: default on, `--findings off` removes every AGENTS.md / conventions
+ * mention so an instance carries zero boot cost for a feature it does not use.
+ * Baseline content is pinned to the engine release, so exact-content stripping
+ * is safe — and a post-strip guard turns baseline drift into a loud failure
+ * instead of silently shipping leftovers. Runs on baseline text ONLY (never on
+ * an adopted preamble).
+ * @returns {string} the text without any findings mention
+ * @throws {InitError} when remnants remain — the baseline drifted from this contract
+ */
+export function stripFindings(text) {
+  const stripped = text
+    .split("\n")
+    .filter((l) => !l.includes("state/truss-findings.md"))
+    .join("\n")
+    .replace(" · TF-NNN truss findings", "")
+    .replace("R-/L-/TF-", "R-/L-")
+    .replace(/\n### TF-NNN[\s\S]*?(?=\n## Profile\n)/, "\n");
+  if (/truss-findings|TF-/.test(stripped)) {
+    throw new InitError(
+      "init: --findings off could not remove every findings mention — the bundled " +
+        "baseline drifted from stripFindings() in lib/commands/init.mjs; " +
+        "refusing to write a partial opt-out.",
+    );
+  }
+  return stripped;
+}
+
+/**
  * Resolve AGENTS.md before any write. Marker-free files require explicit
  * adoption; their content remains first and the Truss router is appended.
  */
-async function prepareAgents(root, baselineDir, adoptAgents) {
+async function prepareAgents(root, baselineDir, adoptAgents, findingsOn = true) {
   const agentsPath = path.join(root, "AGENTS.md");
-  const baseline = await fs.readFile(path.join(baselineDir, "AGENTS.md"), "utf8");
+  let baseline = await fs.readFile(path.join(baselineDir, "AGENTS.md"), "utf8");
+  // Strip BEFORE the router meets an adopted preamble: stripFindings() and its
+  // remnant guard are written against baseline text and must neither touch nor
+  // judge user content (--adopt-agents).
+  if (!findingsOn) baseline = stripFindings(baseline);
   const raw = await readMaybe(agentsPath);
   if (raw == null) {
     assertRenderMarkers(baseline);
@@ -434,7 +474,7 @@ export async function runInit(root, argv, invokedCwd = null) {
       "       Move it aside or reconcile it before retrying.",
     );
   }
-  const agentsPlan = await prepareAgents(root, baselineDir, opts.adoptAgents);
+  const agentsPlan = await prepareAgents(root, baselineDir, opts.adoptAgents, opts.findings);
   if (codeRoot && codeRoot !== "repo") {
     agentsPlan.content = agentsPlan.content.replaceAll(
       "| repo/ (on demand) |",
@@ -532,6 +572,13 @@ export async function runInit(root, argv, invokedCwd = null) {
   try {
     if (skillSelection !== null) await prewrite(SKILL_SELECTION_REL, skillSelection);
     await prewrite("state/phases.md", phasesContent);
+    if (!opts.findings) {
+      const convRaw = await fs.readFile(
+        path.join(baselineDir, "docs", "conventions.md"),
+        "utf8",
+      );
+      await prewrite("docs/conventions.md", stripFindings(convRaw));
+    }
     for (const rel of ["VISION.md", "README.md", "state/profile.md"]) {
       const raw = await fs.readFile(path.join(baselineDir, rel), "utf8");
       const configured = rel === "state/profile.md"
@@ -642,6 +689,7 @@ export async function runInit(root, argv, invokedCwd = null) {
     codeRoot,
     codeRootReady,
     skills: [...selectedGroups],
+    findings: opts.findings ? "on" : "off",
     currentPhase: currentId,
     baselineWritten: baseRes.written.length,
     conflicts,
@@ -664,6 +712,7 @@ function printReport(root, r) {
   L.push("");
   L.push(`  Baseline files written: ${r.baselineWritten}`);
   L.push(`  Current phase:          ${r.currentPhase}`);
+  L.push(`  Truss findings:         ${r.findings}`);
   L.push(`  Git:                    ${r.git}`);
   if (r.codeRoot) L.push(`  Code root:              ${r.codeRoot}/`);
   if (r.conflicts.length) {
