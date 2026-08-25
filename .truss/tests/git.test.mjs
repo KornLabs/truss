@@ -12,7 +12,7 @@ import os from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
-import { repoBranchInfo, repoBranchList, declaredBranch, branchReport, isGitCheckout } from '../lib/git.mjs'
+import { repoBranchInfo, repoBranchList, declaredBranch, branchReport, isGitCheckout, recentCommits } from '../lib/git.mjs'
 
 const execFileP = promisify(execFile)
 
@@ -111,6 +111,40 @@ describe('lib/git.mjs', () => {
   it('declaredBranch: blank branch: line → null', async () => {
     await fs.writeFile(path.join(root, 'state', 'current.md'), 'focus:\n\nbranch:   \n', 'utf8')
     assert.equal(await declaredBranch(root), null)
+  })
+
+  it('recentCommits: newest first, short sha + subject (U6/D-074)', async () => {
+    await git('commit', '-q', '--allow-empty', '-m', 'second commit')
+    const { ok, commits } = await recentCommits(repoDir, 5)
+    assert.equal(ok, true)
+    assert.equal(commits[0].subject, 'second commit')
+    assert.equal(commits[1].subject, 'init')
+    assert.match(commits[0].sha, /^[0-9a-f]{7,}$/)
+  })
+
+  it('recentCommits: respects the limit', async () => {
+    const { commits } = await recentCommits(repoDir, 1)
+    assert.equal(commits.length, 1)
+    assert.equal(commits[0].subject, 'second commit')
+  })
+
+  it('recentCommits: not-a-checkout, disabled, and no-git-binary all resolve quietly', async () => {
+    assert.equal((await recentCommits(path.join(root, 'nope'))).reason, 'not-a-checkout')
+    process.env.TRUSS_NO_GIT = '1'
+    const disabled = await recentCommits(repoDir)
+    delete process.env.TRUSS_NO_GIT
+    assert.equal(disabled.ok, false)
+    assert.equal(disabled.reason, 'disabled')
+    assert.deepEqual(disabled.commits, [])
+  })
+
+  it('recentCommits: an empty repo (git init, no commits yet) resolves quietly, never throws', async () => {
+    const empty = path.join(root, 'empty-repo')
+    await fs.mkdir(empty)
+    await execFileP('git', ['-C', empty, 'init', '-q'])
+    const r = await recentCommits(empty)
+    assert.equal(r.ok, false)
+    assert.deepEqual(r.commits, [])
   })
 
   it('branchReport follows a custom code-root from profile.md', async () => {

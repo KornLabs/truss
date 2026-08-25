@@ -52,7 +52,7 @@ the block writer.
 
 | File | Holds |
 |---|---|
-| `current.md` | the live focus: what you're doing, next actions (≤5), blockers, recently done |
+| `current.md` | the live focus: what you're doing, next actions (≤5), blockers |
 | `decisions.md` | decided decisions, each a `D-NNN` entry; superseded, never deleted |
 | `decisions-index.md` | the boot-sized view of `decisions.md` — title plus `Decision:` line per entry; written by `truss render`, never by hand |
 | `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`), including challenges to recorded decisions; ships with the workspace and stays when empty |
@@ -161,7 +161,7 @@ has a severity — **E**rror, **W**arning, or **I**nfo — and an ID like `ST-02
 | `PH` Phase | grammar, uncommitted forbidden-path evidence, and `--gate` exit criteria |
 | `CX` Context | mandatory Truss boot metadata stays under the configured estimate |
 
-**What the checks do *not* see.** `doctor` loads the files the §2 structure table names individually, plus every non-ignored markdown file under `context/` and `archive/`. A row that names a *directory* — `docs/`, `pm/` in the shipped table — is not expanded: its contents are never loaded, so `RF-01`, `RF-02`, `RF-03` and `ST-05` stay silent there. The same holds for anything matched by `.trussignore` or `.gitignore`, and for `.truss/` itself. List a file individually in the §2 table if you want it checked; a binding procedure left under `docs/` or `pm/` is present, not validated. The one deliberate exception is `ST-09`: it compares the engine's own files against `.truss/MANIFEST.sha256` by hash, not by loading them, and stays silent when no manifest is installed.
+**What the checks do *not* see.** `doctor` loads the files the §2 structure table names individually, plus every non-ignored markdown file under `context/` and `archive/`. A row that names a *directory* — `docs/`, `.claude/` in the shipped table — is not expanded: its contents are never loaded, so `RF-01`, `RF-02`, `RF-03` and `ST-05` stay silent there. The same holds for anything matched by `.trussignore` or `.gitignore`, and for `.truss/` itself. List a file individually in the §2 table if you want it checked; a binding procedure left under `docs/` or an unlisted directory is present, not validated — this is exactly why project-wide planning moved out of a dedicated `pm/` directory (U6/D-074) into a domain file under `context/`, which *is* loaded and checked. The one deliberate exception is `ST-09`: it compares the engine's own files against `.truss/MANIFEST.sha256` by hash, not by loading them, and stays silent when no manifest is installed.
 
 `doctor` is read-only. It reports; it never edits your files. `--fix-prompt`
 emits an instruction block you can hand to an agent, `--json` is for tooling, and

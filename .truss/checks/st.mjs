@@ -1,7 +1,10 @@
 // checks/st.mjs — Structure Table checks (ST-01 … ST-05)
 //
 // ST-01  E  path from structure table doesn't exist on disk
-// ST-02  W  disk path not yet listed in structure table (hint)
+// ST-02  W  disk path not yet listed in structure table (hint); I when the path
+//           was a routing target retired by an engine change (RETIRED_PATHS) —
+//           a retired path is not an unknown one, same distinction PH-01 makes
+//           for phase keys and BL-03 for preference keys (D-081)
 // ST-03  W  empty directory (table-managed)
 // ST-04  W  adapter stub deviates from expected one-liner
 // ST-05  I  file has more than 450 lines (growth-rule hint)
@@ -20,7 +23,7 @@ import { buildIndex, INDEX_REL, SOURCE_REL } from '../lib/decisions-index.mjs'
 // Additive metadata only — does not affect run() or the finding shape.
 export const meta = [
   { id: 'ST-01', severity: 'E', title: 'Structure-table path missing on disk' },
-  { id: 'ST-02', severity: 'W', title: 'New file — not yet in structure table (hint, not error)' },
+  { id: 'ST-02', severity: 'W', title: 'New file — not yet in structure table (hint, not error)', description: 'I instead of W for a path in RETIRED_PATHS (D-081) — retired is not unknown' },
   { id: 'ST-03', severity: 'W', title: 'Empty table-managed directory' },
   { id: 'ST-04', severity: 'W', title: 'Adapter stub does not point to AGENTS.md' },
   { id: 'ST-05', severity: 'I', title: 'File exceeds growth-rule line limit (450)' },
@@ -30,6 +33,18 @@ export const meta = [
   { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
   { id: 'ST-10', severity: 'W', title: 'Decision index missing or out of step with state/decisions.md', description: 'D-075/D-081: info while the index has never been generated (the workspace simply has not taken the step), warning once it exists and disagrees with the source — a stale index lies to every session boot' },
 ];
+
+// Top-level paths that were a valid §2 routing target before an engine change
+// retired them, mapped to why. A retired path is not an unknown path: an
+// instance that still has it on disk must not flip from green to a W the day
+// this table changes (D-081) — same precedent as RETIRED_KEYS in checks/ph.mjs
+// (phase keys) and checks/bl.mjs (preference keys, via lib/prefs.mjs).
+// U6/D-074: project-wide planning routing through `pm/` retired — it was never
+// loaded or checked (docs/concepts.md), the present-but-unvalidated trap this
+// change closes. Keyed by the bare directory name (no trailing slash).
+const RETIRED_PATHS = new Map([
+  ['pm', 'project-wide planning routing was retired (U6/D-074) — it now belongs in a domain file under context/ (loaded and checked like any other); bulk artefacts that should stay unchecked belong in .trussignore'],
+])
 
 // Paths that exist on disk but are intentionally not in the structure table
 // (system files, adapter stubs handled by ST-04, gitignore, etc.)
@@ -185,6 +200,20 @@ export async function run(ctx) {
 
     // Skip contents of summary-row dirs (archive/, code root, etc., plus user-defined)
     if (dynamicSummaryDirs.has(topDir) && relNoSlash.includes('/')) continue;
+
+    // ── retired paths (D-081): a retired path is not an unknown one ──────────
+    // One I finding at the retired root; nested content under it is silent —
+    // it would only repeat the same notice per file for no added information.
+    if (RETIRED_PATHS.has(topDir)) {
+      if (relNoSlash.includes('/')) continue;
+      findings.push({
+        id: 'ST-02', severity: 'I',
+        file: diskRel,
+        message: `'${diskRel}' is a retired routing target, not an unmanaged one — ${RETIRED_PATHS.get(topDir)}`,
+        fix: `No action needed to stay green. Move its content per the note above, then remove '${diskRel}' when empty.`,
+      });
+      continue;
+    }
 
     // Check against known paths (with and without trailing slash)
     if (knownPaths.has(diskRel) || knownPaths.has(relNoSlash)) continue;

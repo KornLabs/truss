@@ -198,8 +198,9 @@ gets found and investigated a second time. An entry without a fix yet carries
 `Adjustment: open (as of YYYY-MM-DD) — [why not yet]` and names the next step in
 `Follow-up:`; the field stays present, so the grammar check is unaffected.
 Ordinary product bugs go to the repo issue tracker, a test, a local domain task,
-or `pm/`. If a bug exposes a technical decision, record a D-NNN; if it creates
-project, launch, or safety exposure, record an R-NNN.
+or a domain file for project-wide planning. If a bug exposes a technical
+decision, record a D-NNN; if it creates project, launch, or safety exposure,
+record an R-NNN.
 
 ### TF-NNN — Truss finding (upstream feedback)
 
@@ -263,8 +264,9 @@ be deleted again; the ID counters continue regardless.
 ```
 
 Domain tasks are optional. Use them only for small tasks tied to that domain.
-Project-wide planning belongs in `pm/` or the project's planning convention;
-human-only tasks belong in `HUMAN-TODOS.md`; undecided questions belong in
+Project-wide planning belongs in a domain file under `context/` (loaded and
+checked like any other) or the project's planning convention; human-only
+tasks belong in `HUMAN-TODOS.md`; undecided questions belong in
 `state/open-decisions.md`. Remove or check off completed local tasks and clean
 them up promptly. Keep the first blockquote one line so `truss map` can use it.
 When a domain file grows beyond ~450 lines or five distinct themes, split it

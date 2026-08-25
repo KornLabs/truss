@@ -61,7 +61,7 @@ async function readFile(absPath) {
  * Finds the table under "## 2 Structure" and returns structured rows.
  *
  * Each row: { rawPath, paths: string[], onDemand: boolean, summary: boolean, owner, purpose }
- *   - paths: one or more resolved paths (split from "pm/ · skills/" etc.)
+ *   - paths: one or more resolved paths (split from "archive/ · skills/" etc.)
  *   - onDemand: true if "(on demand)" in rawPath or explicitly on-demand
  *   - summary: true if this is a summary row (contents not individually table-managed)
  */
@@ -116,7 +116,7 @@ export function parseStructureTable(lines) {
 
     const onDemand = rawPath.includes('(on demand)') || purpose.toLowerCase().includes('summary row');
 
-    // Split multi-path rows: "pm/ · skills/ (on demand)"
+    // Split multi-path rows: "archive/ · skills/ (on demand)"
     const cleanPath = rawPath.replace(/\s*\(on demand\)\s*/g, '').trim();
     const rawPaths = cleanPath
       .split('·')
@@ -140,7 +140,7 @@ export function parseStructureTable(lines) {
 // so doctor only checks existence/non-emptiness, not each child path.
 // Canonical form = bare directory names (no trailing slash). Single source of
 // truth — consumers that compare slash-suffixed paths strip the slash first (C2).
-export const SUMMARY_DIRS = new Set(['archive', 'repo', 'pm', 'skills', 'context', 'docs', '.truss']);
+export const SUMMARY_DIRS = new Set(['archive', 'repo', 'skills', 'context', 'docs', '.truss']);
 
 // Known adapter stubs — part of template, ST-04 checks these.
 // Paths are POSIX literals ('/'): they are compared against walk-generated

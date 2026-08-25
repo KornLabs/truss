@@ -29,6 +29,6 @@ For each file, get the three versions clear in your head: yours (the workspace f
 
 **5. Check the semantic layer.** File content is only part of a version change. Run `node .truss/bin/truss.mjs doctor` and treat every finding as an upgrade task: a `BL-03` warning about a retired preference key names its replacement in the message — apply it with `truss set`. Then run `truss render`, and `truss map` if the file inventory changed. Repeat until clean.
 
-**6. Report.** In state/current.md, one `recently-done:` line naming the version step. To the human, one paragraph: which rules changed in how this workspace is run, what you kept against the baseline and why, and anything you had to guess. If the upgrade changed a rule that contradicts a recorded decision, open an `OD-NNN` — do not silently let the new baseline overrule a `D-NNN`.
+**6. Report.** In state/current.md, refresh `focus:` so it names the version step. To the human, one paragraph: which rules changed in how this workspace is run, what you kept against the baseline and why, and anything you had to guess. If the upgrade changed a rule that contradicts a recorded decision, open an `OD-NNN` — do not silently let the new baseline overrule a `D-NNN`.
 
 Once `doctor` is clean and the human is satisfied, `.truss.bak-<old-version>/` can be deleted. Leave that to the human.

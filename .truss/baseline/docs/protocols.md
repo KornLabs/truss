@@ -24,7 +24,7 @@
 
 The per-unit write-back above is the primary mechanism; the end ritual verifies it. Never save state up for this step — a session can end without reaching it.
 
-1. Verify state/current.md matches reality: current focus, next ≤5, blockers, recently-done (≤7 entries). With a `repo/` overlay, set `branch:` to the branch the work belongs to.
+1. Verify state/current.md matches reality: current focus, next ≤5, blockers. With a `repo/` overlay, set `branch:` to the branch the work belongs to.
 2. Route any loose ends still unrouted: unresolved open questions → open-decisions, unresolved todos → HUMAN-TODOS.md.
 3. Use `node .truss/bin/truss.mjs doctor` manually when unsure or at phase exits.
 4. If `auto-commit: suggest`, propose a commit message: `<area>: <action> — <context>`.
@@ -39,7 +39,7 @@ Rejects, in practice:
 
 - "might be useful later" — speculation without a decision, task, or risk behind it
 - already carried elsewhere: git history, the code itself, the tool's own output, another canonical file
-- narration of work done (the diff is the record) — `recently-done` holds the one line that informs the next step, not the story
+- narration of work done — the diff is the record, and `truss status` shows the last commits; write only what changes the next step
 - rationale that no longer governs anything — a decision states what holds now; the debate belongs in the D-entry's one-line `Rationale:` or in git
 - copies "for convenience" — link instead; two copies drift and one becomes a lie
 
@@ -64,7 +64,6 @@ than carrying it silently for another year.
 
 - A domain file exceeds ~500 lines → split the oldest / least-active section to `archive/<domain>/<topic>.md`
 - A decision is superseded (see D-NNN grammar in docs/conventions.md) → the entry stays in state/decisions.md with `Superseded-by:`; once its full text no longer informs current work, compress it in place to heading + supersede note and move the body to `archive/decisions.md` — decisions.md is loaded in full before every decision, and its `Decision:` lines are boot context via `state/decisions-index.md`
-- A task is fully done and has been in recently-done for >14 days → remove from state/current.md (it's in git history)
 - A HUMAN-TODOS.md entry is checked `[x]` and clearly settled (the next session no longer needs it) → move the line verbatim to `archive/human-todos.md`; the HT counter continues across archived entries
 - An open-decisions.md entry was decided → it is removed the moment the D-NNN (with `Closes: OD-NNN`) is written — never park a "DECIDED" tombstone; update references to point at the D-NNN instead
 
@@ -72,7 +71,7 @@ than carrying it silently for another year.
 
 - stale: focus, tasks, notes, or assumptions no longer match the current project state
 - duplicated: the same truth appears in more than one canonical file
-- wrong place: content belongs in a domain file, `pm/`, `HUMAN-TODOS.md`, `state/open-decisions.md`, `state/risks.md`, or `.trussignore`
+- wrong place: content belongs in a domain file, `HUMAN-TODOS.md`, `state/open-decisions.md`, `state/risks.md`, or `.trussignore`
 - too large: a file is hard to scan, especially domain files over ~450 lines or five distinct themes
 - bulk data: copied logs, exports, generated files, datasets, or foreign repo content should be ignored or moved out of active context
 - archive-worthy: superseded material still useful as history should move to `archive/` with a pointer
