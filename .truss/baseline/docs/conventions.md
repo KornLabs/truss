@@ -189,10 +189,14 @@ Adjustment: [what changed in files/process/checks]
 Follow-up: [optional]
 ```
 
-Added only when a systemic agent/framework weakness is identified and
-structurally fixed. Ordinary product bugs go to the repo issue tracker, a test,
-a local domain task, or `pm/`. If a bug exposes a technical decision, record a
-D-NNN; if it creates project, launch, or safety exposure, record an R-NNN.
+Written when a systemic agent/framework weakness is *identified* — not only once
+it is fixed. A finding you have no time for is the expensive one: unrecorded, it
+gets found and investigated a second time. An entry without a fix yet carries
+`Adjustment: open (as of YYYY-MM-DD) — [why not yet]` and names the next step in
+`Follow-up:`; the field stays present, so the grammar check is unaffected.
+Ordinary product bugs go to the repo issue tracker, a test, a local domain task,
+or `pm/`. If a bug exposes a technical decision, record a D-NNN; if it creates
+project, launch, or safety exposure, record an R-NNN.
 
 ### TF-NNN — Truss finding (upstream feedback)
 

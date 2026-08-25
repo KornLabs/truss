@@ -70,9 +70,16 @@ export function buildExcludes(groups, selected) {
   return excludes
 }
 
-/** Parse an init selection into its enabled baseline groups. */
+/**
+ * Parse an init selection into its enabled baseline groups.
+ * value === null/undefined means --skills was not given at all: the baseline
+ * skills/agents frontmatter (5794 words / ~8.7k tokens, D-069) loads into
+ * every host-agent session and Truss cannot see it (.claude/ is .trussignore'd),
+ * so the no-flag default is now "install nothing" rather than "install all".
+ */
 export function selectedGroupsFor(value, groups) {
-  if (value === null || value === 'all') return new Set(groups.keys())
+  if (value == null) return new Set()
+  if (value === 'all') return new Set(groups.keys())
   if (value === 'none') return new Set()
   const selected = new Set(value.split(',').map(group => group.trim()).filter(Boolean))
   if (selected.size === 0 || [...selected].some(group => !groups.has(group))) {

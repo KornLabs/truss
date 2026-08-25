@@ -877,6 +877,59 @@ describe('PH-06: static exit-target validation (A5)', () => {
     assert(findings.some(f => f.id === 'PH-04' && f.severity === 'W'),
       'human exit items should surface as a PH-04 warning checklist')
   })
+
+  // ── D-071: severity graded by phase position relative to current: ─────────
+  it('grades a missing target in a phase at/before current: as W (unchanged message)', async () => {
+    const defs = new Map([
+      ['discover', { purpose: 'p.', behavior: 'b.', exit: 'section: VISION.md#NoSuchHeading' }],
+      ['plan', { purpose: 'p.', behavior: 'b.', exit: 'done (human)' }],
+    ])
+    const ctx = {
+      root: FIXTURE, gate: false,
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'plan' } },
+    }
+    const findings = await ph.run(ctx)
+    const ph06 = findings.filter(f => f.id === 'PH-06')
+    assert.equal(ph06.length, 1, 'the finding must still be emitted, not disappear')
+    assert.equal(ph06[0].severity, 'W')
+    assert.equal(ph06[0].message, "phase 'discover': exit target heading 'NoSuchHeading' not found in VISION.md")
+  })
+
+  it('grades the same missing target in a future phase as I (not-due-yet wording)', async () => {
+    const defs = new Map([
+      ['discover', { purpose: 'p.', behavior: 'b.', exit: 'done (human)' }],
+      ['plan', { purpose: 'p.', behavior: 'b.', exit: 'section: VISION.md#NoSuchHeading' }],
+    ])
+    const ctx = {
+      root: FIXTURE, gate: false,
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' } },
+    }
+    const findings = await ph.run(ctx)
+    const ph06 = findings.filter(f => f.id === 'PH-06')
+    assert.equal(ph06.length, 1, 'the finding must still be emitted, not disappear')
+    assert.equal(ph06[0].severity, 'I')
+    assert.match(ph06[0].message, /not due yet/)
+    assert.match(ph06[0].message, /NoSuchHeading/)
+  })
+
+  it('grades a missing file: target the same way as section: (W at/before, I after)', async () => {
+    const defs = new Map([
+      ['discover', { purpose: 'p.', behavior: 'b.', exit: 'file: missing-a.md' }],
+      ['plan', { purpose: 'p.', behavior: 'b.', exit: 'file: missing-b.md' }],
+    ])
+    const ctx = {
+      root: FIXTURE, gate: false,
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' } },
+    }
+    const findings = await ph.run(ctx)
+    const ph06 = findings.filter(f => f.id === 'PH-06')
+    assert.equal(ph06.length, 2)
+    const atCurrent = ph06.find(f => f.message.includes('missing-a.md'))
+    const future = ph06.find(f => f.message.includes('missing-b.md'))
+    assert.equal(atCurrent.severity, 'W')
+    assert.equal(future.severity, 'I')
+    assert.match(future.message, /not due yet/)
+  })
 })
 
 // ── T1: BL-02 drift detection ─────────────────────────────────────────────────

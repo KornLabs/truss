@@ -1,73 +1,60 @@
 # Prompts
 
-Two kinds of prompts live here, distinguished only by `library.json` (no subfolders):
-
-1. **Library prompts** (10) — user-facing, served by the dashboard.
-2. **Engine-ritual prompts** (3) — invoked by the phase machine / gate; never in the manifest.
+Truss ships no prompt library. This directory holds what a project adds itself,
+the two procedures the engine itself points at, and an unsupported archive of
+what used to be shipped.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `library.json` | The manifest — the index of library prompts. The dashboard serves **only** these (plus `custom/`). |
-| `base/<id>.md` | English bodies. Pure body, no frontmatter. Holds both library and engine-ritual prompts. |
-| `base-de/<id>.md` | German bodies for the library prompts. Engine-ritual prompts are EN-only. |
-| `custom/<id>.md` | User-created prompts, single language, served as-is. Also holds `prefs/` overrides. |
+| `custom/<id>.md` | User-created prompts, single language, served as-is. The only prompts the dashboard serves. Also holds `prefs/` overrides. |
+| `library.json` | Legacy manifest, kept for shape compatibility. `"prompts"` is `[]` — nothing is read from it. |
+| `rituals/<id>.md` | The two procedures the engine names by path: `cleanup.md` and `upgrade.md`. Supported — a `fix:` string a check prints is a contract. |
+| `archive/<id>.md` | English bodies of the removed library prompts and the remaining engine rituals, as they stood before removal. Unsupported. |
+| `archive-de/<id>.md` | German bodies for the library prompts (the engine rituals were EN-only). Unsupported. |
 
-`promptIds` (used by check **RF-04**) is scanned flat from `base/` + `custom/` only.
+`promptIds` (used by check **RF-04**) is scanned from `custom/` only. A
+`prompts:` reference in `state/phases.md` must have a matching file there, or
+RF-04 warns.
 
-## Library prompts (the 10)
+## Why there's no library
 
-Three shelves (see `library.json` for shelf/tags/flags):
+1.0.0-beta.2 removed the shipped prompt library. Loading every fresh instance
+with pre-made method knowledge — how to plan, how to critique, how to run a
+kickoff — worked against the framework's own principle that files are the
+source of truth, not baked-in habits. `custom/` remains the supported way to
+give the dashboard a prompt: write it, save it, it's served as-is.
 
-- **task:** `plan` · `implement` · `critique` · `decide`
-- **session:** `resume` · `handover` · `cleanup` (the canonical controlled-forgetting procedure — named by CX-01's `fix:` and by the dashboard context view; proposal-only, the human approves before anything moves)
-- **setup:** `project-kickoff` (fresh-project interview: vision, profile, tailored phase plan) · `overlay-onboard` (adopts an existing project; also the overlay `ingest` ritual — see below) · `upgrade`
+## `rituals/`
 
-There is no orchestration wrapper and no method prompt (`research`, `stress-test`,
-`bug-fix`, `refactor`, `idea-spar`, `founder-move`, `orchestrate`): how work is
-decomposed and delegated is the agent's job under the `subagents` preference and
-AGENTS.md, not a separate prompt to pick.
+Two procedures that the engine points at by path, so they are part of the
+supported surface even though no library ships:
 
-### Authoring convention
+- **`cleanup.md`** — the controlled-forgetting procedure. `CX-01` (context
+  budget) and `SY-09` (state file size) both name
+  `.truss/prompts/rituals/cleanup.md` in their `fix:` text as the way to trim
+  boot-loaded content.
+- **`upgrade.md`** — the standing instruction for the judgment half of a
+  version upgrade, named by `truss upgrade`'s printed prompt and by the upgrade
+  and CLI docs.
 
-Every library body opens with the **same input block** — the only tokens the user fills:
+They moved out of `archive/` under D-073: a `fix:` string a check emits must not
+point into a directory the documentation calls unsupported, and "archive" reads
+as "obsolete" for a procedure that is still the canonical one.
 
-```
-## Your input
+## `archive/` and `archive-de/`
 
-- Task: {{INPUT}}
-- Constraints: {{CONSTRAINTS}} (optional)
-- Pointers: {{POINTERS}} (optional)
-```
+These hold the removed bodies unchanged, kept as an unsupported starting
+point — copy one into `custom/` and adapt it. Nothing in the engine loads or
+requires any of them: the eight library prompts (`plan`, `implement`,
+`critique`, `decide`, `resume`, `handover`, `project-kickoff`,
+`overlay-onboard`) and the three remaining engine rituals (`phase-recap`,
+`gate-advocate`, `phase-replan`) sit there for reference only. `archive-de/`
+holds German bodies for the library prompts; the engine rituals were EN-only.
 
-Bodies are **lightweight**: a one-line mandate (role + definition of done), the **result requirements**
-(the bar the output must clear, incl. Truss contracts like D-NNN), and one process line. The method is
-left to the agent. House rules (load order, stop-on-blocker, no fabrication, subagent use) are **not**
-repeated here — they live in `AGENTS.md` (§1, §3–§5, preferences), which every agent reads. Each prompt
-carries only one orienting line: "read the relevant files first, starting with AGENTS.md."
+## Custom prompts
 
-## Engine-ritual prompts (the 3, EN-only, not in the manifest)
-
-Precise about their protocol; they defer the generic rules to the AGENTS.md phase block.
-
-| Prompt | Referenced by |
-|---|---|
-| `phase-recap` | `state/phases.md` `prompts:` lines → validated by RF-04, rendered into the AGENTS.md phase block |
-| `gate-advocate` | phase-exit procedure (AGENTS.md §4) + `checks/ph.mjs` PH-04 (names its path) + the `gate-advocate` preference |
-| `phase-replan` | AGENTS.md §5 (agent-driven phase-plan restructuring) + `project-kickoff` step 4 hands the plan off to it |
-
-Adding/removing a `prompts:` reference in any `phases.md` requires the matching `base/<id>.md` to exist,
-or RF-04 warns. Two library prompts are also phase-referenced: the seeded `kickoff` phase
-(`baseline/state/phases.md`) points at `project-kickoff`, and the overlay `ingest` phase
-(`baseline/overlay/phases.md`, used by `truss init --overlay`) points at
-`overlay-onboard` — it onboards an existing project (intake → survey & dispositions → phase model).
-
-## Custom prompts & presets
-
-Custom prompts are written to `custom/` via `truss prompt save` (dashboard-driven, single language).
-**Presets** (a library prompt with pre-filled input) are dashboard-local (localStorage), not files.
-
-## Superseded prompts
-
-Old/superseded bodies are not kept in a folder — git history is the archive.
+Written to `custom/` via `truss prompt save` (dashboard-driven, single
+language). **Presets** (a custom prompt with pre-filled input) are
+dashboard-local (localStorage), not files.

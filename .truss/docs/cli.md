@@ -34,7 +34,7 @@ truss init --name "My Project" --lang English
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
-| `--skills <selection>` | install `all` groups (default), `none`, or comma-separated group IDs such as `superpowers,ecc`. In a TTY without this option, init offers an interactive group choice. `.claude/SOURCES.md` is always installed as provenance |
+| `--skills <selection>` | install `none` (default), `all` groups, or comma-separated group IDs such as `superpowers,ecc`. In a TTY without this option, init offers an interactive group choice, defaulting to none. The skills are optional because their frontmatter alone is context your host agent loads into every session — around 8.7k tokens for the full set, which Truss cannot see or budget. Add them later with `truss skills add <group>`. `.claude/SOURCES.md` is always installed as provenance |
 | `--findings <on\|off>` | collect agent findings about Truss itself in `state/truss-findings.md` (default `on`). With `off`, every AGENTS.md / conventions mention of the channel is omitted — zero boot cost for instances that do not want it. Decision is fixed at init time |
 
 `init` scaffolds the directory it is invoked from (or `--root`), never silently
@@ -77,7 +77,9 @@ truss skills add all
 unchanged baseline assets from the selected group, including that group's
 agents; existing or modified files are preserved. A restricted selection is
 stored in `.claude/.truss-skills.json` so future upgrades do not reinstall
-opted-out groups; the file is absent when every group is enabled.
+opted-out groups; the file is absent only when every group is enabled. A default
+`init` installs no group, so a fresh workspace carries it with an empty list —
+that is what keeps a later `upgrade` from installing all of them behind you.
 
 ---
 
@@ -121,7 +123,7 @@ blocks in `AGENTS.md` are excluded from the merge, so `truss render` / `truss se
 stay their only writers.
 
 Whatever is left needs judgment, not mechanics: the printed prompt hands it to
-your agent via [`prompts/base/upgrade.md`](../prompts/base/upgrade.md), which also
+your agent via [`prompts/rituals/upgrade.md`](../prompts/rituals/upgrade.md), which also
 covers the semantic half — `doctor` names retired preference keys and their
 replacements after the swap. Full walkthrough: [upgrade.md](upgrade.md).
 
@@ -273,7 +275,7 @@ and a fresh clone correctly starts unreviewed. The command is deliberately not
 available to the dashboard action executor — nothing should be able to quiet a
 budget warning without a person deciding to.
 
-The trim itself is the `cleanup` prompt (`.truss/prompts/base/cleanup.md`), which
+The trim itself is the `cleanup` prompt (`.truss/prompts/rituals/cleanup.md`), which
 proposes dispositions and leaves execution to you.
 
 ---

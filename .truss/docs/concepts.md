@@ -131,6 +131,12 @@ authentication.
 An existing codebase uses the **overlay** flow (`ingest → operate`) via
 `init --overlay` — also a seed the onboarding replaces with the real plan.
 
+One ready-made alternative ships as a pattern to copy rather than a default:
+`.truss/phase-profiles/founders-thinking.md` (discover → validate → concept) is
+for a project whose goal is to think an idea through and reach an honest
+pursue/park call, not to build it. Copy it over `state/phases.md` and run
+`truss render`; its own README has the steps.
+
 ## 6. Checks (the doctor)
 
 `truss doctor` runs a catalogue of checks grouped into families. Each finding
@@ -138,12 +144,14 @@ has a severity — **E**rror, **W**arning, or **I**nfo — and an ID like `ST-02
 
 | Family | Guards |
 |---|---|
-| `ST` Structure | the structure table matches what's actually on disk |
+| `ST` Structure | the structure table matches what's actually on disk, and the installed engine matches its release manifest |
 | `BL` Block | the generated preference/phase blocks haven't drifted |
-| `RF` Reference | operational links resolve and D/OD/HT/R/L IDs are defined exactly once, including under `context/` |
+| `RF` Reference | operational links resolve and D/OD/HT/R/L/TF IDs are defined exactly once, including under `context/` |
 | `SY` State | the state files have the required keys, valid entry grammar, and no unrecorded drift |
 | `PH` Phase | grammar, uncommitted forbidden-path evidence, and `--gate` exit criteria |
 | `CX` Context | mandatory Truss boot metadata stays under the configured estimate |
+
+**What the checks do *not* see.** `doctor` loads the files the §2 structure table names individually, plus every non-ignored markdown file under `context/` and `archive/`. A row that names a *directory* — `docs/`, `pm/` in the shipped table — is not expanded: its contents are never loaded, so `RF-01`, `RF-02`, `RF-03` and `ST-05` stay silent there. The same holds for anything matched by `.trussignore` or `.gitignore`, and for `.truss/` itself. List a file individually in the §2 table if you want it checked; a binding procedure left under `docs/` or `pm/` is present, not validated. The one deliberate exception is `ST-09`: it compares the engine's own files against `.truss/MANIFEST.sha256` by hash, not by loading them, and stays silent when no manifest is installed.
 
 `doctor` is read-only. It reports; it never edits your files. `--fix-prompt`
 emits an instruction block you can hand to an agent, `--json` is for tooling, and
@@ -178,15 +186,7 @@ and values is in [cli.md](cli.md#set).
 
 ## 8. Prompts
 
-Truss ships a small **prompt library** — task prompts (`plan`, `implement`,
-`critique`, `decide`), session prompts (`resume`, `handover`, `cleanup`), and
-setup rituals (`project-kickoff`, `overlay-onboard`, `upgrade`) — plus three
-engine-ritual prompts the phase machine uses internally. There is deliberately
-no prompt per method (research, refactoring, stress-testing, orchestration):
-how the work is decomposed follows from the task and the `subagents`
-preference, not from picking a different prompt. Prompts are intentionally
-lightweight: a one-line mandate and the result bar, leaving the method to the
-agent, because the house rules already live in `AGENTS.md`. Details:
+Truss ships **no** prompt library. `prompts/custom/<id>.md` is where you put your own; the dashboard serves those and nothing else, and check `RF-04` verifies that a `prompts:` reference in `state/phases.md` has a matching file there. Earlier versions shipped ten library prompts plus three engine rituals; they were removed in 1.0.0-beta.2 — they loaded every fresh instance with pre-made method knowledge — and are kept, unsupported, under `prompts/archive/` and `prompts/archive-de/` for anyone who wants a starting point. Two of them are not archive material and live under `prompts/rituals/`: `cleanup.md`, the controlled-forgetting procedure that `CX-01` and `SY-09` name in their `fix:` text, and `upgrade.md`, the standing instruction for the judgment half of an upgrade. A `fix:` string a check prints is a supported contract, so it must not point into unsupported leftovers. Details:
 [prompts/README.md](../prompts/README.md).
 
 ## 9. The dashboard

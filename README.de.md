@@ -131,7 +131,7 @@ node .truss/bin/truss.mjs doctor
   Boot prompt for your AI tool:
     "Read AGENTS.md fully, then follow §1 load order. This is a fresh project —
       don't start anything yet. Run the project-kickoff ritual
-      (.truss/prompts/base/project-kickoff.md, also on the dashboard's Setup shelf):
+      (on the dashboard's Setup shelf):
       interview me to turn my idea into VISION.md, state/profile.md and a phase plan,
       and probe for anything missing or vague. My idea/vision: <paste your idea, your
       role, and what you want to achieve here>."

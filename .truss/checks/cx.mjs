@@ -91,7 +91,7 @@ export async function run(ctx) {
         id: 'CX-01', severity: 'I',
         file: 'AGENTS.md',
         message: `mandatory Truss boot metadata ≈ ${tokens} tokens — above the ${threshold} threshold but within the reviewed baseline of ≈${verdict.baseline} (acked ${verdict.date}). Warns again above ≈${verdict.ceiling}. Heaviest: ${heaviest}`,
-        fix: `Nothing to do — this size was reviewed and judged lean. Re-review with the \`cleanup\` prompt (.truss/prompts/base/cleanup.md) and re-run \`truss ack context\` after the next real trim, or \`truss ack context --clear\` to drop the baseline and get the full warning back.`,
+        fix: `Nothing to do — this size was reviewed and judged lean. Re-review with the \`cleanup\` prompt (.truss/prompts/rituals/cleanup.md) and re-run \`truss ack context\` after the next real trim, or \`truss ack context --clear\` to drop the baseline and get the full warning back.`,
       })
     } else {
       const staleAck = verdict.baseline
@@ -101,9 +101,9 @@ export async function run(ctx) {
         id: 'CX-01', severity: hardSeverity,
         file: 'AGENTS.md',
         message: `mandatory Truss boot metadata ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold.${staleAck} Task-selected domain/source context is not counted. Heaviest: ${heaviest}`,
-        // The cleanup procedure itself is canonical in .truss/prompts/base/cleanup.md
+        // The cleanup procedure itself is canonical in .truss/prompts/rituals/cleanup.md
         // (protection list included) — this only names it and the way out.
-        fix: `Run the \`cleanup\` prompt (.truss/prompts/base/cleanup.md): it inventories the always-loaded files, classifies every block as keep / route / archive / drop-duplicate, and protects the §1 load order, the §2 structure table, the generated blocks and every D-NNN. If the review concludes this size is genuinely earned, record it with \`truss ack context\` — the finding then reports as info until the context grows past the reviewed baseline.`,
+        fix: `Run the \`cleanup\` prompt (.truss/prompts/rituals/cleanup.md): it inventories the always-loaded files, classifies every block as keep / route / archive / drop-duplicate, and protects the §1 load order, the §2 structure table, the generated blocks and every D-NNN. If the review concludes this size is genuinely earned, record it with \`truss ack context\` — the finding then reports as info until the context grows past the reviewed baseline.`,
       })
     }
   }

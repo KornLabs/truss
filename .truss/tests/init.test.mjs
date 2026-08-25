@@ -129,11 +129,23 @@ describe('init (core)', () => {
       await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
     })
 
-    it('installs all groups by default and selected groups on request', async () => {
+    it('installs nothing when --skills is omitted (D-069 default) and records an empty selection', async () => {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+      const root = await makeRoot('truss-init-skills-default-')
+      const res = await runInit(root, ['--name', 'Default', '--lang', 'English'])
+
+      assert.deepEqual(res.skills, [])
+      await assert.rejects(fs.access(path.join(root, '.claude', 'skills')))
+      await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
+      assert.deepEqual(JSON.parse(await read(root, '.claude/.truss-skills.json')), { groups: [] })
+    })
+
+    it('installs all groups with --skills all and selected groups on request', async () => {
       const fs = await import('node:fs/promises')
       const path = await import('node:path')
       const allRoot = await makeRoot('truss-init-skills-all-')
-      await runInit(allRoot, ['--name', 'All', '--lang', 'English'])
+      await runInit(allRoot, ['--name', 'All', '--lang', 'English', '--skills', 'all'])
       await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'marketing-seo-audit')))
       await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'agents', 'ecc-architect.md')))
 
@@ -277,7 +289,14 @@ describe('init no-overwrite & pre-flight', () => {
   it('refuses to re-init an already-initialised workspace', async () => {
     const root = await makeRoot('truss-init-reinit-')
     await runInit(root, ['--name', 'A', '--lang', 'English'])
-    await assert.rejects(runInit(root, ['--name', 'B', '--lang', 'English']), /already/i)
+    // Both spellings must hit the AGENTS.md already-initialised check. Since
+    // D-069 every init writes .claude/.truss-skills.json, so the bare re-run is
+    // the case that regressed once and must stay covered.
+    await assert.rejects(runInit(root, ['--name', 'B', '--lang', 'English']), /already looks initialised/i)
+    await assert.rejects(
+      runInit(root, ['--name', 'B', '--lang', 'English', '--skills', 'all']),
+      /already looks initialised/i,
+    )
   })
 
   it('preserves a pre-existing file on partial re-run and reports it as a conflict', async () => {
