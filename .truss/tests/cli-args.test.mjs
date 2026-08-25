@@ -71,9 +71,6 @@ describe('inspectArgs', () => {
     assert.deepEqual(inspectArgs(ack, ['context', '--note', 'reviewed']), {})
     assert.deepEqual(inspectArgs(ack, ['context', '--note=reviewed']), { unknown: '--note=reviewed' })
     assert.deepEqual(inspectArgs(doctor, ['--gate', '--json']), {})
-    const dashboard = COMMAND_BY_NAME.get('dashboard')
-    assert.deepEqual(inspectArgs(dashboard, ['--port', '9999']), {})
-    assert.deepEqual(inspectArgs(dashboard, ['--port=9999']), { unknown: '--port=9999' })
   })
 
   it('treats a value token as payload, not syntax', () => {
@@ -81,12 +78,10 @@ describe('inspectArgs', () => {
     assert.deepEqual(inspectArgs(ack, ['context', '--note', '--help']), {})
   })
 
-  it('stops inspecting at literalFrom (prompt bodies, preference values)', () => {
+  it('stops inspecting at literalFrom (preference values)', () => {
     const set = COMMAND_BY_NAME.get('set')
-    const prompt = COMMAND_BY_NAME.get('prompt')
     assert.deepEqual(inspectArgs(set, ['--help']), { help: true })
     assert.deepEqual(inspectArgs(set, ['control-word', '--anything']), {})
-    assert.deepEqual(inspectArgs(prompt, ['save', 'my-id', '--not-a-flag']), {})
   })
 
   it('routes skills help and unknown flags through the shared argument gate', () => {

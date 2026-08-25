@@ -17,7 +17,6 @@ if (_maj < 20) {
 // M3: render, set, --gate, PH checks
 // M4: init (workspace scaffolding)
 // M5: SY/CX checks, doctor --html
-// M6: dashboard server
 
 import path from 'node:path'
 import fs from 'node:fs/promises'
@@ -31,7 +30,6 @@ import { runInit } from '../lib/commands/init.mjs'
 import { runUpgrade } from '../lib/commands/upgrade.mjs'
 import { runMap } from '../lib/commands/map.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
-import { runPrompt } from '../lib/commands/prompt.mjs'
 import { runPhase } from '../lib/commands/phase.mjs'
 import { runSkills } from '../lib/commands/skills.mjs'
 import { COMMAND_META, COMMAND_BY_NAME, inspectArgs } from '../lib/command-meta.mjs'
@@ -213,13 +211,6 @@ Doctor flags:
   --html        write report as HTML (Dashboard v0) to .truss/out/doctor.html
   --json        write report as JSON to .truss/out/doctor.json
   --fix-prompt  output a copyable remediation prompt for all findings
-
-Dashboard flags:
-  --port <n>    pin a specific port (fails if taken). Without it, starts at 3741
-                and hops to the next free port so other projects can run too.
-  --no-open     do not open dashboard in default browser automatically
-  --read-only   start dashboard in read-only mode
-                (one dashboard per project; a second launch opens the running one)
 
 Exit codes: 0 = clean · 1 = warnings only · 2 = errors present
 `)
@@ -677,67 +668,16 @@ async function runSet(keyArg, valueArg) {
   }
 }
 
-// ── dashboard ───────────────────────────────────────────────────────────────
-async function runDashboard(args) {
-  try {
-    const { startDashboard } = await import('../dashboard/server.mjs')
-    let port = 3741
-    let pinned = false // user passed an explicit --port: respect it strictly (no auto-scan)
-    const portIdx = args.indexOf('--port')
-    if (portIdx >= 0 && args.length > portIdx + 1) {
-      const parsed = parseInt(args[portIdx + 1], 10)
-      if (!isNaN(parsed)) { port = parsed; pinned = true }
-    }
-    const openBrowser = !args.includes('--no-open')
-    const readOnly = args.includes('--read-only')
-
-    const openInBrowser = (u) => {
-      if (!openBrowser) return
-      import('node:child_process').then(({ exec, spawn }) => {
-        if (process.platform === 'win32') {
-          // `start` is a cmd builtin; "" is the required window-title arg so a quoted URL isn't swallowed as the title.
-          spawn('cmd', ['/c', 'start', '', u], { detached: true, stdio: 'ignore' }).unref()
-        } else {
-          const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open'
-          exec(`${cmd} ${JSON.stringify(u)}`)
-        }
-      }).catch(() => {})
-    }
-
-    // singleInstance: one dashboard per project. autoPort: when the port isn't
-    // pinned, hop to the next free port so OTHER projects can run in parallel.
-    const { url, alreadyRunning } = await startDashboard({ root, port, openBrowser, readOnly, autoPort: !pinned, singleInstance: true })
-
-    if (alreadyRunning) {
-      console.log(`\x1b[33m[Truss] A dashboard is already running for this project.\x1b[0m`)
-      console.log(`\x1b[36m➜  Local:   ${url.replace('127.0.0.1', 'localhost')}\x1b[0m`)
-      console.log(`(Stop it with Ctrl+C in its terminal, or open the link above.)`)
-      openInBrowser(url)
-      return
-    }
-
-    console.log(`\x1b[32m[Truss] Dashboard is running!\x1b[0m`)
-    console.log(`\x1b[36m➜  Local:   ${url.replace('127.0.0.1', 'localhost')}\x1b[0m`)
-    console.log(`(Press Ctrl+C to stop)`)
-    // startDashboard does not open the browser, so this is the single opener.
-    openInBrowser(url)
-  } catch (err) {
-    console.error(`truss dashboard: ${err.message}`)
-    process.exit(2)
-  }
-}
-
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 // Handlers keyed by command name. This key set is the dispatch surface; the same
-// names live in COMMAND_META (which drives `help` and the dashboard whitelist), so
-// the two stay in lockstep — preventing documented-but-undispatched drift (the bug
-// class that left `tag` half-wired).
+// names live in COMMAND_META (which drives `help`), so the two stay in lockstep —
+// preventing documented-but-undispatched drift (the bug class that left `tag`
+// half-wired).
 const HANDLERS = {
   doctor:    (args) => runDoctor(args),
   render:    ()     => runRender(),
   set:       (args) => runSet(args[0], args[1]),
   ack:       (args) => runAck(args),
-  prompt:    (args) => runPrompt(root, args),
   phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
@@ -748,11 +688,9 @@ const HANDLERS = {
   // upgrade runs the NEW engine (this script) against the workspace the caller
   // stands in — the reverse direction of every other command.
   upgrade:   (args) => runUpgrade(root, args, process.cwd()),
-  dashboard: (args) => runDashboard(args),
 }
 
-// init/phase surface user-facing fatals as a throw → exit code 2 (dashboard
-// handles its own errors internally).
+// init/phase surface user-facing fatals as a throw → exit code 2.
 const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {

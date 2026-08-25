@@ -166,8 +166,6 @@ describe('truss ack (CLI)', () => {
     const { COMMAND_META } = await import('../lib/command-meta.mjs')
     const meta = COMMAND_META.find(c => c.name === 'ack')
     assert.ok(meta, 'ack missing from COMMAND_META')
-    // A budget warning must never be quietable from the dashboard.
-    assert.equal(meta.dashboardSafe, false)
     const cli = await fs.readFile(path.join(ENGINE, 'docs', 'cli.md'), 'utf8')
     assert.match(cli, /^## `ack`$/m)
   })
