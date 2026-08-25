@@ -63,18 +63,11 @@ function unknownKeyFinding(phaseId, key) {
  */
 export async function run(ctx) {
   const findings = []
-  const { phases, root, gate } = ctx
+  const { root, gate } = ctx
+  // Mirror the shape lib/workspace.mjs always builds, so a hand-made ctx can
+  // never crash the check the way a bare destructure would.
+  const phases = ctx.phases ?? { frontmatter: {}, ordered: [], defs: new Map() }
   const codeRootRel = ctx.codeRoot?.rel ?? (await resolveCodeRoot(root)).rel
-
-  if (!phases) {
-    findings.push({
-      id: 'PH-01', severity: 'E',
-      file: 'state/phases.md',
-      message: 'phases.md could not be parsed',
-      fix: 'Ensure state/phases.md exists and is valid UTF-8.',
-    })
-    return findings
-  }
 
   const { ordered, defs, frontmatter } = phases
 
@@ -139,6 +132,35 @@ export async function run(ctx) {
         }
       }
     }
+  }
+
+  // ── Absent is not broken (U4) ─────────────────────────────────────────────
+  // No readable state/phases.md. lib/workspace.mjs always builds `phases` as an
+  // object and attaches `stat` only when the file was actually READ, so
+  // `!phases.stat` covers two very different states that must not be merged:
+  //
+  //   absent  → the workspace deliberately runs without a phase model. Silent.
+  //   present but unreadable (permissions, a directory, invalid UTF-8) → broken.
+  //             Left silent, a chmod would quietly strip a workspace of its
+  //             gates and doctor would report a clean, phase-less project while
+  //             a full phases.md sits on disk. That is the exact degradation
+  //             this design is meant to prevent, so it stays an error — this is
+  //             the finding the previously unreachable `if (!phases)` branch was
+  //             written for.
+  //
+  // Everything above this line is silent on empty defs anyway; everything below
+  // assumes a phase model exists. PH-05 keeps its E for a file that IS readable
+  // and parses to nothing.
+  if (!phases.stat) {
+    if (await pathExists(path.resolve(root, 'state', 'phases.md'))) {
+      findings.push({
+        id: 'PH-01', severity: 'E',
+        file: 'state/phases.md',
+        message: 'state/phases.md exists but could not be read — unreadable, a directory, or not valid UTF-8',
+        fix: 'Make state/phases.md a readable UTF-8 file, or remove it to run this workspace without a phase model.',
+      })
+    }
+    return findings
   }
 
   // ── PH-02: current pointer valid ──────────────────────────────────────────

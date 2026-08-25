@@ -35,7 +35,7 @@ Routing policy: which file owns what. Not a file inventory — that is `state/ma
 | VISION.md | H+A | problem, idea, principles, constraints |
 | state/current.md | A | the live snapshot: focus · next · blockers · recently done (limits in the file) |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
-| state/phases.md | H pointer · H+A definitions | phase definitions and `current:` pointer |
+| state/phases.md (on demand) | H pointer · H+A definitions | phase definitions and `current:` pointer; without this file the workspace runs with no phase model — no gates, no forbidden lists, no exit criteria |
 | state/profile.md | H+A | project name/language, code-root, tools, style, and the durable behaviour preferences the human dictates |
 | state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN with `Closes:`, remove the entry; also where you challenge a decision (§3) |
 | state/risks.md (on demand) | A | risks R-NNN; load only for risk, Go/No-Go, launch, safety, or blocker work |

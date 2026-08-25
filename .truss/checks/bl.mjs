@@ -5,7 +5,7 @@
 // BL-03  E  preferences block has unknown key, invalid value, or grammar error
 
 import { CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, RETIRED_KEYS } from '../lib/prefs.mjs'
-import { renderPhaseBlock, parsePrefsRows } from '../lib/render.mjs'
+import { renderPhaseBlock, renderNoPhasesBlock, parsePrefsRows } from '../lib/render.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 export const meta = [
@@ -85,6 +85,23 @@ export async function run(ctx) {
         message: 'phase block has never been rendered (contains template placeholder)',
         fix: 'Run: node .truss/bin/truss.mjs render',
       })
+    } else if (!ctx.phases?.stat) {
+      // No state/phases.md (U4). The workspace has no phase model, so the block
+      // must carry exactly the canonical one-line notice — anything else is a
+      // block that still advertises gates, forbidden lists and exit criteria
+      // this workspace does not have. `render` and `phase` write the same text
+      // from lib/render.mjs, so a match here is drift-free by construction.
+      const expected = renderNoPhasesBlock().join('\n')
+      const actual = innerLines.join('\n').trim()
+      if (actual !== expected) {
+        findings.push({
+          id: 'BL-02', severity: 'E',
+          file: 'AGENTS.md',
+          line: phaseBlock.startLine + 1,
+          message: 'phase block describes a phase model, but state/phases.md could not be read',
+          fix: 'Run: node .truss/bin/truss.mjs render (writes the no-phases notice), or restore a readable state/phases.md',
+        })
+      }
     } else if (ctx.phases) {
       // Verify provenance line format
       const tsMatch = firstInner.match(/Rendered (\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/)

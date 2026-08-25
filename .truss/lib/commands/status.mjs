@@ -61,17 +61,35 @@ export async function runStatus(root, argv) {
   const now = new Date()
   const pad = (n) => String(n).padStart(2, '0')
   console.log(`  Date:    ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} (local)`)
-  console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
+  // No state/phases.md at all (U4): the workspace runs without a phase model,
+  // so there is no phase to report. Printing `unknown (? / 0)` would describe a
+  // supported configuration as a defect. A file that IS present still gets the
+  // line — and, when it defines nothing, the F-04 note below.
+  const phasesPresent = ctx.files.has('state/phases.md')
+  if (phasesPresent) {
+    console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
+  }
   console.log(`  Health:  ${doctorSummary}`)
 
   // Core-state integrity (F-04): a present-but-unparseable phases.md yielded a
   // silent `unknown (? / 0)` line with exit 0, so a CI step that only ran
   // `status` saw green over a corrupt workspace. Flag it visibly and exit
   // non-zero; `doctor` still gives the detailed findings.
-  const phasesPresent = ctx.files.has('state/phases.md')
   if (phasesPresent && total === 0) {
     const yel = useColorGlobal ? '\x1b[33m' : '', rst = useColorGlobal ? '\x1b[0m' : ''
     console.log(`  ${yel}Note:${rst}    state/phases.md defines no phases — it may be malformed. Run \`truss doctor\`.`)
+    process.exitCode = 1
+  }
+
+  // The same hole, entered through a different door (U4). A present-but-
+  // UNREADABLE phases.md — chmod 000, a directory at the path, invalid UTF-8 —
+  // never reaches ctx.files, so it is indistinguishable here from a workspace
+  // that deliberately has no phase model: no Phase line, exit 0. That is F-04's
+  // green-over-broken exactly, with a full phases.md sitting on disk. `doctor`
+  // separates the two via PH-01; `status` must not merge them either.
+  if (!phasesPresent && await pathExists(path.join(root, 'state', 'phases.md'))) {
+    const yel = useColorGlobal ? '\x1b[33m' : '', rst = useColorGlobal ? '\x1b[0m' : ''
+    console.log(`  ${yel}Note:${rst}    state/phases.md exists but could not be read. Run \`truss doctor\`.`)
     process.exitCode = 1
   }
 
@@ -156,4 +174,9 @@ function openDecisionLines(ctx, now, useColor) {
     out.push(`           … and ${entries.length - OD_SHOWN_MAX} more in state/open-decisions.md`)
   }
   return out
+}
+
+async function pathExists(absPath) {
+  try { await fs.access(absPath); return true }
+  catch { return false }
 }

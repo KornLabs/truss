@@ -55,14 +55,14 @@ the block writer.
 | `current.md` | the live focus: what you're doing, next actions (≤5), blockers, recently done |
 | `decisions.md` | decided decisions, each a `D-NNN` entry; superseded, never deleted |
 | `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`), including challenges to recorded decisions; ships with the workspace and stays when empty |
-| `phases.md` | the phase definitions and the `current:` pointer |
+| `phases.md` | the phase definitions and the `current:` pointer; optional — a workspace without it runs with no phase model |
 | `profile.md` | project name, language, tools, PM method, style notes |
 | `risks.md` | project, launch, safety, strategy, or blocker risks (`R-NNN`); created at its first entry |
 | `learnings.md` | recurring agent weaknesses and structural fixes (`L-NNN`); created at its first entry |
 | `map.md` | a script-generated overview of domain files with per-file read-cost estimates (on demand) |
 
 Only `current.md`, `decisions.md`, `phases.md`, and `profile.md` exist from
-`init`. Everything else appears the moment its first real entry does — a fresh
+`init` (`phases.md` unless you pass `--no-phases`). Everything else appears the moment its first real entry does — a fresh
 workspace carries no empty placeholder files (D-028).
 
 Everything that *describes a topic* rather than the project's process goes into a
@@ -119,6 +119,15 @@ Three rules define the phase protocol:
 3. **The phase block is generated.** `state/phases.md` is the source; running
    `truss render` writes the human-readable phase block into `AGENTS.md` so an
    agent always sees the active rules without loading the whole phase file.
+
+The phase model itself is optional. A workspace whose `state/phases.md` is absent
+runs without one: the phase block says so in one line, the `PH` checks stay silent,
+and `render`, `phase` and `status` treat the absence as a configuration rather than
+a defect. The trade is real and one-sided — no gates, no `forbidden` lists, no exit
+criteria, which is the only place Truss can say "no". Absence is not the same as
+damage: a `phases.md` that is present but empty, malformed or unreadable stays an
+error. Switch phases on by adding the file and running `truss render`; switch them
+off by deleting it and running `truss render`.
 
 The protocol is advisory. PH-03 reports forbidden globs only when they match
 uncommitted paths visible through git; it does not detect changes committed

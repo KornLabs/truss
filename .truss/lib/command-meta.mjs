@@ -51,7 +51,7 @@ export const COMMAND_META = [
     summary: 'configure a fresh workspace (flags or interactive)',
     flags: {
       '--name': { value: true }, '--lang': { value: true },
-      '--overlay': {}, '--code-root': { value: true },
+      '--overlay': {}, '--no-phases': {}, '--code-root': { value: true },
       '--adopt-agents': {}, '--root': { value: true },
       '--skills': { value: true }, '--findings': { value: true },
     },
