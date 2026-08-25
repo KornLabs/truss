@@ -40,6 +40,37 @@ export function parsePhaseList(value) {
 }
 
 /**
+ * Parse a list-valued **frontmatter** field, as it comes out of
+ * parseFrontmatter(). Two written forms are accepted:
+ *
+ *   next: alpha, beta          → ['alpha', 'beta']   (comma list, one-liners)
+ *   next:                      → ['alpha', 'beta']   (YAML block)
+ *     - alpha
+ *     - beta
+ *
+ * The block is the documented form because an entry may then contain a comma;
+ * the comma list stays valid for short single-line values. parseFrontmatter
+ * folds continuation lines into the value with '\n' (see above), so the block
+ * arrives here as "\n- alpha\n- beta" — that leading newline is why the test
+ * below allows one.
+ *
+ * Inline YAML (`next: [a, b]`) is deliberately NOT supported: it would fall
+ * through to parsePhaseList and yield ['[a', 'b]'], i.e. parse silently wrong.
+ * docs/conventions.md names the two supported forms instead.
+ */
+export function parseFrontmatterList(value) {
+  if (!value) return [];
+  const raw = String(value);
+  if (/^\n?\s*-\s/.test(raw)) {
+    return raw
+      .split('\n')
+      .map(line => line.replace(/^\s*-\s*/, '').trim())
+      .filter(Boolean);
+  }
+  return parsePhaseList(raw);
+}
+
+/**
  * Parse all markdown links [text](href) from a single line.
  * Returns Array<{ text: string, href: string }>
  */

@@ -1,7 +1,9 @@
 // checks/sy.mjs — State-layer & entry-grammar checks (SY-01 … SY-05)
 //
 // SY-01  W  state/current.md missing a required key (focus/next/blockers — 'recently-done' is
-//           tolerated if present but no longer required, U6/D-074/D-077: git already carries it)
+//           tolerated if present but no longer required, U6/D-074/D-077: git already carries it;
+//           'next' drops out of the requirement as soon as domains exist, U5 — see below)
+// SY-12  I  state/current.md still carries a global next: although domains exist (U5/E6)
 // SY-02  —  retired (age-based staleness; a resting project is not a broken one) — id not reused
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / findings TF-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
@@ -14,6 +16,17 @@
 // was retired because a resting project is not a broken one (D-029). An OD is the
 // one entry type that is *waiting on a human*: there, age is the signal, not noise.
 // Info severity, never a gate blocker — it asks, it does not condemn.
+//
+// SY-12 is the one rule holding the U5 split: open points live in the domain file
+// that owns them (frontmatter `next:`), a project-wide next step is `focus:`. Two
+// places answering "what is next" is the failure mode every double-list system
+// dies of. It is Info, not Warning, on purpose — and not out of timidity: the
+// moment someone gives their first domain file a `focus:`, every leftover global
+// entry becomes a finding at once. That is a migration in flight, not a defect,
+// and a Warning would turn `doctor` red in exactly the window where a green run
+// is what tells you the move worked. D-081 (the adopter promise — a previously
+// green instance must not go red because of a new check) settles it: Info keeps
+// exit 0, and the fix: text names the move instead of the sin.
 //
 // SY-11 exists because RF-02 cannot cover it: since D-031 RF-02 deliberately stays
 // silent for ids carrying a `Closes:` trace, which is exactly the state a resolved
@@ -34,6 +47,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { wordCount, toTokens } from '../lib/context-budget.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE } from '../lib/md.mjs'
+import { hasDomains, meaningful } from '../lib/domains.mjs'
 
 // Built from the shared checkbox fragments (lib/md.mjs) so this module can never
 // disagree with parseIdDefinitions about what a settled entry looks like — D-046.
@@ -50,6 +64,7 @@ export const meta = [
   { id: 'SY-09', severity: 'I', title: 'decisions.md read cost is growing large', description: '≥ 6000 token-equivalent (words × 1.5) → check for compressible superseded/absorbed entries (archive/decisions.md)' },
   { id: 'SY-10', severity: 'I', title: 'open decision has been waiting a long time', description: 'Opened: ≥ 30 days ago → decide it, re-brief it, or drop it; not SY-02 (that aged all state, this asks about a question waiting on a human)' },
   { id: 'SY-11', severity: 'W', title: 'Challenged-by: points at an open decision that does not exist', description: 'The challenge was resolved or removed but the marker on the decision stayed' },
+  { id: 'SY-12', severity: 'I', title: 'current.md still carries a global next: although domains exist', description: 'Open points belong in the frontmatter next: of the domain file that owns them; a project-wide next step is focus: (U5)' },
 ]
 
 // 'recently-done' left the required set with U6/D-074/D-077: `git log` already
@@ -75,10 +90,16 @@ export async function run(ctx) {
 
   // ── SY-01: current.md required keys + staleness ────────────────────────────
   const current = ctx.files.get('state/current.md')
+  // The U5 pivot, asked once for both checks below: a workspace with domains
+  // keeps its open points in the domain files, so current.md owes no `next:`.
+  const domainsExist = hasDomains(ctx)
   if (current) {
     const lc = current.lines.map(l => l.toLowerCase())
 
-    const missing = CURRENT_REQUIRED_KEYS.filter(
+    const required = domainsExist
+      ? CURRENT_REQUIRED_KEYS.filter(k => k !== 'next')
+      : CURRENT_REQUIRED_KEYS
+    const missing = required.filter(
       k => !lc.some(l => l.startsWith(`${k}:`))
     )
     if (missing.length) {
@@ -86,7 +107,7 @@ export async function run(ctx) {
         id: 'SY-01', severity: 'W',
         file: 'state/current.md',
         message: `current.md is missing required key${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}`,
-        fix: `Add ${missing.map(k => `'${k}:'`).join(', ')} to state/current.md (required keys: ${CURRENT_REQUIRED_KEYS.join(', ')}).`,
+        fix: `Add ${missing.map(k => `'${k}:'`).join(', ')} to state/current.md (required keys: ${required.join(', ')}).`,
       })
     }
 
@@ -175,7 +196,45 @@ export async function run(ctx) {
     findings
   )
 
+  // ── SY-12: a global next: that outlived the move to domain files ────────────
+  if (domainsExist) checkGlobalNextWithDomains(current, findings)
+
   return findings
+}
+
+// ── SY-12 — see the header note for why this is Info. `next:` in current.md is
+//    written as `next: one thing` or as a key line followed by indented list
+//    items, so both shapes have to be read; a lone `—`/`none` is the baseline's
+//    own idiom for "nothing here" and is not an entry — judged by the same
+//    `meaningful` predicate the domain definition uses. ──────────────────────────
+function checkGlobalNextWithDomains(current, findings) {
+  if (!current) return
+  const { lines } = current
+
+  const idx = lines.findIndex(l => /^next\s*:/i.test(l))
+  if (idx === -1) return
+
+  const entries = []
+  const inline = lines[idx].slice(lines[idx].indexOf(':') + 1).trim()
+  if (inline) entries.push(inline)
+  for (let i = idx + 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (/^[A-Za-z_-]+\s*:/.test(line)) break   // the next top-level key ends the value
+    if (/^#{1,6}\s/.test(line)) break          // …so does a heading
+    const t = line.trim()
+    if (!t || t.startsWith('>')) continue      // blank lines and the file's own notes
+    entries.push(t.replace(/^[-*]\s*/, ''))
+  }
+
+  const real = entries.filter(e => meaningful(e))
+  if (real.length === 0) return
+
+  findings.push({
+    id: 'SY-12', severity: 'I',
+    file: 'state/current.md', line: idx + 1,
+    message: `state/current.md still lists ${real.length} global next: entr${real.length === 1 ? 'y' : 'ies'} although the workspace has domain files`,
+    fix: 'Move each entry into the frontmatter next: of the domain file it belongs to; a project-wide next step belongs in focus:. Then remove next: from state/current.md — two places answering "what is next" is how a double-list drifts apart.',
+  })
 }
 
 // ── SY-10 — an OD is a question parked on a human's desk. Nothing expires by the

@@ -142,17 +142,28 @@ When `state/profile.md` configures a
 switch hint when they don't). This is the live branch check — `doctor` itself
 stays purely file-based and never reads the live branch (see `branch-guard`).
 
-When `state/open-decisions.md` holds entries, it also prints an **Open** block:
-each `OD-NNN` with its title, its age in days, and — when a decision carries a
-`Challenged-by:` marker — which decision it contests. Silent when nothing is
-undecided; at most five entries, then a count. This is the one place that
-guarantees a question waiting on the human is seen at session start.
+When the workspace has domain files, it prints a **Domains** block — the register
+of what the project is currently working on, one line per domain: its name, its
+`focus:`, how many open points its `next:` lists, and how long since the file was
+last touched. Freshest first, at most eight, then a count pointing at
+`state/map.md`. It is **generated on every run** from the frontmatter of the
+`context/**.md` files themselves, never stored, so it cannot drift from them —
+a file counts as a domain exactly when its frontmatter carries a non-empty
+`focus:` (see `docs/conventions.md`). A workspace without such files — every
+fresh `init` — prints no block and is not flagged for it.
 
-When the workspace is a git repository, it closes with a **Recent** block: the
-last five commits, subject truncated to one line each. It replaced the
-hand-maintained `recently-done:` key in `state/current.md` (D-074) — git already
-carries the same information, current and without upkeep. Outside a git
-repository the block is simply absent, and the exit code is unaffected.
+When the workspace is a git repository, a **Recent** block follows: the last five
+commits, subject truncated to one line each. It replaced the hand-maintained
+`recently-done:` key in `state/current.md` (D-074) — git already carries the same
+information, current and without upkeep. Outside a git repository the block is
+simply absent, and the exit code is unaffected.
+
+`status` closes with an **Open** block whenever `state/open-decisions.md` holds
+entries: each `OD-NNN` with its title, its age in days, and — when a decision
+carries a `Challenged-by:` marker — which decision it contests. Silent when
+nothing is undecided; at most five entries, then a count. It comes last because
+it is the one thing that must not scroll away: a question waiting on the human,
+seen at session start.
 
 ```bash
 truss status

@@ -3,6 +3,7 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
+import { listDomains } from '../domains.mjs'
 import { branchReport, recentCommits } from '../git.mjs'
 
 const RECENT_COMMITS_MAX = 5
@@ -119,6 +120,14 @@ export async function runStatus(root, argv) {
     console.log(`  Branch:  ${line}`)
   }
 
+  // Domain register — generated, never stored. AGENTS.md §1 step 6 tells an
+  // agent to open "the one domain file your task belongs to", and until now
+  // nothing said cheaply *which* files those are. This block answers it from
+  // the domain files themselves (lib/domains.mjs), so it can never drift the
+  // way a hand-kept register would. Silent when the workspace has no domains —
+  // the baseline ships without a context/ directory at all.
+  for (const l of domainLines(ctx, now)) console.log(l)
+
   // Recent commits — the workspace repo's own git log (not the code root),
   // replacing the hand-maintained `recently-done:` list current.md used to
   // carry (U6/D-074/D-077): git already has this, current and without upkeep.
@@ -142,6 +151,50 @@ export async function runStatus(root, argv) {
   for (const l of openDecisionLines(ctx, now, useColorGlobal)) console.log(l)
 
   console.log('')
+}
+
+// Shown before the "… and N more" line. Deliberately higher than OD_SHOWN_MAX:
+// the Open block is a nudge — five waiting questions are already too many, and
+// the sixth loses nothing by being counted instead of named. The domain block
+// is a *lookup table* ("which file does my task belong to"), so a cut costs the
+// reader the answer, not just a reminder. Eight keeps the register inside a
+// screen of status output while covering a project that has genuinely split its
+// context; past that, state/map.md is the complete list and the overflow line
+// says so.
+const DOMAINS_SHOWN_MAX = 8
+// Same 60-char cutoff as RECENT_SUBJECT_MAX — one line per domain.
+const DOMAIN_FOCUS_MAX = 60
+
+/**
+ * Render the `Domains:` block: one line per domain with its focus, how many
+ * open points it lists, and how long since it was last touched.
+ * @returns {string[]} lines to print (empty when the workspace has no domains)
+ */
+function domainLines(ctx, now) {
+  const domains = listDomains(ctx)
+  if (domains.length === 0) return []
+
+  // Freshest first — an agenda, not an index. It also makes the DOMAINS_SHOWN_MAX
+  // cut meaningful: what falls off is the context nobody has touched in longest,
+  // never the file this session is working in. Path order breaks mtime ties so a
+  // fresh clone (near-identical mtimes) still prints deterministically.
+  const ordered = [...domains].sort((a, b) =>
+    (b.stat?.mtimeMs || 0) - (a.stat?.mtimeMs || 0) || a.relPath.localeCompare(b.relPath))
+
+  const out = []
+  for (const [n, d] of ordered.slice(0, DOMAINS_SHOWN_MAX).entries()) {
+    const label = n === 0 ? '  Domains:' : '          '
+    const focus = d.focus.length > DOMAIN_FOCUS_MAX
+      ? d.focus.slice(0, DOMAIN_FOCUS_MAX - 3) + '…'
+      : d.focus
+    const notes = [`${d.next.length} open`]
+    if (d.stat) notes.push(`${Math.max(0, Math.floor((now - d.stat.mtimeMs) / 86_400_000))}d`)
+    out.push(`${label} ${d.name} — ${focus}  (${notes.join(', ')})`)
+  }
+  if (ordered.length > DOMAINS_SHOWN_MAX) {
+    out.push(`           … and ${ordered.length - DOMAINS_SHOWN_MAX} more in context/ (full list: state/map.md)`)
+  }
+  return out
 }
 
 const OD_SHOWN_MAX = 5

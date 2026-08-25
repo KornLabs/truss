@@ -204,6 +204,14 @@ export async function generateMapContent(root, mdFilesInput) {
           tokens = toTokens(wordCount(content));
         }
 
+        // Frontmatter is state, not prose (U5: domain files carry focus:/next:/
+        // blockers: there). It must not reach the title/description scan below:
+        // a YAML comment inside it — `# TODO: split this file` — matches the
+        // `^#\s+` title pattern and becomes the map entry's title. Anchored at
+        // the very start, so a document that merely opens with a horizontal
+        // rule is untouched.
+        topContent = topContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+
         let title = '';
         let description = '*[No description]*';
 
