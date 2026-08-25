@@ -301,7 +301,7 @@ export function parseBlocks(lines) {
 /**
  * Marker for lines inside a phase section that are neither a `key: value` line
  * nor an indented continuation of one. Non-enumerable so `Object.keys(def)`
- * (PH-01's unknown-key scan, the dashboard parser) never sees it.
+ * (PH-01's unknown-key scan) never sees it.
  */
 export const PHASE_STRAY = Symbol('phase-stray-lines')
 export const PHASE_UNKNOWN_KEYS = Symbol('phase-unknown-keys')

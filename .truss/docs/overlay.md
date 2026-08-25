@@ -108,8 +108,7 @@ holds a checkout, `status` shows its branch against the declared one — see
 ## Step 4 — Start the `ingest` phase
 
 An overlay starts in `ingest`. Point your AI tool at `AGENTS.md` and start the
-phase. The ingest phase runs one prompt, **`overlay-onboard`** (also on the
-dashboard's Setup shelf), which works in stages:
+phase. The ingest phase works in stages:
 
 1. **Intake** — asks *you* the handful of things the code cannot reveal: the
    problem and vision, where the project stands and where it's headed (Aussicht),
@@ -146,8 +145,7 @@ honest without heavy machinery:
 - **Declare** the active branch in `state/current.md` `branch:` — the branch the
   current focus belongs to.
 - **Verify** at session start: `truss status` reads the live `repo/` branch and
-  shows it against the declared one (`✓` or `✗ MISMATCH`). The dashboard's **Git**
-  view shows the same, plus the local branch list.
+  shows it against the declared one (`✓` or `✗ MISMATCH`).
 - **Enforce** via the `branch-guard` preference (default `warn`): if `branch:` is
   declared and the checkout is on a *different* branch, the agent STOPs and
   recommends `git -C repo switch <declared>` before doing branch-specific work.
@@ -156,8 +154,8 @@ honest without heavy machinery:
   `current.md` has no `branch:` — it only checks file existence, never the live
   checkout (that comparison is `truss status`'s job).
 
-The live comparison runs at session start (and whenever you open `status` or the
-dashboard); it is not a continuous watcher. If you switch the `repo/` branch
+The live comparison runs at session start (and whenever you run `status`); it is
+not a continuous watcher. If you switch the `repo/` branch
 mid-session, re-run `truss status` and update `branch:` to match. For genuinely
 parallel work across several branches, use git **worktrees** (one `repo/` checkout
 per branch/focus) rather than flipping a single checkout — see
@@ -169,7 +167,7 @@ The overlay seeds `ingest → operate`: import an existing system, then run it. 
 your "existing project" is actually still an *idea or prototype* — not yet built
 — use a fresh `init` instead: it seeds a single `kickoff` phase whose job is to
 author the lifecycle from the idea. Either way the seed is not the plan: the
-`overlay-onboard` prompt flags a bad fit and authors a project-specific phase
+ingest phase flags a bad fit and authors a project-specific phase
 model when the default two phases don't match how the project actually runs.
 
 ## See also

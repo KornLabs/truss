@@ -186,17 +186,8 @@ and values is in [cli.md](cli.md#set).
 
 ## 8. Prompts
 
-Truss ships **no** prompt library. `prompts/custom/<id>.md` is where you put your own; the dashboard serves those and nothing else, and check `RF-04` verifies that a `prompts:` reference in `state/phases.md` has a matching file there. Earlier versions shipped ten library prompts plus three engine rituals; they were removed in 1.0.0-beta.2 — they loaded every fresh instance with pre-made method knowledge — and are kept, unsupported, under `prompts/archive/` and `prompts/archive-de/` for anyone who wants a starting point. Two of them are not archive material and live under `prompts/rituals/`: `cleanup.md`, the controlled-forgetting procedure that `CX-01` and `SY-09` name in their `fix:` text, and `upgrade.md`, the standing instruction for the judgment half of an upgrade. A `fix:` string a check prints is a supported contract, so it must not point into unsupported leftovers. Details:
+Truss ships **no** prompt library. `prompts/custom/<id>.md` is where you put your own, and you open them yourself — no command reads that directory and no check verifies it. Earlier versions shipped ten library prompts plus three engine rituals; they were removed because they loaded every fresh instance with pre-made method knowledge. Two survive as engine rituals under [`docs/rituals/`](rituals/): `cleanup.md`, the controlled-forgetting procedure that `CX-01` and `SY-09` name in their `fix:` text, and `upgrade.md`, the standing instruction for the judgment half of an upgrade. A `fix:` string a check prints is a supported contract, so it must keep pointing at a file that exists. Details:
 [prompts/README.md](../prompts/README.md).
-
-## 9. The dashboard
-
-`truss dashboard` starts a local-only web view of the workspace — status,
-phases, decisions, boot metadata, and drift warnings — and can trigger the
-safe, read-only/confined CLI actions. It binds to `127.0.0.1` only and never
-writes files directly. See
-[dashboard/README.md](../dashboard/README.md) and
-[architecture.md](architecture.md#dashboard) for the security model.
 
 ---
 

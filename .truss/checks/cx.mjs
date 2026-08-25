@@ -18,9 +18,8 @@
 // systematically under-count and miss real bloat. The message labels it a "≈".
 //
 // The file list (CONTEXT_FILES), the token factor, the budget bands and the
-// phase-read resolution live in lib/context-budget.mjs and are SHARED with the
-// dashboard budget endpoint, so the doctor and the dashboard never diverge on
-// the number or the thresholds it is judged against.
+// phase-read resolution live in lib/context-budget.mjs, so every consumer sees
+// the same number and the same thresholds it is judged against.
 //
 // REVIEW ACK (lib/context-ack.mjs): an absolute band cannot distinguish a
 // bloated workspace from a legitimately big one, so once a lean project passes

@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { CONTEXT_FILES, TOKENS_PER_WORD, wordCount, toTokens, phaseReadTargets } from '../lib/context-budget.mjs';
 
 // This module is the single source of truth shared by the doctor's CX-01 check
-// (checks/cx.mjs) and the dashboard budget endpoint (dashboard/server.mjs). These
+// (checks/cx.mjs). These
 // tests lock the two things that previously diverged between them: the file set
 // and the token factor.
 

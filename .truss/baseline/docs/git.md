@@ -64,4 +64,4 @@ Recommendation: prefer **symlink** (code in place) or **clone** (self-contained)
 
 - Tags: `truss/phase-<name>-exit` when a phase is approved (human tags after HT is checked off).
 - Branches (workspace): conventions don't prescribe a branch strategy — follow whatever is in state/profile.md.
-- Branches (overlay `repo/`): the checked-out branch is part of the current reality. Declare it in `state/current.md` `branch:`; `truss status` and the dashboard compare it against the live checkout and flag a mismatch (`branch-guard` preference). For genuinely parallel work on several branches, prefer git **worktrees** (a separate `repo/` checkout per branch/focus) over flipping one checkout back and forth.
+- Branches (overlay `repo/`): the checked-out branch is part of the current reality. Declare it in `state/current.md` `branch:`; `truss status` compares it against the live checkout and flags a mismatch (`branch-guard` preference). For genuinely parallel work on several branches, prefer git **worktrees** (a separate `repo/` checkout per branch/focus) over flipping one checkout back and forth.

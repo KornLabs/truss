@@ -104,7 +104,7 @@ is kept verbatim. `truss set` and `truss render` remain their only writers.
 File content is only part of a version change. A release can retire a preference
 key, change what a rule means, or move where something belongs — and whether a
 new baseline rule even applies to your project is a judgment call. That is what
-[`prompts/rituals/upgrade.md`](../prompts/rituals/upgrade.md) is for. Its standing
+[`docs/rituals/upgrade.md`](rituals/upgrade.md) is for. Its standing
 instruction is **keep, don't align**: your file drifted from the baseline because
 someone decided it should, so the agent imports the baseline's *intent* into your
 wording rather than restoring you to factory state.

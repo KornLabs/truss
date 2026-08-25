@@ -735,8 +735,8 @@ function printReport(root, r) {
   }
   L.push("");
   L.push("  Next steps:");
-  // Numbered steps are built in a list so the dashboard step renumbers itself
-  // whether or not the overlay "bring code in" step is present.
+  // Numbered steps are built in a list so they renumber themselves whether or
+  // not the overlay "bring code in" step is present.
   const steps = [];
   if (r.overlay && !r.codeRootReady) {
     steps.push([
@@ -747,9 +747,9 @@ function printReport(root, r) {
   if (r.overlay) {
     steps.push(["Run: node .truss/bin/truss.mjs doctor"]);
     steps.push([
-      "Start the ingest phase — the overlay-onboard prompt asks you the",
-      "   few things the code can't tell it (vision, status, role), then",
-      "   surveys the code and fits the phase model. Move to operate when done.",
+      "Start the ingest phase — the agent asks you the few things the code",
+      "   can't tell it (vision, status, role), then surveys the code and fits",
+      "   the phase model. Move to operate when done.",
     ]);
   } else {
     steps.push([
@@ -759,9 +759,9 @@ function printReport(root, r) {
     steps.push(["Run: node .truss/bin/truss.mjs doctor"]);
   }
   steps.push([
-    "Optional: node .truss/bin/truss.mjs dashboard — visual status, phases, and the prompt library in your browser.",
-    "   Agent preferences (subagents, ask-vs-infer, commit behavior) start off — your AI tool's",
-    "   own behavior applies. Set the ones you want there, or with: truss set <key> <value>",
+    "Agent preferences (subagents, ask-vs-infer, commit behavior) start off —",
+    "   your AI tool's own behavior applies. Set the ones you want with:",
+    "   node .truss/bin/truss.mjs set <key> <value>",
   ]);
   steps.forEach((lines, i) => {
     L.push(`    ${i + 1}. ${lines[0]}`);
@@ -776,11 +776,10 @@ function printReport(root, r) {
 
 /**
  * The copy-paste boot prompt, tailored to how the workspace was initialised.
- * A fresh project points the agent at the project-kickoff ritual (VISION.md +
- * profile.md + phase plan, by interviewing the human) and carries the raw idea
- * inline; an
- * overlay points the agent straight at the overlay-onboard ritual (the ingest
- * phase's one prompt), and a missing code root defers it until the directory exists.
+ * A fresh project has the agent interview the human into VISION.md, profile.md
+ * and a phase plan, and carries the raw idea inline; an overlay points the agent
+ * at the ingest phase's own job — intake, survey, fit the phase model — and a
+ * missing code root defers it until the directory exists.
  *
  * Deliberately English regardless of --lang: the boot prompt is part of the
  * canonical (English) skeleton. Content language is enforced where agents
@@ -790,23 +789,25 @@ function bootPromptLines(r) {
   if (!r.overlay) {
     return [
       '"Read AGENTS.md fully, then follow §1 load order. This is a fresh project —',
-      "  don't start anything yet. Run the project-kickoff ritual",
-      "  (on the dashboard's Setup shelf):",
-      "  interview me to turn my idea into VISION.md, state/profile.md and a phase plan,",
-      "  and probe for anything missing or vague. My idea/vision: <paste your idea, your",
-      '  role, and what you want to achieve here>."',
+      "  don't start anything yet. Interview me to turn my idea into VISION.md,",
+      "  state/profile.md and a phase plan, and probe for anything missing or vague.",
+      '  My idea/vision: <paste your idea, your role, and what you want to achieve here>."',
     ];
   }
-  const ritual =
-    "run the overlay-onboard ritual (on the dashboard's Setup shelf) to onboard";
+  const ingest = [
+    "  interview me for what the code cannot reveal (problem, status, my",
+    "  role), then survey it and fit the phase model.\"",
+  ];
   if (!r.codeRootReady) {
     return [
       `"Once ${r.codeRoot}/ holds your code, read AGENTS.md fully, then follow §1 load`,
-      `  order. You are in the ingest phase: ${ritual} it."`,
+      "  order. You are in the ingest phase:",
+      ...ingest,
     ];
   }
   return [
     '"Read AGENTS.md fully, then follow §1 load order. You are in the ingest',
-    `  phase: ${ritual} the existing code under ${r.codeRoot}/."`,
+    `  phase, over the existing code under ${r.codeRoot}/:`,
+    ...ingest,
   ];
 }

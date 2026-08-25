@@ -338,7 +338,7 @@ describe('SY-11 stale Challenged-by markers', () => {
   })
 })
 
-// ── SY-03: the option lines are a machine contract (dashboard chooser) ───────
+// ── SY-03: the option lines are a machine contract (chooser form) ───────────
 describe('SY-03 option-line form', () => {
   const wrap = (opts) => `# Open Decisions\n\n## OD-001 — X?\n\nOpened: ${today()}\nOptions:\n${opts}Trade-offs: x\nLeaning: A\n`
 
@@ -360,7 +360,7 @@ describe('SY-03 option-line form', () => {
   })
 })
 
-// ── doctor --html / --json (Dashboard v0), real CLI subprocess ───────────────
+// ── doctor --html / --json, real CLI subprocess ──────────────────────────────
 describe('doctor report output', () => {
   const BIN = (root) => path.join(root, '.truss', 'bin', 'truss.mjs')
   const runCli = async (root, args) => {

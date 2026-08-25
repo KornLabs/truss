@@ -301,8 +301,8 @@ export async function runMap(root, args) {
     // Single walk, reused for the pre-write guard and generation.
     const mdFiles = await scanMapTree(root);
 
-    // Guard the destructive action: warn (non-blocking, so the dashboard's
-    // non-interactive `exec('map')` still completes) before overwriting map.md
+    // Guard the destructive action: warn (non-blocking, so a non-interactive
+    // `map` run still completes) before overwriting map.md
     // when a large unmapped tree is about to be folded in. This doubles as the
     // discovery UI for .trussignore.
     const collapsed = collapsedTopLevels(mdFiles);

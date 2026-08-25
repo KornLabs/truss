@@ -137,8 +137,8 @@ and risk so the human can decide without reconstructing the analysis. Give a
 `Leaning:` with its why whenever one is defensible; never fabricate confidence —
 an honest `none` plus what would resolve it beats an anchored guess.
 
-**The option lines are a machine contract.** The dashboard builds its chooser from
-them, so the shape is not cosmetic:
+**The option lines are a machine contract.** `doctor`'s SY-03 check parses them,
+so the shape is not cosmetic:
 
 - **Keyed** — start with `A:`, `B:`, `C:`, … (or `1.`, `2.`, `3.`, …). The key anchors
   the label. Two options are the floor, not the format: list every option the

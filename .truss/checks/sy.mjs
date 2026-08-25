@@ -27,7 +27,7 @@
 // SY-05 nudges an overlay to declare its active branch. It is still pure: it only
 // reads whether the configured code-root has `.git` (fs.access) — it never runs git. The
 // live branch *comparison* (actual vs declared) is deliberately NOT here; it
-// lives in `truss status` and the dashboard so the check engine stays hermetic.
+// lives in `truss status` so the check engine stays hermetic.
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -590,8 +590,8 @@ function checkOpenDecisionsGrammar(file, findings) {
   }
 }
 
-// ── The option lines are a machine contract: the dashboard builds its chooser
-//    from them (docs/conventions.md). A line without a key or without the
+// ── The option lines are a machine contract: they are parsed, not just read
+//    (docs/conventions.md). A line without a key or without the
 //    ` — ` separator still renders, but as one undifferentiated block of text —
 //    the human then re-reads the prose instead of choosing, and nothing in the
 //    file says why. Warn at the point of writing instead. ───────────────────────
@@ -613,7 +613,7 @@ function checkOptionLines(body, id, entryLine, findings) {
       id: 'SY-03', severity: 'W',
       file: 'state/open-decisions.md', line: entryLine,
       message: `${id}: option line is not in chooser form${keyed ? ' (no " — " after the label)' : dashed ? ' (no A:/B: key)' : ' (no key, no " — ")'} — "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`,
-      fix: `Write options as '- A: [short label] — [what it means] +[upside] / –[downside]'; mark at most one '(recommended)'. The dashboard builds its option chooser from this shape. See docs/conventions.md.`,
+      fix: `Write options as '- A: [short label] — [what it means] +[upside] / –[downside]'; mark at most one '(recommended)'. The shape is what makes the options choosable instead of prose. See docs/conventions.md.`,
     })
   }
 }

@@ -46,7 +46,7 @@ function getVersion() {
   catch { return '?' }
 }
 
-// ── HTML report (Dashboard v0) ──────────────────────────────────────────────
+// ── HTML report ─────────────────────────────────────────────────────────────
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -208,7 +208,7 @@ Init flags:
 
 Doctor flags:
   --gate        also run PH-04 phase-exit checks
-  --html        write report as HTML (Dashboard v0) to .truss/out/doctor.html
+  --html        write report as HTML to .truss/out/doctor.html
   --json        write report as JSON to .truss/out/doctor.json
   --fix-prompt  output a copyable remediation prompt for all findings
 
@@ -374,7 +374,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
     console.error('Report written to .truss/out/doctor.json')
   }
 
-  // ── HTML output (Dashboard v0) ─────────────────────────────────────────────
+  // ── HTML output ────────────────────────────────────────────────────────────
   if (wantHtml) {
     const html = renderHtmlReport({
       root, version: getVersion(), timestamp: new Date().toISOString(), gate,
