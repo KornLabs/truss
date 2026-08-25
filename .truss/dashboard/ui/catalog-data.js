@@ -45,6 +45,7 @@ export const CHECK_CATALOG = [
   { id: 'ST-06', sev: 'E', desc: 'AGENTS.md or its §2 structure table could not be parsed' },
   { id: 'ST-07', sev: 'W', desc: 'Truss map is outdated' },
   { id: 'ST-08', sev: 'W', desc: 'AGENTS.md is missing a numbered top-level section' },
+  { id: 'ST-09', sev: 'I', desc: 'Engine file differs from the release manifest' },
   { id: 'SY-01', sev: 'W', desc: 'current.md missing a required key' },
   { id: 'SY-03', sev: 'W', desc: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / findings / HUMAN-TODOS)' },
   { id: 'SY-05', sev: 'W', desc: 'code-root checkout present but no branch: declared in current.md' },

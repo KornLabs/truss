@@ -115,8 +115,12 @@ export async function run(ctx) {
 
   // ── RF-02: referenced IDs must be defined ─────────────────────────────
   // Scope: only operational files (state/, AGENTS.md, HUMAN-TODOS.md,
-  // domain files). Skip docs/ — those files use IDs as format examples, not
-  // real references to operational entries.
+  // domain files). The docs/ filter below is a safety net, not the reason docs/
+  // is quiet: while the §2 table carries `docs/` as a directory row, loadWorkspace
+  // never loads those files at all — directory rows are skipped, and only context/
+  // and archive/ get a second pass. A project that lists docs/<file>.md
+  // individually DOES load them, and then this filter is what keeps IDs used as
+  // format examples from being read as real references.
   // An OD entry is REMOVED when it is decided (no tombstones, AGENTS.md §3): its
   // permanent trace is the `Closes: OD-NNN` line in the deciding D-entry. That
   // makes the id legitimately undefined — so a decision naming the question it

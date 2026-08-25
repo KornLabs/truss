@@ -5,11 +5,13 @@
 // ST-03  W  empty directory (table-managed)
 // ST-04  W  adapter stub deviates from expected one-liner
 // ST-05  I  file has more than 450 lines (growth-rule hint)
+// ST-09  I  engine file(s) diverged from .truss/MANIFEST.sha256 (silent if absent)
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { ADAPTER_STUBS, STUB_PATTERNS, SUMMARY_DIRS } from '../lib/workspace.mjs'
 import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
+import { verifyEngine } from '../lib/engine-manifest.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 // Lets consumers (--json, dashboard) enumerate ALL checks, not only fired ones.
@@ -23,6 +25,7 @@ export const meta = [
   { id: 'ST-06', severity: 'E', title: 'AGENTS.md or its §2 structure table could not be parsed', description: 'Guards against silent degradation (A4): an empty table makes ST-01/ST-02 vacuous' },
   { id: 'ST-07', severity: 'W', title: 'Truss map is outdated', description: 'state/map.md does not match the actual workspace markdown files' },
   { id: 'ST-08', severity: 'W', title: 'AGENTS.md is missing a numbered top-level section', description: '§1–§6 are the contract every prompt, doc and check cross-references' },
+  { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
 ];
 
 // Paths that exist on disk but are intentionally not in the structure table
@@ -278,6 +281,46 @@ export async function run(ctx) {
       message: `Failed to evaluate map.md: ${err.message}`,
       fix: `Check the workspace for recursive parsing errors`,
     });
+  }
+
+  // ── ST-09: engine files diverged from the release manifest ────────────
+  // No manifest → verifyEngine returns null → emit nothing at all, not even
+  // an info note. Test workspaces and any pre-D-070 instance must stay silent.
+  const engineDivergence = await verifyEngine(path.join(root, '.truss'));
+  if (engineDivergence) {
+    const { modified, missing, extra, unreadable } = engineDivergence;
+    // unreadable is its own class (Defect 1): those files could not be
+    // checked at all, so they are named but never folded into modified/missing.
+    const total = modified.length + missing.length + extra.length + unreadable.length;
+    if (total > 0) {
+      const SAMPLE_LIMIT = 8;
+      const labelled = [
+        ...modified.map(f => `modified ${f}`),
+        ...missing.map(f => `missing ${f}`),
+        ...extra.map(f => `extra ${f}`),
+        ...unreadable.map(f => `unreadable ${f}`),
+      ].sort();
+      const sample = labelled.slice(0, SAMPLE_LIMIT);
+      const more = labelled.length - sample.length;
+      findings.push({
+        id: 'ST-09', severity: 'I',
+        file: '.truss/MANIFEST.sha256',
+        message: `${total} engine file${total === 1 ? '' : 's'} differ${total === 1 ? 's' : ''} from the release manifest `
+          + `(${modified.length} modified, ${missing.length} missing, ${extra.length} extra, ${unreadable.length} unreadable): ${sample.join(', ')}`
+          + (more > 0 ? ` (+${more} more)` : ''),
+        // Each class resolves differently under 'truss upgrade' (Defect 3): a
+        // modified file is replaced, a missing one restored, an extra one
+        // removed — never claim a diff tool that only works for people who
+        // committed .truss/ into their own repository.
+        fix: `Expected and fine if the engine was adapted on purpose — 'truss upgrade' replaces modified files with the `
+          + `new release's versions, restores missing ones, and removes extra ones entirely; all three survive only in `
+          + `the pre-upgrade backup (.truss.bak-<version>/). Unreadable files could not be checked at all — fix `
+          + `their permissions and re-run doctor for an accurate report. To see what actually changed: if .truss/ is `
+          + `itself a git checkout, diff it against the release tag for the installed version (e.g. 'git diff v<version>' `
+          + `from inside .truss/); otherwise there is nothing to diff until the next upgrade, when the backup holds the `
+          + `old files.`,
+      });
+    }
   }
 
   return findings;

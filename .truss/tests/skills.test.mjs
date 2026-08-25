@@ -27,30 +27,80 @@ async function runCli(root, args) {
   }
 }
 
-describe('skill groups', () => {
-  it('discovers the baseline groups and their assets without a catalog', async () => {
-    const root = await makeRoot('truss-skill-groups-')
-    const groups = await discoverGroups(path.join(root, '.truss', 'baseline'))
+// Groups discovered from a small synthetic baseline built fresh per test —
+// exercising the grouping/exclude LOGIC must not depend on the exact names
+// or counts of the shipped 83-skill catalog (that coupling turned a content
+// change to the baseline into a broken logic test).
+async function buildSyntheticBaseline() {
+  const baselineDir = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-skill-groups-baseline-'))
+  const skillsDir = path.join(baselineDir, '.claude', 'skills')
+  const agentsDir = path.join(baselineDir, '.claude', 'agents')
+  await fs.mkdir(skillsDir, { recursive: true })
+  await fs.mkdir(agentsDir, { recursive: true })
 
-    assert.deepEqual([...groups.keys()], [
-      'anthropic', 'composio', 'context7', 'ecc', 'marketing', 'misc', 'superpowers', 'uiux',
-    ])
-    assert.equal(groups.get('superpowers').skills.length, 9)
-    assert.equal(groups.get('marketing').skills.length, 40)
-    assert.equal(groups.get('ecc').agents.length, 6)
-    assert.deepEqual(groups.get('misc').skills, ['stop-slop'])
-    assert.deepEqual(groups.get('misc').agents, ['code-reviewer.md'])
+  // 'alpha' group: shared prefix across both a skill pair and an agent.
+  for (const name of ['alpha-one', 'alpha-two']) {
+    await fs.mkdir(path.join(skillsDir, name), { recursive: true })
+    await fs.writeFile(path.join(skillsDir, name, 'SKILL.md'), `# ${name}\n`)
+  }
+  await fs.writeFile(path.join(agentsDir, 'alpha-helper.md'), '# alpha-helper\n')
+
+  // 'zeta' group: agents-only, still grouped by shared prefix.
+  for (const name of ['zeta-one.md', 'zeta-two.md']) {
+    await fs.writeFile(path.join(agentsDir, name), `# ${name}\n`)
+  }
+
+  // 'misc' bucket: a singleton-prefix skill and a no-dash skill both fall here.
+  await fs.mkdir(path.join(skillsDir, 'solo-skill'), { recursive: true })
+  await fs.writeFile(path.join(skillsDir, 'solo-skill', 'SKILL.md'), '# solo-skill\n')
+  await fs.mkdir(path.join(skillsDir, 'nodash'), { recursive: true })
+  await fs.writeFile(path.join(skillsDir, 'nodash', 'SKILL.md'), '# nodash\n')
+
+  return baselineDir
+}
+
+describe('skill groups', () => {
+  it('groups assets by shared name prefix, sorted alphabetically, with misc as the catch-all', async () => {
+    const baselineDir = await buildSyntheticBaseline()
+    const groups = await discoverGroups(baselineDir)
+
+    assert.deepEqual([...groups.keys()], ['alpha', 'misc', 'zeta'])
+    assert.deepEqual(groups.get('alpha').skills, ['alpha-one', 'alpha-two'])
+    assert.deepEqual(groups.get('alpha').agents, ['alpha-helper.md'])
+    assert.deepEqual(groups.get('zeta').skills, [])
+    assert.deepEqual(groups.get('zeta').agents, ['zeta-one.md', 'zeta-two.md'])
+    // singleton prefix ('solo') and a dash-free name both fall into misc
+    assert.deepEqual(groups.get('misc').skills, ['nodash', 'solo-skill'])
+    assert.deepEqual(groups.get('misc').agents, [])
   })
 
   it('builds excludes for every unselected skill and agent path', async () => {
-    const root = await makeRoot('truss-skill-excludes-')
-    const groups = await discoverGroups(path.join(root, '.truss', 'baseline'))
-    const excludes = buildExcludes(groups, new Set(['superpowers', 'ecc']))
+    const baselineDir = await buildSyntheticBaseline()
+    const groups = await discoverGroups(baselineDir)
+    const excludes = buildExcludes(groups, new Set(['alpha']))
 
-    assert.equal(excludes.has('.claude/skills/marketing-seo-audit'), true)
-    assert.equal(excludes.has('.claude/agents/anthropic-code-architect.md'), true)
-    assert.equal(excludes.has('.claude/skills/superpowers-brainstorming'), false)
-    assert.equal(excludes.has('.claude/agents/ecc-architect.md'), false)
+    assert.equal(excludes.has('.claude/skills/solo-skill'), true)
+    assert.equal(excludes.has('.claude/skills/nodash'), true)
+    assert.equal(excludes.has('.claude/agents/zeta-one.md'), true)
+    assert.equal(excludes.has('.claude/agents/zeta-two.md'), true)
+    assert.equal(excludes.has('.claude/skills/alpha-one'), false)
+    assert.equal(excludes.has('.claude/skills/alpha-two'), false)
+    assert.equal(excludes.has('.claude/agents/alpha-helper.md'), false)
+  })
+
+  // Cheap smoke test against the REAL shipped baseline: structure only, no
+  // exact names or counts (those belong to baseline content, not this logic).
+  it('discovers at least one group with at least one asset in the shipped baseline', async () => {
+    const root = await makeRoot('truss-skill-groups-smoke-')
+    const groups = await discoverGroups(path.join(root, '.truss', 'baseline'))
+
+    assert.ok(groups.size >= 1, 'expected the shipped baseline to discover at least one group')
+    for (const [group, assets] of groups) {
+      assert.ok(
+        assets.skills.length + assets.agents.length > 0,
+        `group '${group}' should have at least one skill or agent`,
+      )
+    }
   })
 })
 

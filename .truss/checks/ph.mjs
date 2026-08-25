@@ -260,16 +260,33 @@ export async function run(ctx) {
   // has no research*.md yet, so an empty glob is not a defect here.
   // Under --gate the current phase is already covered by PH-04 (E), so skip it
   // here to avoid a duplicate W for the same target.
+  //
+  // Severity grading (D-071): a future phase's exit target legitimately does
+  // not exist yet — the project hasn't reached it — so an unresolvable W there
+  // is not a defect, it's the normal state. Left at W it is permanently
+  // unresolvable, and in a real external project that drove someone to replace
+  // a checkable `section:` target with an unverifiable `(human)` one just to
+  // silence the warning. Phases at or before current: still get W (the target
+  // should exist by now); phases after current: are downgraded to I. Position
+  // is taken from the order of the defs map (phase file order). If current:
+  // itself can't be located in that order (already flagged by PH-02), grade
+  // everything W rather than guess.
+  const phaseOrder = [...defs.keys()]
+  const currentIndex = phaseOrder.indexOf(current)
   for (const [phaseId, def] of defs) {
     if (gate && phaseId === current) continue
+    const isFuture = currentIndex !== -1 && phaseOrder.indexOf(phaseId) > currentIndex
+    const severity = isFuture ? 'I' : 'W'
     for (const item of parseExitItems(def.exit || '')) {
       if (item.type === 'file') {
         try { await fs.access(path.resolve(root, item.path)) }
         catch {
           findings.push({
-            id: 'PH-06', severity: 'W',
+            id: 'PH-06', severity,
             file: 'state/phases.md',
-            message: `phase '${phaseId}': exit target file not found — ${item.path}`,
+            message: isFuture
+              ? `phase '${phaseId}': exit target file not due yet — '${item.path}' won't exist until this phase is reached`
+              : `phase '${phaseId}': exit target file not found — ${item.path}`,
             fix: `Create '${item.path}' or fix the exit item: ${item.raw}`,
           })
         }
@@ -277,9 +294,11 @@ export async function run(ctx) {
         const ok = await headingExistsInFile(root, item.file, item.heading)
         if (!ok) {
           findings.push({
-            id: 'PH-06', severity: 'W',
+            id: 'PH-06', severity,
             file: 'state/phases.md',
-            message: `phase '${phaseId}': exit target heading '${item.heading}' not found in ${item.file}`,
+            message: isFuture
+              ? `phase '${phaseId}': exit target heading not due yet — '${item.heading}' won't exist in ${item.file} until this phase is reached`
+              : `phase '${phaseId}': exit target heading '${item.heading}' not found in ${item.file}`,
             fix: `Add a "## ${item.heading}" heading to ${item.file} or fix the exit item: ${item.raw}`,
           })
         }
@@ -356,7 +375,7 @@ async function changedPathEvidence(root, globs, isIgnored, codeRootRel = null) {
   const limited = []
   // The "uncommitted git paths only" caveat is inherent to git-based inspection
   // and always true — surfacing it unconditionally produced a persistent info
-  // finding on every clean workspace (see state/learnings.md L-… F-03). Collect
+  // finding on every clean workspace. Collect
   // it separately so the caller only emits it when it actually qualifies a
   // PH-03 hit; genuine unavailability (`limited`) is still always reported.
   const uncommittedScopes = []

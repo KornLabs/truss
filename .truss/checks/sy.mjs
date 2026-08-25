@@ -248,7 +248,7 @@ function checkDecisionsSize(file, findings) {
     id: 'SY-09', severity: 'I',
     file: 'state/decisions.md', line: 1,
     message: `state/decisions.md costs ≈ ${tokens} tokens at every session boot (≥ ${DECISIONS_TOKENS_MAX})`,
-    fix: `Review for compressible entries (docs/conventions.md): superseded entries shrink to heading + supersede note; entries whose consequences are fully absorbed into canonical files shrink to heading + Decision: line + pointer. Move bodies to archive/decisions.md — never delete an entry, IDs and traces stay here. The \`cleanup\` prompt (.truss/prompts/base/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
+    fix: `Review for compressible entries (docs/conventions.md): superseded entries shrink to heading + supersede note; entries whose consequences are fully absorbed into canonical files shrink to heading + Decision: line + pointer. Move bodies to archive/decisions.md — never delete an entry, IDs and traces stay here. The \`cleanup\` prompt (.truss/prompts/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
   })
 }
 

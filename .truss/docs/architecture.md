@@ -21,16 +21,19 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── prefs.mjs        # preferences catalogue (single source of truth)
 │   ├── md.mjs           # markdown parsing helpers
 │   ├── severity.mjs     # E/W/I severity + family metadata
+│   ├── engine-manifest.mjs # hash + verify the engine's own files (writes and checks MANIFEST.sha256)
 │   ├── defaults.mjs     # default preference rows + behaviour text
 │   └── commands/        # init, status, map, prompt handlers
 ├── checks/              # one module per check family (st, bl, rf, sy, ph, cx, hy)
 ├── docs/                # product documentation (concepts, cli, architecture)
 ├── baseline/            # the pristine workspace skeleton `init` scaffolds from
-├── prompts/             # prompt library + engine-ritual prompts (see its README)
+├── phase-profiles/      # ready-made phase lists to copy over state/phases.md (not installed)
+├── prompts/             # your own prompts under custom/, engine rituals under rituals/ (see its README)
 ├── prefs/               # behaviour text fragments per preference value
 ├── dashboard/           # the local web dashboard (server + UI)
 ├── tests/               # the engine test suite + fixtures
-└── VERSION              # current version string
+├── VERSION              # current version string
+└── MANIFEST.sha256      # sha256 of every engine file, written at release time (D-070)
 ```
 
 ## Design rules worth knowing

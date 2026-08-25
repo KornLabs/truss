@@ -30,7 +30,7 @@ and an old install never needs to have shipped with upgrade support.
 
 | | |
 |---|---|
-| **Replaced** | `.truss/` — the engine. Staged next to the workspace, then swapped in by rename; the old one becomes `.truss.bak-<old-version>/` and is never deleted. `prompts/custom/` is carried over. |
+| **Replaced** | `.truss/` — the engine. Staged next to the workspace, then swapped in by rename; the old one becomes `.truss.bak-<old-version>/` and is never deleted. `prompts/custom/` is carried over. Local edits to the engine itself are *replaced*, and named before that happens — see below. |
 | **Reconciled** | The **framework** files: `AGENTS.md`, `docs/*.md`, `package.json`, `.gitignore`, `.trussignore`, the adapter stubs. You edit these, but their content is Truss's, so a new version has something to say about them. |
 | **Reported, never written** | The **seed** files: `state/*`, `VISION.md`, `README.md`. `init` writes them once; after that they are your decision log, your phase plan, your vision. If the baseline changed one, you are told — nothing is merged into it. |
 | **Never looked at** | `context/`, `HUMAN-TODOS.md`, `archive/`, your code root, and every other file the baseline never had. |
@@ -41,6 +41,24 @@ diff line-merged into `state/decisions.md` would rewrite decided history, which
 template, a naive upgrade would replace your phase plan with the new default
 without so much as a conflict. Neither can happen: seed files are outside the
 write set entirely.
+
+## If you changed the engine yourself
+
+Adapting the engine locally is a supported move, and the upgrade replaces every
+one of those edits — that is what "swapped in by rename" means. So it says which
+files it is about to take with it.
+
+Each release writes `MANIFEST.sha256`: sha256 hashes of the engine's own files,
+everything under `.truss/` except `out/`, `prompts/custom/` and the manifest
+itself. Before the swap, `upgrade` compares the installed engine against it and
+reports one of three things — no manifest to check against, a clean match, or
+the files that diverged plus the backup directory to recover them from. Run it
+with `--dry-run` first and you get that list while nothing has moved yet.
+
+`doctor` reports the same divergence continuously as `ST-09`, at **info**: an
+adapted engine is not a defect, it is a state worth knowing about before an
+upgrade takes it away. An instance whose engine predates the manifest has
+nothing to compare against, so nothing is checked and nothing is reported.
 
 ## How the reconciliation decides
 
@@ -86,7 +104,7 @@ is kept verbatim. `truss set` and `truss render` remain their only writers.
 File content is only part of a version change. A release can retire a preference
 key, change what a rule means, or move where something belongs — and whether a
 new baseline rule even applies to your project is a judgment call. That is what
-[`prompts/base/upgrade.md`](../prompts/base/upgrade.md) is for. Its standing
+[`prompts/rituals/upgrade.md`](../prompts/rituals/upgrade.md) is for. Its standing
 instruction is **keep, don't align**: your file drifted from the baseline because
 someone decided it should, so the agent imports the baseline's *intent* into your
 wording rather than restoring you to factory state.

@@ -173,7 +173,7 @@ async function resolveInteractive(opts, groups) {
       if (o === "y" || o === "yes") opts.overlay = true;
     }
     if (opts.skills === null) {
-      console.log("\nInstall skill groups? (enter number, comma-separated, or 'a' for all, 'n' for none):\n");
+      console.log("\nOpt into baseline skill groups? They load into every session (enter number, comma-separated, or 'a' for all; default 'n' for none):\n");
       const ordered = [...groups];
       for (const [index, [group, assets]] of ordered.entries()) {
         const agents = assets.agents.length
@@ -185,7 +185,7 @@ async function resolveInteractive(opts, groups) {
           .join(", ");
         console.log(` ${index + 1}. ${group} — ${assets.skills.length} skills${agents}${examples ? ` (${examples}${assets.skills.length > 3 ? ", …" : ""})` : ""}`);
       }
-      const choice = (await rl.question("\nChoice [a]: ")).trim().toLowerCase() || "a";
+      const choice = (await rl.question("\nChoice [n]: ")).trim().toLowerCase() || "n";
       if (choice === "a") opts.skills = "all";
       else if (choice === "n") opts.skills = "none";
       else {
@@ -439,11 +439,6 @@ export async function runInit(root, argv, invokedCwd = null) {
   }
   const skillExcludes = buildExcludes(groups, selectedGroups);
   const skillSelection = selectionContent(groups, selectedGroups);
-  if (skillSelection !== null && await exists(path.join(root, SKILL_SELECTION_REL))) {
-    throw new InitError(
-      `init: existing ${SKILL_SELECTION_REL} conflicts with the requested skill selection; no files were changed.`,
-    );
-  }
   if (opts.codeRoot) {
     try { await assertExistingCodeRoot(root, opts.codeRoot); }
     catch (err) {
@@ -475,6 +470,15 @@ export async function runInit(root, argv, invokedCwd = null) {
     );
   }
   const agentsPlan = await prepareAgents(root, baselineDir, opts.adoptAgents, opts.findings);
+  // After prepareAgents, deliberately. Since D-069 every init writes a skill
+  // selection file, so on a re-run this guard would otherwise fire first and
+  // report a skills conflict for what is really an already-initialised
+  // workspace — the diagnosis the human needs comes from prepareAgents.
+  if (skillSelection !== null && await exists(path.join(root, SKILL_SELECTION_REL))) {
+    throw new InitError(
+      `init: existing ${SKILL_SELECTION_REL} conflicts with the requested skill selection; no files were changed.`,
+    );
+  }
   if (codeRoot && codeRoot !== "repo") {
     agentsPlan.content = agentsPlan.content.replaceAll(
       "| repo/ (on demand) |",
@@ -714,6 +718,10 @@ function printReport(root, r) {
   L.push(`  Current phase:          ${r.currentPhase}`);
   L.push(`  Truss findings:         ${r.findings}`);
   L.push(`  Git:                    ${r.git}`);
+  L.push(`  Skills:                 ${r.skills.length ? r.skills.join(", ") : "none"}`);
+  if (!r.skills.length) {
+    L.push(`    (node .truss/bin/truss.mjs skills list to see them, ... skills add <group> to install)`);
+  }
   if (r.codeRoot) L.push(`  Code root:              ${r.codeRoot}/`);
   if (r.conflicts.length) {
     L.push("");

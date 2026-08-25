@@ -60,6 +60,7 @@ import { parseBlocks } from '../md.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
 import { isGitCheckout } from '../git.mjs'
 import { buildExcludes, discoverGroups, readSelectedGroups } from '../skill-groups.mjs'
+import { verifyEngine } from '../engine-manifest.mjs'
 
 const execFileP = promisify(execFile)
 
@@ -457,6 +458,12 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   const incoming = path.join(target, INCOMING)
   await fs.rm(incoming, { recursive: true, force: true }).catch(() => {})
 
+  // Read BEFORE the engine is touched — --dry-run never swaps anything, and the
+  // real run swaps a few steps below (see "Engine swap"). Reading here rather
+  // than after the swap is what makes this a report on the workspace's actual
+  // OLD engine, not on whatever .truss/ happens to be by the time we get here.
+  const engineDivergence = await verifyEngine(oldEngine)
+
   // --dry-run writes nothing, so it must never be gated on a clean tree: it is
   // exactly what a cautious user wants to run BEFORE committing.
   if (opts.dryRun) {
@@ -469,8 +476,8 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       theirsDir,
       { exclude: buildExcludes(groups, selected) },
     )
-    printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true })
-    return { target, from: oldVersion, to: newVersion, plan, dryRun: true }
+    printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence })
+    return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
   }
 
   // The working tree is the undo. Refuse to merge into uncommitted work rather
@@ -560,7 +567,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   await applyPlan(target, plan, baseDir, theirsDir)
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 
-  const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan }
+  const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan, engineDivergence }
   printReport({ ...result, dryRun: false })
   // A run that still needs a human must not look like a clean one to a script.
   if (plan.some((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))) {
@@ -576,22 +583,91 @@ const ACTION_LABEL = {
   conflict: 'CONFLICT', manual: 'manual', failed: 'FAILED', report: 'review', skip: 'skipped',
 }
 
-function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun }) {
+const ENGINE_SAMPLE_LIMIT = 8
+
+/** Total files named by a verifyEngine() result (0 when there is no divergence). */
+function engineDivergenceTotal(engineDivergence) {
+  if (!engineDivergence) return 0
+  return engineDivergence.modified.length + engineDivergence.missing.length
+    + engineDivergence.extra.length + engineDivergence.unreadable.length
+}
+
+/**
+ * The truthful line(s) about local engine changes — the measured problem this
+ * whole decision exists to fix (`upgrade --force` reverted lib/+checks/ without
+ * a trace, and the report never said so). Worded for whichever side of the
+ * swap the caller is reporting from:
+ *   null                   no manifest to check against — say the swap is unverified
+ *   known === 0, no unreadable   manifest present, clean — say nothing was at risk
+ *   known > 0              name the files (bounded sample) and where to recover them
+ *   unreadable.length > 0  named separately (Defect 1) — never known to be "local
+ *                          changes", only known to be unverifiable
+ */
+function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
+  if (engineDivergence === null) {
+    return [dryRun
+      ? '  The current engine has no release manifest to check against — local engine changes, if any, would not be detected.'
+      : '  The previous engine had no release manifest to check against — local engine changes, if any, were replaced without being detected.']
+  }
+  const { modified, missing, extra, unreadable } = engineDivergence
+  const known = modified.length + missing.length + extra.length
+  const lines = []
+  if (known === 0 && unreadable.length === 0) {
+    return [dryRun
+      ? '  The current engine matches its release manifest — nothing local would be lost in the swap.'
+      : '  The previous engine matched its release manifest — nothing local was lost in the swap.']
+  }
+  if (known > 0) {
+    const labelled = [
+      ...modified.map(f => `modified ${f}`),
+      ...missing.map(f => `missing ${f}`),
+      ...extra.map(f => `extra ${f}`),
+    ].sort()
+    const shown = labelled.slice(0, ENGINE_SAMPLE_LIMIT)
+    const more = labelled.length - shown.length
+    const list = `${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`
+    lines.push(dryRun
+      ? `  ${known} engine file(s) carry local changes and would be replaced by the swap: ${list}`
+      : `  ${known} engine file(s) carried local changes and were replaced: ${list}`)
+    lines.push(dryRun
+      ? '  Nothing destroyed yet — this is exactly what --dry-run is for; compare these by hand before re-running for real.'
+      : `  Recover them from the backup: ${path.basename(backup)}/`)
+  }
+  // Unreadable files were never hashed (Defect 1) — this process could not
+  // confirm they carry local changes, only that it could not check them, so
+  // they are reported separately rather than folded into "carried local
+  // changes" (which they may or may not be true of).
+  if (unreadable.length > 0) {
+    lines.push(`  ${unreadable.length} engine file(s) could not be read at all (a permissions problem?) and were not verified: ${unreadable.join(', ')}`)
+  }
+  return lines
+}
+
+function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence }) {
   const L = []
   L.push('')
   L.push(dryRun ? `  truss upgrade — dry run: ${from} → ${to}` : `  truss upgrade — ${from} → ${to}`)
   L.push(`  ${target}`)
   L.push('')
 
-  if (!dryRun) {
+  if (dryRun) {
+    L.push(...engineDivergenceLines(engineDivergence, { dryRun: true, backup }))
+    L.push('')
+  } else {
     L.push(`  Engine replaced. Previous engine kept at ${path.basename(backup)}/`)
+    L.push(...engineDivergenceLines(engineDivergence, { dryRun: false, backup }))
     if (customRestored) L.push('  Your prompts/custom/ was carried over.')
     if (gitignoreUpdated) L.push('  Added .truss.bak-*/ to .gitignore so the backup is never committed.')
     L.push('')
   }
 
   if (plan.length === 0) {
-    L.push('  No baseline file changed between these versions — the engine swap was the whole upgrade.')
+    // The false claim from the measurement: a workspace with a divergent engine
+    // and an unchanged baseline is NOT "the engine swap was the whole upgrade" —
+    // the engine half of that swap replaced locally-adapted files. Say so instead.
+    L.push(engineDivergenceTotal(engineDivergence) > 0
+      ? '  No baseline file changed between these versions — but the engine half was not a no-op; see the engine note above.'
+      : '  No baseline file changed between these versions — the engine swap was the whole upgrade.')
   } else {
     L.push('  Baseline files:')
     for (const p of plan) L.push(`    ${(ACTION_LABEL[p.action] || p.action).padEnd(11)} ${p.rel.padEnd(26)} ${p.note}`)

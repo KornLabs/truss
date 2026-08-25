@@ -17,6 +17,7 @@ import os from 'node:os'
 
 import { runUpgrade, parseUpgradeArgs, planBaseline, alignGeneratedBlocks, isSeedOnly, UpgradeError } from '../lib/commands/upgrade.mjs'
 import { runInit } from '../lib/commands/init.mjs'
+import { writeManifest } from '../lib/engine-manifest.mjs'
 import { makeRoot, ENGINE_DIR } from './helpers.mjs'
 
 process.env.TRUSS_NO_GIT = '1'   // never consult the workspace's own git state
@@ -423,4 +424,84 @@ describe('a baseline state file the workspace lacks', () => {
     process.exitCode = 0
     assert.equal(await read(ws, 'state/open-decisions.md'), mine)
   })
+})
+
+// ── D-070: engine divergence is read before the swap and carried into the report ──
+// Measured problem this decision fixes: `upgrade --force` reverted lib/+checks/
+// without a trace and told the adopter "the engine swap was the whole upgrade".
+// These tests prove the OLD engine's local edits are captured before renaming
+// it aside — reading AFTER the swap would see the NEW engine's own files instead.
+describe('D-070: engine manifest divergence in the upgrade report', () => {
+  it('--dry-run names a locally modified engine file without touching anything', async () => {
+    const { ws, next } = await realFixture()
+    await writeManifest(path.join(ws, '.truss'))   // the manifest this workspace's engine shipped with
+    const patched = path.join(ws, '.truss/lib/workspace.mjs')
+    await fs.writeFile(patched, `${await fs.readFile(patched, 'utf8')}\n// locally patched for this test\n`)
+
+    const res = await runUpgrade(next, ['--root', ws, '--dry-run'])
+    process.exitCode = 0
+
+    assert.ok(res.engineDivergence, 'a manifest was present — divergence must be reported, not null')
+    assert.deepEqual(res.engineDivergence.modified, ['lib/workspace.mjs'])
+    assert.equal(res.engineDivergence.missing.length, 0)
+    assert.equal(res.engineDivergence.extra.length, 0)
+    // --dry-run never renames .truss/ aside — the file the test patched is still there, untouched.
+    assert.match(await fs.readFile(patched, 'utf8'), /locally patched for this test/)
+  })
+
+  it('a real run still reports the OLD engine\'s divergence, even though .truss/ now holds the NEW engine', async () => {
+    const { ws, next } = await realFixture()
+    await writeManifest(path.join(ws, '.truss'))
+    const patched = path.join(ws, '.truss/lib/workspace.mjs')
+    await fs.writeFile(patched, `${await fs.readFile(patched, 'utf8')}\n// locally patched for this test\n`)
+
+    const r = await runUpgrade(next, ['--root', ws])
+    process.exitCode = 0
+
+    assert.deepEqual(r.engineDivergence.modified, ['lib/workspace.mjs'])
+    // Proof the read really happened before the swap: the engine really did
+    // swap (VERSION moved on) and the backup — the renamed-aside OLD engine —
+    // still carries the patch the report above already knew about.
+    assert.equal((await fs.readFile(path.join(ws, '.truss/VERSION'), 'utf8')).trim(), '0.0.2')
+    assert.match(await fs.readFile(path.join(r.backup, 'lib/workspace.mjs'), 'utf8'), /locally patched for this test/)
+  })
+
+  it('reports "no manifest" rather than silence when the old engine shipped without one', async () => {
+    const { ws, next } = await realFixture()   // realFixture never writes a manifest
+    const res = await runUpgrade(next, ['--root', ws, '--dry-run'])
+    process.exitCode = 0
+    assert.equal(res.engineDivergence, null)
+  })
+
+  it('reports clean divergence when the engine matches its manifest untouched', async () => {
+    const { ws, next } = await realFixture()
+    await writeManifest(path.join(ws, '.truss'))
+    const res = await runUpgrade(next, ['--root', ws, '--dry-run'])
+    process.exitCode = 0
+    assert.deepEqual(res.engineDivergence, { modified: [], missing: [], extra: [], unreadable: [] })
+  })
+
+  // An unreadable engine file used to escape verifyEngine as a raw EACCES and
+  // abort the whole command — with none of the "nothing was changed" wording
+  // every other failure path in upgrade.mjs guarantees. D-070 is reporting
+  // only; it must never be able to stop an upgrade. chmod 000 does not bind
+  // root, so this is meaningless in a root container.
+  it('an unreadable engine file is reported, and never aborts the run',
+    { skip: process.getuid?.() === 0 }, async () => {
+      const { ws, next } = await realFixture()
+      await writeManifest(path.join(ws, '.truss'))
+      const victim = path.join(ws, '.truss/lib/workspace.mjs')
+      await fs.chmod(victim, 0o000)
+      let res
+      try {
+        res = await runUpgrade(next, ['--root', ws, '--dry-run'])
+      } finally {
+        await fs.chmod(victim, 0o644)
+      }
+      process.exitCode = 0
+      assert.deepEqual(res.engineDivergence.unreadable, ['lib/workspace.mjs'])
+      assert.deepEqual(res.engineDivergence.modified, [],
+        'a file that could not be read is not known to have changed')
+      assert.deepEqual(res.engineDivergence.missing, [])
+    })
 })
