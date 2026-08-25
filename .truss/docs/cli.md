@@ -175,13 +175,27 @@ error.
 
 ## `render`
 
-Regenerate the phase block inside `AGENTS.md` from `state/phases.md`. Run it after
-any edit to the phase definitions or the `current:` pointer. This is the only
-sanctioned writer of that block; editing it by hand is a `BL` error.
+Regenerate what the workspace derives from its own files: the phase block inside
+`AGENTS.md` (from `state/phases.md`) and the decision index
+`state/decisions-index.md` (from `state/decisions.md`). Run it after any edit to
+the phase definitions, the `current:` pointer, or a decision entry. This is the
+only sanctioned writer of both; editing the phase block by hand is a `BL` error,
+and a hand-edit of the index is reported by `ST-10` and overwritten on the next
+run.
 
 ```bash
 truss render
 ```
+
+The index is what AGENTS.md §1 loads every session: one bold list item per
+decision, carrying its title and its `Decision:` line, with the full log loaded
+on demand before a decision is made or proposed. It is a plain workspace file —
+commit it. An entry with no `Decision:` line is still indexed, marked as
+incomplete rather than dropped. Missing the file entirely is not an error
+(`ST-10` reports it as info); an index that disagrees with `state/decisions.md`
+is a warning, because §1 then feeds every session a decision log that no longer
+exists. Adding the file changes what `state/map.md` should contain, so run
+`truss map` after the first `render` that creates it.
 
 Without `state/phases.md` the command is not an error: the workspace has no phase
 model, so `render` writes the one-line no-phases notice into the block and exits

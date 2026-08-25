@@ -228,7 +228,9 @@ describe('SY-09 decisions.md read cost', () => {
     const f = ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(4000)) })), 'SY-09')
     assert.equal(f.length, 1)
     assert.equal(f[0].severity, 'I')
-    assert.match(f[0].message, /tokens at every session boot/)
+    // D-075: the full log is no longer read at every boot — it is loaded before
+    // a decision is made or proposed, and the index carries the rest.
+    assert.match(f[0].message, /tokens every time it is loaded in full/)
     assert.match(f[0].fix, /archive\/decisions\.md/)
     assert.match(f[0].fix, /never delete/i)
   })

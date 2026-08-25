@@ -38,11 +38,17 @@ export const ERROR_TOKENS = 30000
 // task-selected domain file and source/tool context are intentionally NOT
 // counted — they are unknowable statically. This metric must not be presented as
 // total task context. The phase block itself is already inside AGENTS.md.
+//
+// state/decisions-index.md, NOT state/decisions.md (D-075): now that the index
+// exists, §1 loads the full decision log only before a decision is made or
+// proposed — a task-dependent step this metric cannot and must not assume. A
+// workspace that has never run `truss render` has no index file, so nothing is
+// counted in its place; ST-10 is what reports that state.
 export const CONTEXT_FILES = [
   'AGENTS.md',
   'state/current.md',
   'VISION.md',
-  'state/decisions.md',
+  'state/decisions-index.md',
   'state/open-decisions.md',
   'state/profile.md',
 ]

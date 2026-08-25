@@ -97,8 +97,12 @@ export async function run(ctx) {
   // mtime-based, no git shell-out (checks stay pure file reads); a fresh clone
   // writes near-uniform mtimes, so it stays quiet too. Scope: the agent-owned
   // ritual write surfaces (state/ and context/) minus current.md itself and the
-  // script-generated map.md; HUMAN-TODOS.md is excluded — humans check things
-  // off at any time.
+  // script-generated map.md and decisions-index.md; HUMAN-TODOS.md is excluded —
+  // humans check things off at any time. Both generated files are excluded for
+  // the same reason: `truss map` / `truss render` stamp them at command time,
+  // which says nothing about whether the agent wrote its state back — a `render`
+  // run long after the last work unit would otherwise report drift that no edit
+  // to current.md could ever clear.
   if (current?.stat) {
     const stamp = (ms) => {
       const d = new Date(ms)
@@ -107,7 +111,9 @@ export async function run(ctx) {
     }
     const candidates = (ctx.mdFiles || []).filter(rel =>
       (rel.startsWith('state/') || rel.startsWith('context/'))
-      && rel !== 'state/current.md' && rel !== 'state/map.md')
+      && rel !== 'state/current.md'
+      && rel !== 'state/map.md'
+      && rel !== 'state/decisions-index.md')
     let newest = null
     for (const rel of candidates) {
       try {
@@ -231,8 +237,10 @@ function checkStaleChallenges(decisions, openDecisions, findings) {
   }
 }
 
-// ── SY-09 — decisions.md is mandatory boot context, read every session, and it
-//    only ever grows (entries are superseded, never deleted). Info-level nudge
+// ── SY-09 — decisions.md is loaded in full before any decision is made or
+//    proposed (its `Decision:` lines are boot context via state/decisions-index.md
+//    since D-075), and it only ever grows (entries are superseded, never
+//    deleted). Info-level nudge
 //    once its estimated read cost passes DECISIONS_TOKENS_MAX — one third of the
 //    CX-01 warn budget in a single file. Deliberately NOT a hard budget check
 //    (that is CX-01's aggregate job): this is the targeted archiving prompt the
@@ -247,7 +255,7 @@ function checkDecisionsSize(file, findings) {
   findings.push({
     id: 'SY-09', severity: 'I',
     file: 'state/decisions.md', line: 1,
-    message: `state/decisions.md costs ≈ ${tokens} tokens at every session boot (≥ ${DECISIONS_TOKENS_MAX})`,
+    message: `state/decisions.md costs ≈ ${tokens} tokens every time it is loaded in full (≥ ${DECISIONS_TOKENS_MAX})`,
     fix: `Review for compressible entries (docs/conventions.md): superseded entries shrink to heading + supersede note; entries whose consequences are fully absorbed into canonical files shrink to heading + Decision: line + pointer. Move bodies to archive/decisions.md — never delete an entry, IDs and traces stay here. The \`cleanup\` prompt (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
   })
 }

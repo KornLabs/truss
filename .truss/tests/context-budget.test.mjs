@@ -23,12 +23,19 @@ test('CONTEXT_FILES covers the mandatory §1 load order incl. open-decisions', (
     'AGENTS.md',
     'state/current.md',
     'VISION.md',
-    'state/decisions.md',
+    'state/decisions-index.md',
     'state/open-decisions.md', // regression guard: the dashboard used to omit this
     'state/profile.md',
   ]) {
     assert.ok(CONTEXT_FILES.includes(f), `CONTEXT_FILES must include ${f}`);
   }
+  // D-075: the index is boot context, the full decision log is not — it is
+  // loaded on demand, before a decision is made or proposed. Counting both would
+  // report a budget no session actually pays.
+  assert.ok(
+    !CONTEXT_FILES.includes('state/decisions.md'),
+    'the full decision log left the always-loaded set when the index took its place',
+  );
   // The task-specific domain file (§1 step 6) is intentionally NOT a static member.
   assert.equal(CONTEXT_FILES.length, 6);
 });

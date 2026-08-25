@@ -19,7 +19,7 @@
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
 4. `state/profile.md` — project language, tools, style.
-5. `state/decisions.md` — before making or proposing any decision; `state/open-decisions.md` when the task touches an open question.
+5. `state/decisions-index.md` — always: every decision's title and its `Decision:` line. Then `state/decisions.md` in full before making or proposing any decision — the index says *what* was decided, the file *why* and *at what cost*. `state/open-decisions.md` when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to (§2).
 
 Load the smallest context that can answer the task; stop as soon as it is unambiguous — no archives, history, bulk data, engine internals, or unrelated domains unless the task requires them.
@@ -35,6 +35,7 @@ Routing policy: which file owns what. Not a file inventory — that is `state/ma
 | VISION.md | H+A | problem, idea, principles, constraints |
 | state/current.md | A | the live snapshot: focus · next · blockers · recently done (limits in the file) |
 | state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
+| state/decisions-index.md (on demand) | S | auto-generated, do not edit: title + `Decision:` line per D-NNN, written by `truss render`. This is what §1 loads every session; the full file above is loaded on demand |
 | state/phases.md (on demand) | H pointer · H+A definitions | phase definitions and `current:` pointer; without this file the workspace runs with no phase model — no gates, no forbidden lists, no exit criteria |
 | state/profile.md | H+A | project name/language, code-root, tools, style, and the durable behaviour preferences the human dictates |
 | state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN with `Closes:`, remove the entry; also where you challenge a decision (§3) |

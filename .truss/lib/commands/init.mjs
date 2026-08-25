@@ -64,6 +64,7 @@ import { renderPrefsBlock, renderPhaseBlock, renderNoPhasesBlock } from "../rend
 import { parsePhases, parseBlocks } from "../md.mjs";
 import { defaultPrefsRows } from "../defaults.mjs";
 import { generateMapContent } from "./map.mjs";
+import { buildIndex, INDEX_REL, SOURCE_REL } from "../decisions-index.mjs";
 import {
   assertExistingCodeRoot,
   CodeRootError,
@@ -670,6 +671,18 @@ export async function runInit(root, argv, invokedCwd = null) {
       agentsMd,
       "phase",
       phaseBlock,
+    );
+
+    // The decision index (D-075) is written BEFORE the map: it is a workspace
+    // markdown file, so a map generated first would already be outdated by it
+    // and a fresh instance would open with an ST-07 warning.
+    const indexPath = path.join(root, INDEX_REL);
+    const existingIndex = await readMaybe(indexPath);
+    if (existingIndex != null) await rememberOriginal(indexPath);
+    else created.push(indexPath);
+    await writeFileAtomic(
+      indexPath,
+      buildIndex(((await readMaybe(path.join(root, SOURCE_REL))) ?? "").split("\n")),
     );
 
     const existingMap = await readMaybe(mapPath);
