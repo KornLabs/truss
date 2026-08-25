@@ -148,6 +148,12 @@ each `OD-NNN` with its title, its age in days, and — when a decision carries a
 undecided; at most five entries, then a count. This is the one place that
 guarantees a question waiting on the human is seen at session start.
 
+When the workspace is a git repository, it closes with a **Recent** block: the
+last five commits, subject truncated to one line each. It replaced the
+hand-maintained `recently-done:` key in `state/current.md` (D-074) — git already
+carries the same information, current and without upkeep. Outside a git
+repository the block is simply absent, and the exit code is unaffected.
+
 ```bash
 truss status
 ```
