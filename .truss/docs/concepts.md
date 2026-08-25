@@ -54,6 +54,7 @@ the block writer.
 |---|---|
 | `current.md` | the live focus: what you're doing, next actions (≤5), blockers, recently done |
 | `decisions.md` | decided decisions, each a `D-NNN` entry; superseded, never deleted |
+| `decisions-index.md` | the boot-sized view of `decisions.md` — title plus `Decision:` line per entry; written by `truss render`, never by hand |
 | `open-decisions.md` | undecided questions with options and trade-offs (`OD-NNN`), including challenges to recorded decisions; ships with the workspace and stays when empty |
 | `phases.md` | the phase definitions and the `current:` pointer; optional — a workspace without it runs with no phase model |
 | `profile.md` | project name, language, tools, PM method, style notes |
@@ -61,8 +62,8 @@ the block writer.
 | `learnings.md` | recurring agent weaknesses and structural fixes (`L-NNN`); created at its first entry |
 | `map.md` | a script-generated overview of domain files with per-file read-cost estimates (on demand) |
 
-Only `current.md`, `decisions.md`, `phases.md`, and `profile.md` exist from
-`init` (`phases.md` unless you pass `--no-phases`). Everything else appears the moment its first real entry does — a fresh
+Only `current.md`, `decisions.md`, `decisions-index.md`, `phases.md`, and
+`profile.md` exist from `init` (`phases.md` unless you pass `--no-phases`). Everything else appears the moment its first real entry does — a fresh
 workspace carries no empty placeholder files (D-028).
 
 Everything that *describes a topic* rather than the project's process goes into a
@@ -153,7 +154,7 @@ has a severity — **E**rror, **W**arning, or **I**nfo — and an ID like `ST-02
 
 | Family | Guards |
 |---|---|
-| `ST` Structure | the structure table matches what's actually on disk, and the installed engine matches its release manifest |
+| `ST` Structure | the structure table matches what's actually on disk, the generated `state/map.md` and `state/decisions-index.md` still match their sources, and the installed engine matches its release manifest |
 | `BL` Block | the generated preference/phase blocks haven't drifted |
 | `RF` Reference | operational links resolve and D/OD/HT/R/L/TF IDs are defined exactly once, including under `context/` |
 | `SY` State | the state files have the required keys, valid entry grammar, and no unrecorded drift |
@@ -174,7 +175,7 @@ workspace was changed without running the CLI.
 | Missing command | Manual fallback |
 |---|---|
 | `doctor` | inspect touched files and disclose that mechanical validation did not run |
-| `render` | edit `state/phases.md` only; generated blocks may be stale until CLI returns |
+| `render` | edit `state/phases.md` and `state/decisions.md` only; the phase block and `state/decisions-index.md` may be stale until CLI returns — say so, and read `state/decisions.md` in full meanwhile |
 | `set` | do not hand-edit generated preferences; leave the change as a human todo |
 | `map` | use existing domain files directly; `state/map.md` may be stale |
 

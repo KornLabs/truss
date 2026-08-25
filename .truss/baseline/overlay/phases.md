@@ -25,5 +25,5 @@ purpose: run the ongoing work on the existing system — features, fixes, and it
 behavior: pragmatic — small reversible changes; keep state/current.md accurate; flag deviations as new D-NNN.
 allowed: all development and iteration work; refactors with a recorded reason; documentation updates.
 forbidden: silent large rewrites without a D-entry; skipping the session ritual; unbounded state/current.md next list (over 5).
-read: state/profile.md, state/decisions.md, state/current.md
+read: state/profile.md, state/decisions-index.md, state/current.md
 exit: ongoing-run criteria met (human); doctor clean (human); human sign-off (human)

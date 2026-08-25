@@ -529,6 +529,10 @@ async function runAck(args) {
   console.log(`  Recorded in .truss/out/context-ack.json (gitignored — local to this checkout).`)
 }
 
+// `render` has two generated targets: the AGENTS.md phase block and the decision
+// index. The phase block goes first because it is the command's headline job and
+// the one with the fatal paths; the index is written afterwards so a phase
+// problem never leaves a half-rendered workspace behind it.
 async function runRender() {
   let ctx
   try {
@@ -538,6 +542,29 @@ async function runRender() {
     process.exit(2)
   }
 
+  await renderPhaseInto(ctx)
+  await renderDecisionsIndex()
+}
+
+// state/decisions-index.md — the boot-sized index of state/decisions.md (D-075).
+// No source file is not an error: nothing to index, nothing to say beyond a note.
+async function renderDecisionsIndex() {
+  const { writeIndex, INDEX_REL, SOURCE_REL } = await import('../lib/decisions-index.mjs')
+  let result
+  try {
+    result = await writeIndex(root)
+  } catch (err) {
+    console.error(`truss render: failed to write ${INDEX_REL} — ${err.message}`)
+    process.exit(2)
+  }
+  if (result === null) {
+    console.log(`truss render: no ${SOURCE_REL} — decision index not written.`)
+    return
+  }
+  console.log(`truss render: ${INDEX_REL} updated (${result.entries} decision${result.entries === 1 ? '' : 's'}).`)
+}
+
+async function renderPhaseInto(ctx) {
   const { phases } = ctx
 
   // Absent is not broken (U4): no state/phases.md means the workspace runs

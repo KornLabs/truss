@@ -41,5 +41,5 @@ behavior: convergent and honest — make the strongest case, then test it; a par
 allowed: concept dossier, value proposition, assumption status, risk list, decision briefings.
 forbidden: code in repo/, building or scaffolding the solution, deferring the pursue/park decision.
 forbidden-globs: repo/**; pm/**
-read: state/profile.md, VISION.md, state/decisions.md
+read: state/profile.md, VISION.md, state/decisions-index.md
 exit: glob: context/concept*.md; section: context/concept.md#Recommendation; pursue/park decision recorded as D-entry (human)

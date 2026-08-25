@@ -43,9 +43,10 @@ still hold)` — and always name what still holds, so the old entry is not misre
 This is a tolerance for entries written before the one-decision rule, not a second
 revision mode: new entries are small enough to supersede whole.
 
-Keep `Decision:`/`Rationale:`/`Consequences:` to roughly one line each —
-state/decisions.md is boot context, read every session; design detail belongs in
-the owning domain file, linked from the entry. Once a superseded entry's full
+Keep `Decision:`/`Rationale:`/`Consequences:` to roughly one line each — the
+`Decision:` line is copied verbatim into `state/decisions-index.md`, which *is*
+boot context, read every session; design detail belongs in the owning domain
+file, linked from the entry. Once a superseded entry's full
 text no longer informs current work, compress it in place to its heading plus
 the supersede note and move the body to `archive/decisions.md` — the ID and its
 trace never leave state/decisions.md. The same compression applies to a
@@ -74,8 +75,10 @@ knowing the reasoning are not grounds — read the `Rationale:` first.
 The split is deliberate: **opening a challenge is the agent's to do, changing the
 decision is not.** Open it as an `OD-NNN` that names the decision and states which
 of (a)/(b)/(c) applies, and add `Challenged-by: OD-NNN` to the decision itself —
-decisions.md is boot context and open-decisions.md is not, so without that line a
-future session reads a contested decision as settled. Then:
+`state/decisions-index.md` carries only titles and `Decision:` lines, and §1
+loads decisions.md in full exactly when it matters — before a decision is made or
+proposed — so without that line the session that is about to build on the
+decision reads it as settled. Then:
 
 - **Human agrees** → new `D-NNN` with `Supersedes:` and `Closes:`, `Superseded-by:`
   on the old entry, `Challenged-by:` removed.

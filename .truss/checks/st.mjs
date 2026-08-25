@@ -6,12 +6,14 @@
 // ST-04  W  adapter stub deviates from expected one-liner
 // ST-05  I  file has more than 450 lines (growth-rule hint)
 // ST-09  I  engine file(s) diverged from .truss/MANIFEST.sha256 (silent if absent)
+// ST-10  I/W decision index absent (I) or out of step with decisions.md (W)
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { ADAPTER_STUBS, STUB_PATTERNS, SUMMARY_DIRS } from '../lib/workspace.mjs'
 import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
 import { verifyEngine } from '../lib/engine-manifest.mjs'
+import { buildIndex, INDEX_REL, SOURCE_REL } from '../lib/decisions-index.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 // Lets consumers (--json) enumerate ALL checks, not only fired ones.
@@ -26,6 +28,7 @@ export const meta = [
   { id: 'ST-07', severity: 'W', title: 'Truss map is outdated', description: 'state/map.md does not match the actual workspace markdown files' },
   { id: 'ST-08', severity: 'W', title: 'AGENTS.md is missing a numbered top-level section', description: '§1–§6 are the contract every prompt, doc and check cross-references' },
   { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
+  { id: 'ST-10', severity: 'W', title: 'Decision index missing or out of step with state/decisions.md', description: 'D-075/D-081: info while the index has never been generated (the workspace simply has not taken the step), warning once it exists and disagrees with the source — a stale index lies to every session boot' },
 ];
 
 // Paths that exist on disk but are intentionally not in the structure table
@@ -281,6 +284,46 @@ export async function run(ctx) {
       message: `Failed to evaluate map.md: ${err.message}`,
       fix: `Check the workspace for recursive parsing errors`,
     });
+  }
+
+  // ── ST-10: the decision index against its source ───────────────────────
+  // Same shape as ST-07 (map.md), and by CONTENT, never by mtime: a `touch` on
+  // decisions.md, a checkout that rewrites both files, or a re-run of `render`
+  // that produced the identical bytes must all stay quiet — only a real
+  // disagreement is a finding.
+  //
+  // Two severities, on purpose (D-081):
+  //   • no index file at all → I. The workspace is not broken, it has simply
+  //     never run `render` since the index existed. Every pre-D-075 instance is
+  //     in that state, and `doctor` exits 1 on a W — a warning here would mean
+  //     "no longer green" for every one of them on upgrade day. Same staffing as
+  //     ST-09 (silent without a manifest) and PH (silent without phases.md).
+  //   • index present but disagreeing with decisions.md → W. That one is not a
+  //     missing step, it is a file that lies: §1 loads it every session, so a
+  //     stale index feeds every boot a decision log that no longer exists.
+  // No source file → nothing to be stale against; ST-01 owns that case.
+  const decisionsSource = ctx.files?.get(SOURCE_REL);
+  if (decisionsSource) {
+    const expected = buildIndex(decisionsSource.lines);
+    let actual = null;
+    try { actual = await fs.readFile(path.join(root, INDEX_REL), 'utf8'); }
+    catch { /* absent — handled below */ }
+
+    if (actual === null) {
+      findings.push({
+        id: 'ST-10', severity: 'I',
+        file: INDEX_REL,
+        message: `no decision index yet — until it exists, ${SOURCE_REL} is the §1 boot context in full`,
+        fix: `Run 'node .truss/bin/truss.mjs render' to generate ${INDEX_REL}, then commit it.`,
+      });
+    } else if (actual !== expected) {
+      findings.push({
+        id: 'ST-10', severity: 'W',
+        file: INDEX_REL,
+        message: `decision index no longer matches ${SOURCE_REL} — every session boots on a summary that is out of date`,
+        fix: `Run 'node .truss/bin/truss.mjs render' to regenerate ${INDEX_REL}. It is generated, never hand-edited — a local edit here is overwritten, so fix the wording in ${SOURCE_REL}.`,
+      });
+    }
   }
 
   // ── ST-09: engine files diverged from the release manifest ────────────
