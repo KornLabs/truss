@@ -36,7 +36,6 @@ export const CHECK_CATALOG = [
   { id: 'RF-01', sev: 'E', desc: 'Relative markdown link does not resolve' },
   { id: 'RF-02', sev: 'W', desc: 'Referenced ID has no definition' },
   { id: 'RF-03', sev: 'E', desc: 'ID defined more than once' },
-  { id: 'RF-04', sev: 'W', desc: 'prompts: reference not found in library' },
   { id: 'ST-01', sev: 'E', desc: 'Structure-table path missing on disk' },
   { id: 'ST-02', sev: 'W', desc: 'New file — not yet in structure table (hint, not error)' },
   { id: 'ST-03', sev: 'W', desc: 'Empty table-managed directory' },

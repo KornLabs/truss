@@ -27,9 +27,35 @@ export const meta = [
 const KNOWN_KEYS = new Set([
   'label', 'name', 'purpose', 'behavior',
   'allowed', 'forbidden', 'forbidden-globs',
-  'read', 'exit', 'prompts',
+  'read', 'exit',
 ])
 const REQUIRED_KEYS = ['purpose', 'behavior', 'exit']
+
+// Keys the phase grammar once defined and no longer does. A key retired by an
+// engine change is a migration hint, not an error: an upgraded workspace must
+// never go red for a line it wrote correctly under the previous version.
+// Precedent: RETIRED_KEYS in lib/prefs.mjs, reported by BL-03 (checks/bl.mjs).
+const RETIRED_KEYS = new Map([
+  ['prompts', 'the prompt library left the engine; put your own prompts in `.truss/prompts/custom/` and open them by hand'],
+])
+
+// Two parsers reject a phase key: lib/md.mjs drops keys its own list does not
+// know (they arrive via PHASE_UNKNOWN_KEYS), and PH-01 rescans Object.keys(def)
+// for keys md.mjs accepted but the grammar here does not. Both paths must judge
+// a key the same way, so both build their finding here.
+function unknownKeyFinding(phaseId, key) {
+  const retired = RETIRED_KEYS.get(key)
+  return {
+    id: 'PH-01', severity: retired ? 'I' : 'E',
+    file: 'state/phases.md',
+    message: retired
+      ? `phase '${phaseId}': '${key}' is retired — ${retired}`
+      : `phase '${phaseId}': unknown key '${key}'`,
+    fix: retired
+      ? `Delete the '${key}:' line from phase '${phaseId}' — it no longer affects anything`
+      : `Remove '${key}'. Known keys: ${[...KNOWN_KEYS].join(', ')}.`,
+  }
+}
 
 /**
  * @param {import('../lib/workspace.mjs').WorkspaceContext} ctx
@@ -80,24 +106,12 @@ export async function run(ctx) {
       })
     }
 
-    // Unknown keys
+    // Unknown keys — dropped by lib/md.mjs, or accepted there but not defined here
     for (const key of def[PHASE_UNKNOWN_KEYS] ?? []) {
-      findings.push({
-        id: 'PH-01', severity: 'E',
-        file: 'state/phases.md',
-        message: `phase '${phaseId}': unknown key '${key}'`,
-        fix: `Remove '${key}'. Known keys: ${[...KNOWN_KEYS].join(', ')}.`,
-      })
+      findings.push(unknownKeyFinding(phaseId, key))
     }
     for (const key of Object.keys(def)) {
-      if (!KNOWN_KEYS.has(key)) {
-        findings.push({
-          id: 'PH-01', severity: 'E',
-          file: 'state/phases.md',
-          message: `phase '${phaseId}': unknown key '${key}'`,
-          fix: `Remove '${key}'. Known keys: ${[...KNOWN_KEYS].join(', ')}.`,
-        })
-      }
+      if (!KNOWN_KEYS.has(key)) findings.push(unknownKeyFinding(phaseId, key))
     }
 
     // Required keys
