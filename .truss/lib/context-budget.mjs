@@ -1,9 +1,8 @@
 // lib/context-budget.mjs — shared context-budget math.
 //
 // The SINGLE SOURCE OF TRUTH for the mandatory Truss boot-metadata estimate,
-// imported by BOTH the doctor check (checks/cx.mjs → CX-01) and the dashboard
-// budget endpoint (dashboard/server.mjs). Keeping the file list and the token
-// factor here guarantees the two can never disagree on the number they place
+// imported by the doctor check (checks/cx.mjs → CX-01). Keeping the file list
+// and the token factor here guarantees every consumer places the same number
 // against the 18k warn / 30k error bands.
 //
 // Method: words × 1.5. Empirically validated 2026-07-03 against real BPE
@@ -30,8 +29,6 @@ export const TOKENS_PER_WORD = 1.5
 // archiving genuinely pays (~60–80 decisions on top of a full base) and still
 // costs under 10% of a 200k window; ERROR at 30k (15%) is unambiguous ballast.
 // The words×1.5 factor under-counts Claude ~15%, which these bands absorb.
-// Mirrored in dashboard/ui/context-config.js (browser module, cannot import from
-// lib/) — dashboard/tests/dashboard-instance.test.mjs asserts the two agree.
 export const WARN_TOKENS  = 18000
 export const ERROR_TOKENS = 30000
 

@@ -14,35 +14,19 @@ Scripts check and report — they never decide.
 3. Run a single top-level agent at a time — parallel sessions can collide on `state/current.md`.
 
 No terminal access? Truss still works as Markdown, but `doctor`, `render`,
-`set`, `map`, and the dashboard cannot provide mechanical validation or
-generated updates. Ask the agent to say plainly when CLI validation did not run.
+`set`, and `map` cannot provide mechanical validation or generated updates. Ask the agent to say plainly when CLI validation did not run.
 
 ## Getting started
 
 1. `node .truss/bin/truss.mjs doctor` — check workspace health.
-2. `node .truss/bin/truss.mjs dashboard` — open the visual control center (optional, see below).
-3. Copy the boot prompt `init` printed into your AI tool and paste your idea after it — the agent interviews you to build `VISION.md` and `state/profile.md`. (On a resume, just tell it to read `AGENTS.md` and continue.)
-4. Human tasks go to `HUMAN-TODOS.md`.
-
-## Dashboard
-
-`node .truss/bin/truss.mjs dashboard` starts a local-only web view of the
-workspace and opens it in your browser. It's the fastest way to see, at a glance:
-
-- current phase and `doctor` health,
-- decisions, current focus, and the structure map,
-- the **prompt library** — copy-ready prompts for each phase, including the
-  `overlay-onboard` ritual on the Setup shelf.
-
-It runs entirely on your machine (no data leaves it) and is the recommended way
-to drive Truss day to day. Stop it with `Ctrl+C`.
+2. Copy the boot prompt `init` printed into your AI tool and paste your idea after it — the agent interviews you to build `VISION.md` and `state/profile.md`. (On a resume, just tell it to read `AGENTS.md` and continue.)
+3. Human tasks go to `HUMAN-TODOS.md`.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `doctor [--gate] [--json] [--fix-prompt]` | check workspace health; `--gate` adds phase-exit checks |
-| `dashboard` | start the local web dashboard (visual status + prompt library) |
 | `render` | sync the phase block in AGENTS.md from `state/phases.md` |
 | `set <key> <value>` | change an agent preference |
 | `map` | regenerate the `state/map.md` domain overview |

@@ -10,8 +10,8 @@ In the examples below, `truss` is shorthand for the full `node .truss/bin/truss.
 The CLI has **zero dependencies** and needs only Node ≥ 20.
 
 The command surface is defined once in `.truss/lib/command-meta.mjs`, which
-drives both `truss help` and the dashboard's action whitelist — so the help
-text can never drift from what is actually dispatched.
+drives `truss help` and the argument gate — so the help text can never drift
+from what is actually dispatched.
 
 ---
 
@@ -123,7 +123,7 @@ blocks in `AGENTS.md` are excluded from the merge, so `truss render` / `truss se
 stay their only writers.
 
 Whatever is left needs judgment, not mechanics: the printed prompt hands it to
-your agent via [`prompts/rituals/upgrade.md`](../prompts/rituals/upgrade.md), which also
+your agent via [`docs/rituals/upgrade.md`](rituals/upgrade.md), which also
 covers the semantic half — `doctor` names retired preference keys and their
 replacements after the swap. Full walkthrough: [upgrade.md](upgrade.md).
 
@@ -271,11 +271,9 @@ cannot silence an error, and `truss ack context` refuses to record one.
 
 The record lives in `.truss/out/context-ack.json`, gitignored like `doctor.json`:
 it is a local reading judgement, not a project fact, so it costs zero boot tokens
-and a fresh clone correctly starts unreviewed. The command is deliberately not
-available to the dashboard action executor — nothing should be able to quiet a
-budget warning without a person deciding to.
+and a fresh clone correctly starts unreviewed.
 
-The trim itself is the `cleanup` prompt (`.truss/prompts/rituals/cleanup.md`), which
+The trim itself is the `cleanup` ritual (`.truss/docs/rituals/cleanup.md`), which
 proposes dispositions and leaves execution to you.
 
 ---
@@ -294,39 +292,6 @@ tokens column stripped, so ordinary editing does not create noise).
 
 ```bash
 truss map
-```
-
----
-
-## `dashboard`
-
-Start the local web dashboard — a browser view of status, phases, decisions,
-mandatory Truss boot metadata, and drift warnings. Binds to `127.0.0.1` only.
-
-```bash
-truss dashboard
-```
-
-| Flag | Meaning |
-|---|---|
-| `--port <n>` | port to listen on (default `3741`) |
-| `--no-open` | don't open a browser automatically |
-| `--read-only` | start in read-only mode (all write endpoints disabled) |
-
-See [architecture.md §Dashboard](architecture.md#dashboard) for the security
-model.
-
----
-
-## `prompt`
-
-Manage user-created custom prompts (written to `.truss/prompts/custom/`). Mostly
-driven by the dashboard, but available directly:
-
-```bash
-truss prompt save <id> [content]   # write custom/<id>.md
-truss prompt reset <id>            # copy base/<id>.md → custom/<id>-custom.md
-truss prompt delete <id>           # remove custom/<id>.md
 ```
 
 ---

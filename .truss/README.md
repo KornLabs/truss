@@ -9,8 +9,8 @@
 
 This internal mechanism provides the CLI, automation, structure, prompts, and validation rules that power the Truss project ecosystem. It operates entirely in the background to ensure consistency and maintain project integrity.
 
-> For the contributor-facing architecture (design rules, the check model, the
-> dashboard security model, how to run the tests), see
+> For the contributor-facing architecture (design rules, the check model, how
+> to run the tests), see
 > [`docs/architecture.md`](docs/architecture.md). This file is a quick map
 > of the directory only.
 
@@ -54,7 +54,7 @@ These preferences (e.g., `auto-commit`, `subagents`, `clarify`, `scope`) dictate
 
 ### `prompts/`
 
-The prompt library. `custom/` holds user-created prompts; `archive/` the retired base prompts (pre-beta.2).
+Where your own prompts go: `custom/<id>.md`, opened by hand. See its README.
 
 ### `tests/`
 

@@ -76,7 +76,7 @@ export async function runStatus(root, argv) {
   }
 
   // Branch line — only for a configured code root with a readable checkout. The live
-  // git read lives here (and in the dashboard), keeping the doctor checks pure.
+  // git read lives here, keeping the doctor checks pure.
   const br = await branchReport(root)
   if (br.present) {
     const codeRoot = br.codeRoot || 'code-root'

@@ -13,7 +13,7 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 .truss/
 ├── bin/truss.mjs      # CLI dispatcher — argv → command handler
 ├── lib/                 # shared library
-│   ├── command-meta.mjs # the canonical command list (drives help + dashboard whitelist)
+│   ├── command-meta.mjs # the canonical command list (drives help + the argument gate)
 │   ├── workspace.mjs    # locate & load a workspace
 │   ├── scaffold.mjs     # atomic/no-overwrite whole-file primitives
 │   ├── writer.mjs       # generated-block writer
@@ -23,14 +23,13 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── severity.mjs     # E/W/I severity + family metadata
 │   ├── engine-manifest.mjs # hash + verify the engine's own files (writes and checks MANIFEST.sha256)
 │   ├── defaults.mjs     # default preference rows + behaviour text
-│   └── commands/        # init, status, map, prompt handlers
+│   └── commands/        # init, status, map, phase, skills, upgrade handlers
 ├── checks/              # one module per check family (st, bl, rf, sy, ph, cx, hy)
 ├── docs/                # product documentation (concepts, cli, architecture)
 ├── baseline/            # the pristine workspace skeleton `init` scaffolds from
 ├── phase-profiles/      # ready-made phase lists to copy over state/phases.md (not installed)
-├── prompts/             # your own prompts under custom/, engine rituals under rituals/ (see its README)
+├── prompts/             # where your own prompts go under custom/ (see its README)
 ├── prefs/               # behaviour text fragments per preference value
-├── dashboard/           # the local web dashboard (server + UI)
 ├── tests/               # the engine test suite + fixtures
 ├── VERSION              # current version string
 └── MANIFEST.sha256      # sha256 of every engine file, written at release time (D-070)
@@ -39,11 +38,10 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 ## Design rules worth knowing
 
 **1. Single source of truth for the command surface.** Every command is declared
-once in `lib/command-meta.mjs` (name, help summary, accepted flags, and whether
-the dashboard may invoke it). `truss help`, the per-command `--help` text, the
-argument gate that rejects unknown flags, and the dashboard action whitelist all
-derive from that one list, so "documented but not dispatched", "whitelisted but
-not implemented", or "accepted but undocumented" drift cannot happen.
+once in `lib/command-meta.mjs` (name, help summary, accepted flags). `truss help`,
+the per-command `--help` text, and the argument gate that rejects unknown flags
+all derive from that one list, so "documented but not dispatched" or "accepted
+but undocumented" drift cannot happen.
 
 **2. Writer ownership is explicit.** Mutation is limited to command-owned
 surfaces:
@@ -53,11 +51,9 @@ surfaces:
 - `writer.mjs` writes the **generated blocks** (the preferences and phase blocks
   in `AGENTS.md`) for `init`, `render`, `set`, and `phase`.
 - `phase` owns the `current:` update in `state/phases.md`; `map` owns
-  `state/map.md`; `prompt` owns `.truss/prompts/custom/`; doctor report modes own
-  files under `.truss/out/`.
+  `state/map.md`; doctor report modes own files under `.truss/out/`.
 
-Checks and `status` are read-only. The dashboard never writes directly; it can
-invoke only the command whitelist described below.
+Checks and `status` are read-only.
 
 ## Checks
 
@@ -85,55 +81,10 @@ restores modified files and removes files created by that run. Because
 the state grammars the `SY` checks enforce are grounded in this baseline, the
 baseline *is* the spec — keep them in sync.
 
-## Dashboard
-
-`truss dashboard` starts a small `node:http` server (`dashboard/server.mjs`)
-that serves a Preact + HTM UI with **no build step and no npm dependencies**. The
-markdown parsers reuse the core lib (`md.mjs`, `render.mjs`), so the dashboard is
-npm-free but not fully isolated from the core — changes to those helpers can
-affect it.
-
-### Security model
-
-The dashboard is a **local developer tool**; its threat model is "other local
-processes", and the constraints below are enforced accordingly:
-
-1. **Host binding.** The server binds to `127.0.0.1` only — never `0.0.0.0`.
-2. **Origin/Host check.** Every request's `Origin`/`Host` must be a local host
-   (`127.0.0.1:<port>` or `localhost:<port>`) to defeat DNS-rebinding.
-3. **Session token on writes.** Mutations (`POST /api/action`) require a
-   per-start session token (`x-truss-token`) that the server injects into the
-   HTML head. Read endpoints rely on the host/origin check, the loopback binding,
-   and the browser same-origin policy (no CORS headers) — local read access is a
-   knowingly accepted trade-off.
-4. **No direct writes — whitelist only.** The dashboard never writes files
-   itself. Mutations go through a fixed whitelist of CLI commands (`set`,
-   `doctor`, `map`, `render`, `prompt`), defined by `DASHBOARD_SAFE_COMMANDS` in
-   `command-meta.mjs`. `init` and phase changes are *never* reachable — they stay
-   human-only.
-5. **No shell.** CLI calls use `child_process.execFile` with a strict argument
-   array; never a raw shell, never unfiltered client strings on a command line.
-6. **No path traversal.** File paths are fixed or validated; paths from URL
-   parameters are rejected.
-7. **Read-only mode.** Under `--read-only`, all write endpoints are disabled.
-
-### Key endpoints
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/state` | current workspace status as JSON (no-store) |
-| `GET /api/doctor` | the doctor report (`available: true/false`) |
-| `POST /api/action` | run a whitelisted CLI command (token-guarded) |
-| `GET /api/git/*` | read-only git history (diff, log) |
-| `GET /events` | server-sent events for live updates (falls back to polling) |
-
-Arrays such as `next` and `recentlyDone` are always normalised to `[]`, and a
-missing file yields a sensible fallback rather than a 500.
-
 ## Tests
 
-The engine has its own suite under `tests/` (plus dashboard tests under
-`dashboard/tests/`), run with Node's built-in test runner. There is no root
+The engine has its own suite under `tests/`, run with Node's built-in test
+runner. There is no root
 `package.json` — run the runner from inside the engine directory:
 
 ```bash

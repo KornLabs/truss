@@ -56,7 +56,7 @@ unambiguous.
 
 **Sessions that stay on the task:** The mandatory boot set is about 3.2k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
 
-**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Every preference starts off, so your AI tool keeps its own behavior until you change one. Set what you want once (`truss set`, or the dashboard), and every future session honors it.
+**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Every preference starts off, so your AI tool keeps its own behavior until you change one. Set what you want once (`truss set`), and every future session honors it.
 
 **Support for the structure:** A small, zero-dependency CLI backs the system: it checks that the files still follow their structure, warns when state drifts or a file grows past focus, and keeps generated blocks in sync. It only reports — every warning leaves the decision to you and the agent.
 
@@ -78,7 +78,7 @@ Truss wraps your project in two ways: **drop-in:** places the workspace beside y
 
 This repo is the _source_ of the `.truss/` engine folder. Copy that one folder into a project of its own and run `init` there. Everything else here, README and docs included, you don't need.
 
-`.truss/` is **executable code**, not documentation: `init`, `doctor`, and the dashboard are Node scripts you will be running, and your agent will be running them too. The clone below is pinned to a release tag rather than `main` — `main` is the development branch and can carry unreleased changes. Read the folder before you run it, the same as any dependency.
+`.truss/` is **executable code**, not documentation: `init` and `doctor` are Node scripts you will be running, and your agent will be running them too. The clone below is pinned to a release tag rather than `main` — `main` is the development branch and can carry unreleased changes. Read the folder before you run it, the same as any dependency.
 
 Run these commands:
 
@@ -128,11 +128,9 @@ node .truss/bin/truss.mjs doctor
 ```text
   Boot prompt for your AI tool:
     "Read AGENTS.md fully, then follow §1 load order. This is a fresh project —
-      don't start anything yet. Run the project-kickoff ritual
-      (on the dashboard's Setup shelf):
-      interview me to turn my idea into VISION.md, state/profile.md and a phase plan,
-      and probe for anything missing or vague. My idea/vision: <paste your idea, your
-      role, and what you want to achieve here>."
+      don't start anything yet. Interview me to turn my idea into VISION.md,
+      state/profile.md and a phase plan, and probe for anything missing or vague.
+      My idea/vision: <paste your idea, your role, and what you want to achieve here>."
 ```
 
 If the project already has a marker-free `AGENTS.md`, `init` stops before writing anything. Review that file, then re-run with `--adopt-agents` to keep it as the preamble and append the Truss router.
@@ -173,13 +171,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 5. **The mandatory boot set stays small.** About 3.2k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
 6. **Load the smallest context that answers the task, then stop.** The routing table says where information lives; the generated `state/map.md` adds per-file token estimates. Domain knowledge loads on demand, not by default.
 7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and the read-cost check flags a boot set that has grown expensive. Truss never ages content out by the calendar: a project that rests for two weeks resumes exactly where it stopped, and relevance decides what goes, not the date.
-8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior: each is a setting in a generated block, changed through `truss set` or the dashboard, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
-
-<p align="center">
-  <img src=".github/dashboard-context-budget.png" alt="Truss dashboard — boot metadata: mandatory Truss reading and per-file breakdown" width="820">
-  <br>
-  <sub>The dashboard's reading of the mandatory boot set, file by file.</sub>
-</p>
+8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior: each is a setting in a generated block, changed through `truss set`, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
 
 ### Humans decide, scripts report
 
@@ -191,12 +183,10 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 ### Light by construction
 
 13. **Subscription-first.** Truss never calls a model. Your agent does the thinking through the plan you already pay for, which is what keeps Truss free to run and genuinely tool-agnostic.
-14. **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`, no lockfile, no build step, nothing fetched at runtime. One exception, vendored rather than installed: the dashboard renders with Preact and htm, shipped as a single 13 KB minified file (`.truss/vendor/preact-htm.mjs`). It is third-party code that runs in your browser, and being minified it is not the part you can read before trusting it — everything else is plain, unminified source you can.
+14. **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`, no lockfile, no build step, nothing fetched at runtime, and no third-party code shipped — everything under `.truss/` is plain, unminified source you can read before trusting it.
 15. **Structure grows on observed need.** Domain files are created when a topic earns one. No premade backlog, no empty folders, no per-folder index files.
-16. **The dashboard is a view, not a second truth.** It renders the same Markdown, binds to `127.0.0.1` only, and writes through a token-guarded CLI whitelist (or not at all, with `--read-only`). Nothing runs in the background.
-17. **Overlay leaves your repo alone.** Nested code keeps its own git history; a `code-root` setting draws one boundary that checks, maps, and branch status all share. Truss wraps the project, it doesn't absorb it.
-18. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Turn it off again: `truss set control-word off`.
-19. **Prompts are mandates, not method scripts.** The shipped prompt library in the dashboard (`plan`, `implement`, `critique`, `decide`, `resume`, `handover`, …) states the mandate and the result bar in a few lines and leaves the method to the agent — the house rules already live in `AGENTS.md`. Your own sit beside them: save from the dashboard or with `truss prompt save <id>`.
+16. **Overlay leaves your repo alone.** Nested code keeps its own git history; a `code-root` setting draws one boundary that checks, maps, and branch status all share. Truss wraps the project, it doesn't absorb it.
+17. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Turn it off again: `truss set control-word off`.
 
 ## How it works
 
@@ -220,23 +210,16 @@ Phases give the work a shape. A fresh workspace seeds a single `kickoff` phase; 
 
 ## Your side of the loop
 
-The CLI exists primarily for the agent. Your interface is the **dashboard**, plus a handful of commands worth knowing.
-
-`node .truss/bin/truss.mjs dashboard` starts a local control center over the same Markdown: current focus and phase, your open to-dos, decisions waiting on you, the size of the mandatory boot set (Lightweight / Growing / Heavy — a reading of the workspace structure, not your code), preference settings, the prompt library, and any drift warnings. It binds to `127.0.0.1` only and is writable through a token-guarded CLI whitelist, or read-only with `--read-only`.
-
-<p align="center">
-  <img src=".github/dashboard-overview.png" alt="Truss dashboard — Overview: current focus, phase, human to-dos, open decisions, and boot metadata at a glance" width="820">
-</p>
+The CLI exists primarily for the agent. Your interface is the files themselves: plain Markdown you can read in any editor, on GitHub, or in a pull-request diff — `state/current.md` for where the work stands, `HUMAN-TODOS.md` for what needs you, `state/open-decisions.md` for what is waiting on your call. Two commands cover the rest: `truss status` for a five-line snapshot, `truss doctor` for whether the workspace still agrees with itself.
 
 The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/docs/cli.md)):
 
 | Command | When you use it |
 | --- | --- |
 | `init` | once, to scaffold the workspace |
-| `dashboard` | to see and steer the project without opening files |
 | `doctor` | agents run it routinely; you run it when you're curious |
 | `status` | a five-line snapshot in the terminal |
-| `set <key> <value>` | change an agent preference (the dashboard can do this too) |
+| `set <key> <value>` | change an agent preference |
 | `upgrade` | when a new Truss version is out — run it from the new engine, it merges the changes into your workspace and leaves your state alone ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Documentation
@@ -247,8 +230,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | [.truss/docs/cli.md](.truss/docs/cli.md) | command reference and flags |
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | moving an existing project to a newer Truss version |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | how the engine is built (contributors) |
-| [.truss/prompts/README.md](.truss/prompts/README.md) | the prompt library |
-| [.truss/dashboard/README.md](.truss/dashboard/README.md) | the local dashboard |
+| [.truss/prompts/README.md](.truss/prompts/README.md) | where your own prompts live |
 
 ## Contributing
 

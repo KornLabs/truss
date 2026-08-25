@@ -74,7 +74,7 @@ describe('init — the §1 scaffold set', () => {
     }
   })
 
-  it('ships open-decisions.md with the entry template the dashboard parses', async () => {
+  it('ships open-decisions.md with the entry template the checks parse', async () => {
     const root = await makeRoot('truss-init-od-')
     await runInit(root, ['--name', 'Template', '--lang', 'English'])
     const od = await read(root, 'state/open-decisions.md')

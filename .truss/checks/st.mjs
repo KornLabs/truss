@@ -14,7 +14,7 @@ import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
 import { verifyEngine } from '../lib/engine-manifest.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
-// Lets consumers (--json, dashboard) enumerate ALL checks, not only fired ones.
+// Lets consumers (--json) enumerate ALL checks, not only fired ones.
 // Additive metadata only — does not affect run() or the finding shape.
 export const meta = [
   { id: 'ST-01', severity: 'E', title: 'Structure-table path missing on disk' },

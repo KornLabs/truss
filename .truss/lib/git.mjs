@@ -2,7 +2,7 @@
 //
 // The doctor checks stay pure file reads by design (see checks/sy.mjs). The
 // branch awareness for a code root lives OUTSIDE the check engine — in `truss
-// status` and the dashboard — and that is what this module powers. It only ever
+// status` — and that is what this module powers. It only ever
 // READS git state (never mutates), shells out with execFile (no shell), short
 // timeouts, and degrades gracefully so a missing git binary or a non-overlay
 // workspace without a code root is a quiet skip, never an error.
@@ -110,7 +110,7 @@ export async function declaredBranch(root) {
 
 /**
  * Compare the configured code root's checked-out branch against `branch:`.
- * The single source of truth for status + the dashboard. Never throws.
+ * The single source of truth for the status branch line. Never throws.
  * @returns {Promise<{
  *   present:boolean, info:object, declared:string|null,
  *   match:boolean, mismatch:boolean

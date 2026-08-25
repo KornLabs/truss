@@ -327,8 +327,7 @@ export async function loadWorkspace(root) {
   }
 
   // Boot-context review record (.truss/out/context-ack.json). Loaded here, not
-  // inside the check, so checks keep reading ctx rather than the filesystem —
-  // and so the dashboard can show the same baseline the doctor judges against.
+  // inside the check, so checks keep reading ctx rather than the filesystem.
   // null = never reviewed, which is the conservative default.
   const contextAck = await readContextAck(root);
 
