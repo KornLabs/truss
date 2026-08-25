@@ -31,6 +31,7 @@ truss init --name "My Project" --lang English
 | `--name <name>` | project name (used in `profile.md`, VISION/README titles); skips the interactive prompt |
 | `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
 | `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore`. `init` never places the code itself — clone or symlink it into `repo/` yourself |
+| `--no-phases` | scaffold without `state/phases.md`. The workspace then runs with no phase model at all: no gates, no `forbidden` lists, no exit criteria, and the `AGENTS.md` phase block carries a one-line notice instead. The default stays *with* phases — gates are the one place Truss can refuse. Reversible in both directions: add `state/phases.md` and run `render` to switch phases on, delete it and run `render` to switch them off. init refuses rather than deleting an existing `state/phases.md` |
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
@@ -182,6 +183,13 @@ sanctioned writer of that block; editing it by hand is a `BL` error.
 truss render
 ```
 
+Without `state/phases.md` the command is not an error: the workspace has no phase
+model, so `render` writes the one-line no-phases notice into the block and exits
+`0`. Run it after deleting the file — until you do, `BL-02` reports the block that
+still promises gates the workspace no longer has. A `state/phases.md` that exists
+but cannot be read is a different case and stays fatal (exit `2`, block untouched):
+absent is not the same as broken.
+
 ---
 
 ## `phase`
@@ -198,6 +206,9 @@ truss phase            # list phases, show the current one
 truss phase operate                    # switch only when the exit gate is clear
 truss phase operate --override-gate    # explicit human confirmation/override
 ```
+
+In a workspace without `state/phases.md` the command reports that there is no
+phase model, sets the block to the no-phases notice, and exits `0`.
 
 Phase changes stay **human-only** by protocol (AGENTS.md §4). The CLI cannot
 authenticate the caller, but it refuses unmet machine or human gate results

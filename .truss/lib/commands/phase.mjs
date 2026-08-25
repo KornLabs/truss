@@ -18,7 +18,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parsePhases } from '../md.mjs'
-import { renderPhaseBlock } from '../render.mjs'
+import { renderPhaseBlock, renderNoPhasesBlock } from '../render.mjs'
 import { writeBlock } from '../writer.mjs'
 import { loadWorkspace } from '../workspace.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
@@ -57,7 +57,35 @@ export async function runPhase(root, argv) {
 
   let raw
   try { raw = await fs.readFile(phasesPath, 'utf8') }
-  catch { throw new PhaseError(`phase: state/phases.md not found at ${phasesPath} — is this a workspace?`) }
+  catch (readErr) {
+    // Absent is not broken (U4) — but "there and unreadable" IS broken, and the
+    // read error is the only place that still knows which one happened. Only
+    // ENOENT means the workspace deliberately has no phase model; anything else
+    // (permissions, a directory, an I/O error) stays fatal, so a chmod can never
+    // quietly convert a gated workspace into an ungated one.
+    if (readErr?.code !== 'ENOENT') {
+      throw new PhaseError(`phase: state/phases.md exists but could not be read (${readErr.code ?? readErr.message}) — fix it, or remove it to run without a phase model.`)
+    }
+    // A workspace without state/phases.md runs without a phase model.
+    // Report it and exit clean instead of failing —
+    // and converge the AGENTS.md block on the same canonical notice `render`
+    // writes, so the boot file never advertises gates that do not exist.
+    // The text lives once in lib/render.mjs; a second copy here would drift
+    // and produce the BL-02 error this path exists to avoid.
+    let blockNote = ''
+    try {
+      await writeBlock(path.join(root, 'AGENTS.md'), 'phase', renderNoPhasesBlock())
+    } catch (err) {
+      blockNote = `\n  Note: the AGENTS.md phase block could not be updated (${err.message}).`
+    }
+    console.log(
+      'truss phase: no state/phases.md — this workspace runs without a phase model.\n' +
+      '  No gates, no forbidden lists, no exit criteria. To enable phases, add\n' +
+      '  state/phases.md (e.g. from .truss/phase-profiles/) and run `truss render`.' +
+      blockNote
+    )
+    return { noPhases: true }
+  }
 
   const { ordered, defs, frontmatter } = parsePhases(raw.split('\n'))
   const currentId = frontmatter?.current

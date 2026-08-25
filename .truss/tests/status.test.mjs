@@ -75,3 +75,37 @@ test('status marks an open decision that challenges a recorded one', async () =>
     assert.match(await captureStatus(root), /challenges D-001/)
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
+
+// U4: absent and unreadable must not collapse into the same green output. A
+// chmod'd phases.md reaches ctx.files as "not there" — without the explicit
+// on-disk check, `status` would report a clean phase-less workspace over a full
+// phase model, which is exactly the green-over-broken hole F-04 closed.
+test('status stays silent about phases when the file is genuinely absent', async () => {
+  const root = await makeRoot('truss-status-nophases-')
+  try {
+    await runInit(root, ['--name', 'Flat', '--lang', 'English'])
+    await fs.rm(path.join(root, 'state', 'phases.md'))
+    const out = await captureStatus(root)
+    assert.doesNotMatch(out, /Phase:/)
+    assert.doesNotMatch(out, /could not be read/)
+    assert.notEqual(process.exitCode, 1, 'an absent phases.md is a supported setup, not a defect')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('status flags a present-but-unreadable phases.md instead of reporting green', async () => {
+  const root = await makeRoot('truss-status-unreadable-')
+  try {
+    await runInit(root, ['--name', 'Locked', '--lang', 'English'])
+    const target = path.join(root, 'state', 'phases.md')
+    await fs.chmod(target, 0o000)
+    try {
+      const out = await captureStatus(root)
+      assert.doesNotMatch(out, /Phase:/)
+      assert.match(out, /state\/phases\.md exists but could not be read/)
+      // Same contract as F-04: visible note AND a non-zero exit, so a CI step
+      // that only runs `status` cannot pass over it.
+      assert.equal(process.exitCode, 1)
+      process.exitCode = 0
+    } finally { await fs.chmod(target, 0o644) }
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})

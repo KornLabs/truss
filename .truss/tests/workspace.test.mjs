@@ -20,7 +20,7 @@ import {
 
 import { parseStructureTable, loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
 import {
-  parseExitItems, globToRegex, renderPhaseBlock,
+  parseExitItems, globToRegex, renderPhaseBlock, renderNoPhasesBlock,
   renderPrefsBlock, parsePrefsRows, endSentence,
 } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
@@ -28,6 +28,13 @@ import * as st from '../checks/st.mjs'
 import * as bl from '../checks/bl.mjs'
 import * as rf from '../checks/rf.mjs'
 import * as ph from '../checks/ph.mjs'
+
+// Synthetic ctx objects stand in for a workspace that HAS state/phases.md.
+// lib/workspace.mjs attaches `stat` only when the file was actually read, and
+// since U4 that flag is the absent/present line: without it PH and BL-02 treat
+// the workspace as running with no phase model. Hand-built fixtures must say
+// which side of that line they are on.
+const PRESENT = { size: 10 }
 
 const execFileP = promisify(execFile)
 
@@ -556,7 +563,7 @@ describe('PH-01: phases.md grammar', async () => {
     const ctx = {
       root: FIXTURE,
       gate: false,
-      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     assert(findings.some(f => f.id === 'PH-01' && f.message.includes("unknown key 'super-secret'")))
@@ -567,7 +574,7 @@ describe('PH-01: phases.md grammar', async () => {
     const ctx = {
       root: FIXTURE,
       gate: false,
-      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     assert(findings.some(f => f.id === 'PH-01' && f.message.includes("required key 'behavior'")))
@@ -580,7 +587,7 @@ describe('PH-01: phases.md grammar', async () => {
     const ctx = {
       root: FIXTURE,
       gate: false,
-      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     assert(findings.some(f => f.id === 'PH-01' && f.message.includes('exit item not recognized')))
@@ -592,7 +599,12 @@ describe('PH-02: current pointer valid', async () => {
     const ctx = {
       root: FIXTURE,
       gate: false,
-      phases: { ordered: [], defs: new Map(), frontmatter: {} },
+      phases: {
+        ordered: ['discover'],
+        defs: new Map([['discover', { purpose: 'p.', behavior: 'b.', exit: 'done (human)' }]]),
+        frontmatter: {},
+        stat: PRESENT,
+      },
     }
     const findings = await ph.run(ctx)
     assert(findings.some(f => f.id === 'PH-02' && f.message.includes("missing 'current:'")))
@@ -606,6 +618,7 @@ describe('PH-02: current pointer valid', async () => {
         ordered: ['discover'],
         defs: new Map([['discover', { purpose: 'p.', behavior: 'b.', exit: 'done (human)' }]]),
         frontmatter: { current: 'build' },
+        stat: PRESENT,
       },
     }
     const findings = await ph.run(ctx)
@@ -815,7 +828,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: false,
-      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     const ph06 = findings.filter(f => f.id === 'PH-06')
@@ -829,7 +842,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: false,
-      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     assert.equal(findings.filter(f => f.id === 'PH-06').length, 0, 'glob must stay gate-only')
@@ -849,7 +862,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: true,
-      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     assert.equal(findings.filter(f => f.id === 'PH-06').length, 0, 'PH-06 should skip current phase under gate')
@@ -862,7 +875,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: true,
-      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     assert.equal(findings.filter(f => f.id === 'PH-04' && f.severity === 'E').length, 0,
@@ -879,7 +892,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: false,
-      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'plan' } },
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'plan' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     const ph06 = findings.filter(f => f.id === 'PH-06')
@@ -895,7 +908,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: false,
-      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     const ph06 = findings.filter(f => f.id === 'PH-06')
@@ -912,7 +925,7 @@ describe('PH-06: static exit-target validation (A5)', () => {
     ])
     const ctx = {
       root: FIXTURE, gate: false,
-      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' } },
+      phases: { ordered: ['discover', 'plan'], defs, frontmatter: { current: 'discover' }, stat: PRESENT },
     }
     const findings = await ph.run(ctx)
     const ph06 = findings.filter(f => f.id === 'PH-06')
@@ -938,7 +951,7 @@ describe('BL-02: phase block drift (T1)', () => {
   const ordered = ['discover']
   const defs = new Map([['discover', phaseDef]])
   const frontmatter = { current: 'discover' }
-  const phases = { ordered, defs, frontmatter }
+  const phases = { ordered, defs, frontmatter, stat: PRESENT }
 
   const buildCtx = (innerLines) => ({
     phases,
@@ -968,6 +981,37 @@ describe('BL-02: phase block drift (T1)', () => {
   })
 })
 
+// ── U4: BL-02 with no phase model ────────────────────────────────────────────
+
+describe('BL-02: no state/phases.md (U4)', () => {
+  const absent = { ordered: [], defs: new Map(), frontmatter: {} }  // no stat = not read
+  const ctxWith = (innerLines) => ({
+    phases: absent,
+    blocks: new Map([['phase', { startLine: 1, endLine: 99, innerLines }]]),
+    files: new Map(),
+  })
+
+  it('accepts exactly the canonical notice render writes', async () => {
+    const findings = await bl.run(ctxWith(renderNoPhasesBlock()))
+    assert.deepEqual(findings.filter(f => f.id === 'BL-02'), [],
+      'render and BL-02 must agree, or every no-phases workspace goes red')
+  })
+
+  it('fires when the block still advertises a phase model', async () => {
+    const stale = renderPhaseBlock(
+      { purpose: 'p.', behavior: 'b.', exit: 'done (human)' }, 'discover', 1, 1, '2026-06-13T10:00',
+    )
+    const findings = await bl.run(ctxWith(stale))
+    assert(findings.some(f => f.id === 'BL-02' && /could not be read/.test(f.message)),
+      'a block promising gates the workspace does not have must not pass silently')
+  })
+
+  it('is not fooled by surrounding blank lines', async () => {
+    const findings = await bl.run(ctxWith(['', ...renderNoPhasesBlock(), '']))
+    assert.deepEqual(findings.filter(f => f.id === 'BL-02'), [])
+  })
+})
+
 // ── T3: checks fire correctly (PH-03, ST-02/03/05) ───────────────────────────
 
 describe('PH-03: forbidden-glob hit fires (T3)', () => {
@@ -986,7 +1030,7 @@ describe('PH-03: forbidden-glob hit fires (T3)', () => {
     }]])
     const ctx = {
       root: tmp, gate: false,
-      phases: { ordered: ['build'], defs, frontmatter: { current: 'build' } },
+      phases: { ordered: ['build'], defs, frontmatter: { current: 'build' }, stat: PRESENT },
     }
     const cleanFindings = await ph.run(ctx)
     assert.equal(cleanFindings.filter(f => f.id === 'PH-03').length, 0,

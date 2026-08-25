@@ -87,6 +87,29 @@ export function renderPhaseBlock(phaseDef, phaseId, position, total, ts) {
   return lines
 }
 
+/**
+ * The canonical phase-block content for a workspace WITHOUT `state/phases.md`.
+ *
+ * Absent is not broken (U4): a workspace may legitimately run with no phase
+ * model, and then the generated block must say so instead of advertising gates
+ * that do not exist. Three places need this exact text — `truss render`,
+ * `truss phase`, and the BL-02 drift comparison — so it is defined once here.
+ * Three copies would drift apart and produce the very BL-02 error this design
+ * is meant to prevent.
+ *
+ * English regardless of `--lang`, like the boot prompt in init.mjs: the block
+ * is part of the canonical skeleton, not of the project's own prose.
+ *
+ * @returns {string[]} lines to place between the phase block markers
+ */
+export function renderNoPhasesBlock() {
+  return [NO_PHASES_NOTICE]
+}
+
+export const NO_PHASES_NOTICE =
+  '> No phases configured. This workspace runs without a phase model: no gates, ' +
+  'no forbidden lists, no exit criteria. Add `state/phases.md` and run `truss render` to enable them.'
+
 // Enforcement-priority groups for the agent-optimized directives block.
 // HARD rules render first. Keys not listed here fall into a trailing "OTHER"
 // group so unknown/extra rows still render (keeps `set` robust). Adding a new

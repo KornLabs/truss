@@ -5,7 +5,8 @@ import assert from 'node:assert/strict'
 
 import { runInit, parseInitArgs, stripFindings, InitError } from '../lib/commands/init.mjs'
 import { parsePhases, parseBlocks } from '../lib/md.mjs'
-import { makeRoot, runChecks, errorsOf, read } from './helpers.mjs'
+import { renderNoPhasesBlock } from '../lib/render.mjs'
+import { makeRoot, runChecks, errorsOf, exists, read } from './helpers.mjs'
 
 async function phaseBlockOf(root) {
   const blocks = parseBlocks((await read(root, 'AGENTS.md')).split('\n'))
@@ -15,9 +16,9 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
+      { name: 'A', lang: 'English', overlay: false, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
+      { name: 'A B', lang: null, overlay: true, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
   })
   it('rejects the retired --repo flag (D-059 — init never places the code)', () => {
     assert.throws(() => parseInitArgs(['--overlay', '--repo', '/p/code']), InitError)
@@ -211,6 +212,40 @@ describe('init --findings', () => {
     ]) {
       assert.throws(() => stripFindings(drifted), InitError)
     }
+  })
+})
+
+describe('init --no-phases (U4)', () => {
+  it('scaffolds no state/phases.md, writes the notice block, and stays clean', async () => {
+    const root = await makeRoot('truss-init-nophases-')
+    const res = await runInit(root, ['--name', 'NP', '--lang', 'English', '--no-phases'])
+
+    assert.equal(await exists(root, 'state/phases.md'), false, 'the file must not be scaffolded')
+    assert.match(res.currentPhase, /none/, 'the report must not claim a current phase')
+    assert.equal(await phaseBlockOf(root), renderNoPhasesBlock().join('\n'),
+      'the phase block must carry exactly the canonical notice')
+    // The whole point: no findings at all — not a suppressed error, silence.
+    assert.deepEqual(await runChecks(root), [],
+      'a workspace without a phase model must be completely silent')
+  })
+
+  it('leaves the default alone — init without the flag still installs phases (E8)', async () => {
+    const root = await makeRoot('truss-init-phases-default-')
+    await runInit(root, ['--name', 'DP', '--lang', 'English'])
+
+    assert.equal(await exists(root, 'state/phases.md'), true)
+    assert.match(await phaseBlockOf(root), /^> Rendered \d{4}-\d{2}-\d{2}T\d{2}:\d{2} from `state\/phases\.md`/)
+    assert.equal(errorsOf(await runChecks(root)).length, 0)
+  })
+
+  it('refuses rather than deleting an existing phases.md', async () => {
+    const root = await makeRoot('truss-init-nophases-conflict-')
+    await runInit(root, ['--name', 'C', '--lang', 'English'])
+    await assert.rejects(
+      runInit(root, ['--name', 'C', '--lang', 'English', '--no-phases']),
+      /state\/phases\.md already exists|already/,
+    )
+    assert.equal(await exists(root, 'state/phases.md'), true, 'the existing file must survive')
   })
 })
 

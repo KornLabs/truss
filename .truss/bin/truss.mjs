@@ -22,7 +22,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
-import { renderPhaseBlock, renderPrefsBlock, parsePrefsRows } from '../lib/render.mjs'
+import { renderPhaseBlock, renderNoPhasesBlock, renderPrefsBlock, parsePrefsRows } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
 import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
@@ -205,6 +205,7 @@ Init flags:
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
   --code-root <dir> select one existing in-workspace code root (overlay only)
   --skills <groups> none (default), all, or comma-separated baseline groups
+  --no-phases       scaffold without state/phases.md (no gates, no exit criteria)
 
 Doctor flags:
   --gate        also run PH-04 phase-exit checks
@@ -538,9 +539,37 @@ async function runRender() {
   }
 
   const { phases } = ctx
-  if (!phases) {
-    console.error('truss render: state/phases.md missing or unparseable')
-    process.exit(2)
+
+  // Absent is not broken (U4): no state/phases.md means the workspace runs
+  // without a phase model. That is a supported configuration, so render writes
+  // the canonical notice and exits clean instead of failing.
+  //
+  // `phases.stat` is attached by lib/workspace.mjs only when the file was
+  // actually READ, so it does not by itself separate "deleted" from "there but
+  // unreadable". Render WRITES, so the difference matters most here: silently
+  // replacing a live phase block with the no-phases notice because of a
+  // permissions glitch would strip a workspace of its gates and still exit 0.
+  // Stat the path to tell the two apart; a present-but-unreadable file keeps
+  // the old fatal path and the block is left untouched. A file that is readable
+  // but empty or malformed never reaches here — it falls through below, and
+  // PH-05 flags it.
+  if (!phases.stat) {
+    let phasesPresent = false
+    try { await fs.stat(path.join(root, 'state', 'phases.md')); phasesPresent = true } catch {}
+    if (phasesPresent) {
+      console.error('truss render: state/phases.md exists but could not be read — the phase block was left unchanged.')
+      console.error('  Make it a readable UTF-8 file, or remove it to run this workspace without a phase model.')
+      process.exit(2)
+    }
+    try {
+      await writeBlock(agentsMdPath, 'phase', renderNoPhasesBlock())
+    } catch (err) {
+      console.error(`truss render: failed to write block — ${err.message}`)
+      process.exit(2)
+    }
+    console.log('truss render: no state/phases.md — phase block set to the no-phases notice.')
+    console.log('  Add state/phases.md (e.g. from .truss/phase-profiles/) and re-run to enable phases.')
+    return
   }
 
   const { ordered, defs, frontmatter } = phases

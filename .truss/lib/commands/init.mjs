@@ -10,6 +10,12 @@
 //   --overlay       → existing-project mode (phases ingest→operate, .gitignore +repo/)
 //   --code-root <dir> → (overlay only) use an existing relative directory instead
 //                       of repo/; no placement or .gitignore mutation.
+//   --no-phases     → scaffold WITHOUT state/phases.md (U4). The workspace then
+//                     runs with no phase model: no gates, no forbidden lists, no
+//                     exit criteria, and the AGENTS.md phase block carries the
+//                     canonical notice instead. Opt-in only — the default stays
+//                     "with phases", because gates are the one place Truss can
+//                     say no.
 //
 // init never places the code itself (D-059): the workspace gitignores repo/, and
 // the human clones or symlinks into it — one documented git command instead of a
@@ -54,7 +60,7 @@ import {
   writeFileSafe,
 } from "../scaffold.mjs";
 import { writeBlock } from "../writer.mjs";
-import { renderPrefsBlock, renderPhaseBlock } from "../render.mjs";
+import { renderPrefsBlock, renderPhaseBlock, renderNoPhasesBlock } from "../render.mjs";
 import { parsePhases, parseBlocks } from "../md.mjs";
 import { defaultPrefsRows } from "../defaults.mjs";
 import { generateMapContent } from "./map.mjs";
@@ -95,6 +101,7 @@ export function parseInitArgs(argv) {
     name: null,
     lang: null,
     overlay: false,
+    noPhases: false,
     codeRoot: null,
     adoptAgents: false,
     root: null,
@@ -114,6 +121,7 @@ export function parseInitArgs(argv) {
       return v;
     };
     if (a === "--overlay") opts.overlay = true;
+    else if (a === "--no-phases") opts.noPhases = true;
     else if (a === "--adopt-agents") opts.adoptAgents = true;
     else if (a === "--name") opts.name = value("--name");
     else if (a === "--lang") opts.lang = value("--lang");
@@ -133,7 +141,7 @@ export function parseInitArgs(argv) {
     else if (a.startsWith("--skills=")) opts.skills = a.slice("--skills=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --code-root --adopt-agents --root --skills --findings`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --no-phases --code-root --adopt-agents --root --skills --findings`,
       );
   }
   if (opts.codeRoot && !opts.overlay) {
@@ -438,6 +446,11 @@ export async function runInit(root, argv, invokedCwd = null) {
     throw err;
   }
   const skillExcludes = buildExcludes(groups, selectedGroups);
+  // --no-phases (U4): the baseline ships its own state/phases.md, so it must be
+  // excluded from the tree copy as well — otherwise applyTree would write back
+  // the very file this flag is about not having.
+  const treeExcludes = new Set(skillExcludes);
+  if (opts.noPhases) treeExcludes.add("state/phases.md");
   const skillSelection = selectionContent(groups, selectedGroups);
   if (opts.codeRoot) {
     try { await assertExistingCodeRoot(root, opts.codeRoot); }
@@ -449,21 +462,29 @@ export async function runInit(root, argv, invokedCwd = null) {
   const codeRoot = opts.overlay ? (opts.codeRoot || "repo") : null;
 
   // Resolve and validate every prerequisite before the first workspace write.
-  const phasesContent = await resolvePhasesContent(
-    baselineDir,
-    opts.overlay,
-    codeRoot,
-  );
-  const parsed = parsePhases(phasesContent.split("\n"));
-  const currentId = parsed.frontmatter.current;
-  const def = parsed.defs.get(currentId);
-  if (!def) {
+  const phasesContent = opts.noPhases
+    ? null
+    : await resolvePhasesContent(baselineDir, opts.overlay, codeRoot);
+  const parsed = phasesContent === null
+    ? null
+    : parsePhases(phasesContent.split("\n"));
+  const currentId = parsed ? parsed.frontmatter.current : null;
+  if (parsed && !parsed.defs.get(currentId)) {
     throw new InitError(
       `init: resolved phases.md has no current phase '${currentId}'`,
     );
   }
+  const def = parsed ? parsed.defs.get(currentId) : null;
   const existingPhases = await readMaybe(path.join(root, "state", "phases.md"));
-  if (existingPhases != null && existingPhases !== phasesContent) {
+  if (opts.noPhases) {
+    // Refusing here rather than deleting: init never removes existing work.
+    if (existingPhases != null) {
+      throw new InitError(
+        "init: --no-phases, but state/phases.md already exists; no files were changed.\n" +
+        "       Move it aside first, or re-run without --no-phases.",
+      );
+    }
+  } else if (existingPhases != null && existingPhases !== phasesContent) {
     throw new InitError(
       "init: existing state/phases.md conflicts with the selected baseline; no files were changed.\n" +
       "       Move it aside or reconcile it before retrying.",
@@ -485,7 +506,7 @@ export async function runInit(root, argv, invokedCwd = null) {
       `| ${codeRoot}/ (on demand) |`,
     );
   }
-  const inventory = await inventoryTree(baselineDir, root, { exclude: skillExcludes });
+  const inventory = await inventoryTree(baselineDir, root, { exclude: treeExcludes });
   const mapPath = path.join(root, "state", "map.md");
   try {
     const mapStat = await fs.lstat(mapPath);
@@ -511,8 +532,14 @@ export async function runInit(root, argv, invokedCwd = null) {
     throw new InitError(`init: preference render preflight failed: ${err.message}; no files were changed.`);
   }
   const prefsBlock = renderPrefsBlock(defaultRows);
-  const pos = parsed.ordered.indexOf(currentId) + 1;
-  const phaseBlock = renderPhaseBlock(def, currentId, pos, parsed.ordered.length);
+  const phaseBlock = opts.noPhases
+    ? renderNoPhasesBlock()
+    : renderPhaseBlock(
+        def,
+        currentId,
+        parsed.ordered.indexOf(currentId) + 1,
+        parsed.ordered.length,
+      );
 
   // Pre-write resolved/substituted files BEFORE applyTree, so the no-overwrite
   //    guard does not clobber them and we control their content. A pre-write target
@@ -575,7 +602,7 @@ export async function runInit(root, argv, invokedCwd = null) {
 
   try {
     if (skillSelection !== null) await prewrite(SKILL_SELECTION_REL, skillSelection);
-    await prewrite("state/phases.md", phasesContent);
+    if (!opts.noPhases) await prewrite("state/phases.md", phasesContent);
     if (!opts.findings) {
       const convRaw = await fs.readFile(
         path.join(baselineDir, "docs", "conventions.md"),
@@ -620,7 +647,7 @@ export async function runInit(root, argv, invokedCwd = null) {
       }
     }
 
-    baseRes = await applyTree(baselineDir, root, { exclude: skillExcludes });
+    baseRes = await applyTree(baselineDir, root, { exclude: treeExcludes });
     created.push(...baseRes.written);
     if (baseRes.errors.length > 0) {
       const first = baseRes.errors[0];
@@ -694,7 +721,7 @@ export async function runInit(root, argv, invokedCwd = null) {
     codeRootReady,
     skills: [...selectedGroups],
     findings: opts.findings ? "on" : "off",
-    currentPhase: currentId,
+    currentPhase: currentId ?? "(none — no phase model)",
     baselineWritten: baseRes.written.length,
     conflicts,
     errors: [],
