@@ -17,7 +17,7 @@
 
 [![CI](https://github.com/KornLabs/truss/actions/workflows/ci.yml/badge.svg)](https://github.com/KornLabs/truss/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org) ![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
 
-> Dies ist die deutsche Übersetzung der [englischen README](README.md) (Stand: `1.0.0-beta.3`). Bei Abweichungen ist die englische Version maßgeblich.
+> Dies ist die deutsche Übersetzung der [englischen README](README.md) (Stand: `1.0.0-beta.4`). Bei Abweichungen ist die englische Version maßgeblich.
 
 > Ein Truss (Fachwerkträger) ist ein leichtes Gerüst aus Streben, das die Last einer Struktur trägt und ihre Form hält, ohne selbst das Gebäude zu sein. Truss tut dasselbe für ein Projekt, das mit KI-Agenten gebaut wird: ein dünner Rahmen, auf dem deine Arbeit ruht — nie ihr Ersatz.
 
@@ -90,7 +90,7 @@ Führe folgende Befehle aus:
 # In einem leeren oder bestehenden Projektverzeichnis:
 
 # 1. Engine hineinlegen — nur den .truss/-Ordner, sonst nichts.
-git clone --depth 1 --branch v1.0.0-beta.3 https://github.com/KornLabs/truss.git /tmp/truss
+git clone --depth 1 --branch v1.0.0-beta.4 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 
 # 2. Frischen Workspace neben der Engine scaffolden.
@@ -109,7 +109,7 @@ node .truss/bin/truss.mjs doctor
 # In einem leeren oder bestehenden Projektverzeichnis:
 
 # 1. Engine hineinlegen.
-git clone --depth 1 --branch v1.0.0-beta.3 https://github.com/KornLabs/truss.git $env:TEMP\truss
+git clone --depth 1 --branch v1.0.0-beta.4 https://github.com/KornLabs/truss.git $env:TEMP\truss
 Copy-Item -Recurse $env:TEMP\truss\.truss .\.truss
 Remove-Item -Recurse -Force $env:TEMP\truss
 
@@ -240,7 +240,7 @@ Issues und Pull Requests sind willkommen. Halte die **Null-Abhängigkeiten**-Reg
 
 ## Status
 
-`1.0.0-beta.3` — Alpha, und die Versionsnummer ist der ehrliche Teil.
+`1.0.0-beta.4` — Alpha, und die Versionsnummer ist der ehrliche Teil.
 
 Belegt ist: Die Engine hat eine Test-Suite, die bei jedem Push grün in der CI läuft, und Truss ist auf genau einem Projekt im täglichen Einsatz — seiner eigenen Entwicklung. Das ist echte Nutzung, und es ist ein einzelner Datenpunkt.
 
