@@ -3,7 +3,12 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
-import { branchReport } from '../git.mjs'
+import { branchReport, recentCommits } from '../git.mjs'
+
+const RECENT_COMMITS_MAX = 5
+// Same 60-char cutoff other status-adjacent messages use (checks/sy.mjs,
+// checks/ph.mjs) before appending '…' — keeps one line per commit.
+const RECENT_SUBJECT_MAX = 60
 
 export async function runStatus(root, argv) {
   let ctx
@@ -57,7 +62,7 @@ export async function runStatus(root, argv) {
   console.log(`\n${boldPrefix}${projectName}${boldSuffix} — truss status\n`)
   // Temporal anchor (D-010): status is the canonical session-start command, and
   // agents have no reliable clock — a current local timestamp lets them judge
-  // the age of dates in state files (updated:, Opened:, recently-done).
+  // the age of dates in state files (updated:, Opened:, Date:).
   const now = new Date()
   const pad = (n) => String(n).padStart(2, '0')
   console.log(`  Date:    ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} (local)`)
@@ -112,6 +117,22 @@ export async function runStatus(root, argv) {
       line = `${br.info.branch} (no 'branch:' declared in current.md)`
     }
     console.log(`  Branch:  ${line}`)
+  }
+
+  // Recent commits — the workspace repo's own git log (not the code root),
+  // replacing the hand-maintained `recently-done:` list current.md used to
+  // carry (U6/D-074/D-077): git already has this, current and without upkeep.
+  // Silent on any of: no git repo here, no commits yet, git disabled
+  // (TRUSS_NO_GIT), or no git binary in PATH — never fails or changes exit.
+  const recent = await recentCommits(root, RECENT_COMMITS_MAX)
+  if (recent.ok && recent.commits.length > 0) {
+    for (const [i, c] of recent.commits.entries()) {
+      const label = i === 0 ? '  Recent: ' : '          '
+      const subject = c.subject.length > RECENT_SUBJECT_MAX
+        ? c.subject.slice(0, RECENT_SUBJECT_MAX - 3) + '…'
+        : c.subject
+      console.log(`${label} ${c.sha} ${subject}`)
+    }
   }
 
   // Open decisions — questions parked on the human's desk. status is the canonical

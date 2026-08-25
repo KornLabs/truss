@@ -1,4 +1,5 @@
-// lib/git.mjs — read-only git helpers for the configured code root.
+// lib/git.mjs — read-only git helpers for the configured code root, and for
+// the workspace's own repo (recentCommits).
 //
 // The doctor checks stay pure file reads by design (see checks/sy.mjs). The
 // branch awareness for a code root lives OUTSIDE the check engine — in `truss
@@ -6,6 +7,10 @@
 // READS git state (never mutates), shells out with execFile (no shell), short
 // timeouts, and degrades gracefully so a missing git binary or a non-overlay
 // workspace without a code root is a quiet skip, never an error.
+//
+// recentCommits reads the WORKSPACE repo, not the code root (U6/D-074: `git
+// log` replaces the hand-maintained `recently-done:` list in current.md — see
+// checks/sy.mjs and lib/commands/status.mjs). Same never-throws contract.
 //
 // The configured directory may be a clone, a symlink, or a tracked submodule.
 
@@ -46,6 +51,34 @@ export async function repoBranchInfo(repoDir) {
     return { ok: true, branch: null, detached: true, sha: stdout.trim() || null, reason: null }
   } catch (err) {
     if (err?.code === 'ENOENT') return off('no-git-binary')
+    return off('error')
+  }
+}
+
+/**
+ * The last `limit` commits at `repoDir`, newest first — short sha + one-line
+ * subject. Never throws: no checkout, an empty repo (no commits yet), a
+ * disabled read (TRUSS_NO_GIT), or a missing git binary all resolve to
+ * `ok: false` so the caller (truss status) can skip the section in silence.
+ * @returns {Promise<{ok:boolean, commits:Array<{sha:string, subject:string}>, reason:string|null}>}
+ */
+export async function recentCommits(repoDir, limit = 5) {
+  const off = (reason) => ({ ok: false, commits: [], reason })
+  if (process.env.TRUSS_NO_GIT) return off('disabled')
+  if (!await isGitCheckout(repoDir)) return off('not-a-checkout')
+  try {
+    const { stdout } = await execFileP(
+      'git', ['-C', repoDir, 'log', '-n', String(limit), '--pretty=format:%h %s'],
+      { timeout: 5000, maxBuffer: 1 << 20 },
+    )
+    const commits = stdout.split('\n').filter(Boolean).map(line => {
+      const sp = line.indexOf(' ')
+      return sp === -1 ? { sha: line, subject: '' } : { sha: line.slice(0, sp), subject: line.slice(sp + 1) }
+    })
+    return { ok: true, commits, reason: null }
+  } catch (err) {
+    if (err?.code === 'ENOENT') return off('no-git-binary')
+    // Also covers the empty-repo case: `git log` errors out with no commits yet.
     return off('error')
   }
 }

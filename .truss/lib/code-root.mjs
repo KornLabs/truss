@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 const RESERVED_TOP_LEVEL = new Set([
-  '.git', '.truss', 'archive', 'context', 'docs', 'pm', 'skills', 'state',
+  '.git', '.truss', 'archive', 'context', 'docs', 'skills', 'state',
 ])
 
 export class CodeRootError extends Error {}

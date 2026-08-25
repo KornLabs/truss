@@ -13,6 +13,7 @@ import * as sy from '../checks/sy.mjs'
 import * as cx from '../checks/cx.mjs'
 import * as ph from '../checks/ph.mjs'
 import * as rf from '../checks/rf.mjs'
+import * as st from '../checks/st.mjs'
 import { loadWorkspace } from '../lib/workspace.mjs'
 import { parseIdDefinitions } from '../lib/md.mjs'
 import { makeRoot, read, runChecks, ENGINE_DIR } from './helpers.mjs'
@@ -57,6 +58,16 @@ describe('SY-01 current.md', () => {
     assert.equal(ids(f, 'SY-01').length, 1)
     assert.match(ids(f, 'SY-01')[0].message, /blockers/)
   })
+  it('is clean without recently-done: — retired from the requirement (U6/D-074/D-077)', async () => {
+    const withoutRecentlyDone = cleanCurrent().replace(/recently-done:\n(\s+- built checks\n)?/, '')
+    assert.doesNotMatch(withoutRecentlyDone, /recently-done/)
+    const f = await sy.run(ctxOf({ 'state/current.md': file(withoutRecentlyDone) }))
+    assert.equal(ids(f, 'SY-01').length, 0, JSON.stringify(ids(f, 'SY-01')))
+  })
+  // A pre-existing recently-done: (the previous baseline still wrote it) must
+  // not turn green into a finding either — same "is clean for a complete,
+  // fresh current.md" case above already proves this, since cleanCurrent()
+  // carries a recently-done: block and asserts zero SY-01 findings.
 })
 
 // ── SY-03 ────────────────────────────────────────────────────────────────────
@@ -449,6 +460,10 @@ describe('risk migration bridge', () => {
       for (const [name, seed] of [
         ['core', path.join('baseline', 'state', 'phases.md')],
         ['overlay', path.join('baseline', 'overlay', 'phases.md')],
+        // The one phase profile the engine ships (phase-profiles/README.md):
+        // its forbidden-globs used to read 'repo/**; pm/**' — pm/ retired
+        // (U6/D-074), so it must parse just as clean with only 'repo/**' left.
+        ['founders-thinking', path.join('phase-profiles', 'founders-thinking.md')],
       ]) {
         const root = await makeRoot(`truss-seed-${name}-`)
         await runInit(root, ['--name', name, '--lang', 'English'])
@@ -639,6 +654,18 @@ describe('doctor exit codes (CLI)', () => {
     await fs.rm(root, { recursive: true, force: true })
   })
 
+  it('exits 0 on an instance with a leftover pm/ — retired path is I, not W (U6/D-074/D-081)', async () => {
+    const root = await makeRoot('truss-exit-pm-')
+    await runInit(root, ['--name', 'Exit', '--lang', 'English'])
+    await fs.mkdir(path.join(root, 'pm'), { recursive: true })
+    // Plain text, not .md: a new markdown file always makes ST-07 (map.md
+    // outdated) fire too — true before this change and orthogonal to it. Using
+    // .txt isolates the one thing under test: ST-02 on pm/ itself is I, not W.
+    await fs.writeFile(path.join(root, 'pm', 'notes.txt'), 'roadmap notes\n')
+    assert.equal(await exitCode(root), 0)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+
   it('exits 0 with init-guard when AGENTS.md is missing', async () => {
     const root = await makeRoot('truss-initguard-')
     await runInit(root, ['--name', 'Exit', '--lang', 'English'])
@@ -656,6 +683,47 @@ describe('doctor exit codes (CLI)', () => {
     await fs.writeFile(agentsMd, content.replace('<!-- truss:begin phase -->', '<!-- broken -->'))
     assert.equal(await exitCode(root), 2)
     await fs.rm(root, { recursive: true, force: true })
+  })
+})
+
+// ── ST-02 retired paths (U6/D-074, D-081) ─────────────────────────────────────
+// pm/ was a valid §2 routing target before this change and is now retired.
+// Same precedent as RETIRED_KEYS in checks/ph.mjs and checks/bl.mjs: a retired
+// path is not an unknown one, so an instance that still has pm/ on disk must
+// get an I, never the W that would flip it from green to "not clean" the day
+// this table changed.
+describe('ST-02 retired paths', () => {
+  it('flags a leftover pm/ as I with a retirement note, not W (U6/D-074)', async () => {
+    const root = await makeRoot('truss-st02-pm-')
+    try {
+      await runInit(root, ['--name', 'Retired PM', '--lang', 'English'])
+      await fs.mkdir(path.join(root, 'pm'), { recursive: true })
+      await fs.writeFile(path.join(root, 'pm', 'roadmap.md'), '# Roadmap\n')
+      const ctx = await loadWorkspace(root)
+      const findings = await st.run(ctx)
+      const st02 = findings.filter(f => f.id === 'ST-02')
+      // One finding for the retired root; nested content stays silent — it
+      // would only repeat the same notice per file.
+      assert.equal(st02.length, 1, JSON.stringify(st02))
+      assert.equal(st02[0].severity, 'I', JSON.stringify(st02[0]))
+      assert.equal(st02[0].file, 'pm/')
+      assert.match(st02[0].message, /retired/)
+      assert.equal(findings.filter(f => f.severity === 'W' && f.file.startsWith('pm')).length, 0, JSON.stringify(findings))
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+
+  it('still flags a genuinely new, unrelated directory as W (retired != unknown)', async () => {
+    const root = await makeRoot('truss-st02-newdir-')
+    try {
+      await runInit(root, ['--name', 'New Dir', '--lang', 'English'])
+      await fs.mkdir(path.join(root, 'foo'), { recursive: true })
+      await fs.writeFile(path.join(root, 'foo', 'bar.md'), '# Bar\n')
+      const ctx = await loadWorkspace(root)
+      const findings = await st.run(ctx)
+      const hit = findings.find(f => f.id === 'ST-02' && f.file === 'foo/')
+      assert.ok(hit, JSON.stringify(findings.filter(f => f.id === 'ST-02')))
+      assert.equal(hit.severity, 'W')
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
   })
 })
 

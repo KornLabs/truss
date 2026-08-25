@@ -1,6 +1,7 @@
 // checks/sy.mjs — State-layer & entry-grammar checks (SY-01 … SY-05)
 //
-// SY-01  W  state/current.md missing a required key
+// SY-01  W  state/current.md missing a required key (focus/next/blockers — 'recently-done' is
+//           tolerated if present but no longer required, U6/D-074/D-077: git already carries it)
 // SY-02  —  retired (age-based staleness; a resting project is not a broken one) — id not reused
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / findings TF-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
@@ -51,7 +52,12 @@ export const meta = [
   { id: 'SY-11', severity: 'W', title: 'Challenged-by: points at an open decision that does not exist', description: 'The challenge was resolved or removed but the marker on the decision stayed' },
 ]
 
-const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers', 'recently-done']
+// 'recently-done' left the required set with U6/D-074/D-077: `git log` already
+// carries it, current, unmaintained, without a human keeping it in sync — see
+// checks/sy.mjs header. An existing 'recently-done:' line is tolerated, not
+// flagged: a key retired from the requirement must never turn an instance that
+// wrote it correctly under the previous baseline from green to warning.
+const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers']
 const HT_DONE_MAX           = 5
 const DECISIONS_TOKENS_MAX  = 6000 // one third of the CX-01 warn budget (18k)
 const OD_STALE_DAYS         = 30   // set, not derived — info only; correct it at the first false alarm
@@ -130,7 +136,7 @@ export async function run(ctx) {
         id: 'SY-08', severity: 'W',
         file: 'state/current.md',
         message: `workspace state changed after current.md's last update — ${newest.rel} was modified ${behind} later (${stamp(newest.mtimeMs)} vs ${stamp(current.stat.mtimeMs)}); the write-back per work unit may have been skipped`,
-        fix: `Refresh state/current.md (focus / next / recently-done) so it reflects the newer state — AGENTS.md §4. If it is still accurate, saving it again clears this.`,
+        fix: `Refresh state/current.md (focus / next) so it reflects the newer state — AGENTS.md §4. If it is still accurate, saving it again clears this.`,
       })
     }
   }
