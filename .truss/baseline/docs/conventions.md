@@ -252,6 +252,14 @@ be deleted again; the ID counters continue regardless.
 > Domain (topic) files live under `context/` — one canonical home per topic; discovered via `state/map.md`, not individually registered in §2.
 
 ```markdown
+---
+focus: [the one thing this domain is currently about — one line]
+next:
+  - [open point, one line]
+  - [open point, one line]
+blockers: none
+---
+
 # [Domain name]
 
 > Belongs here: [short positive scope]. Not here: [only ambiguous exclusions with pointer].
@@ -262,6 +270,36 @@ be deleted again; the ID counters continue regardless.
 
 [Content begins here. Omit ## Tasks when there are no local tasks.]
 ```
+
+**The frontmatter is the domain's state, and it is what makes the file a domain.**
+A `context/**.md` file whose frontmatter carries a non-empty `focus:` *is* a
+domain — there is no registration list, no `domains:` block in
+`state/current.md`, and no entry in `state/profile.md`. `truss status` scans the
+files themselves and prints the register: name, focus, number of open points,
+age. Generated, never stored, so it cannot drift from what the files say.
+A file without frontmatter, or with an empty `focus:`, is an ordinary context
+file — it is simply skipped, and that is not a finding.
+
+`next:` and `blockers:` take one of two forms. The block above is the documented
+one, because an entry may then contain a comma:
+
+```markdown
+next:
+  - first point
+  - second point, with a comma
+```
+
+A comma list stays valid for a one-liner: `next: first point, second point`.
+Inline YAML (`next: [a, b]`) is **not** supported and will parse wrong — use one
+of the two forms above. `none` or a dash means "nothing here" and counts as
+empty.
+
+The division of labour with `state/current.md`: open **points** belong to the
+domain that owns them, so they live here. `state/current.md` keeps `focus:`
+(project-wide), `blockers:` (across domains) and `branch:`. Its global `next:`
+is required only while no domain exists; once one does, move the points into
+their domains and drop it — `doctor` says so once, as info (SY-12). A
+project-wide next step is `focus:`, not a second list.
 
 Domain tasks are optional. Use them only for small tasks tied to that domain.
 Project-wide planning belongs in a domain file under `context/` (loaded and
@@ -292,3 +330,17 @@ Use this whenever summarizing multiple files, phases, or items mapped to a singl
 - Folders: same rules. No trailing slash in references.
 - Domain files: noun or noun-phrase (e.g. `pricing.md`, `user-research.md`).
 - IDs in prose: always include prefix (D-001, not just 001).
+
+### Dot names for sub-domains
+
+When a domain splits, write the parts as **dotted names in one flat directory** —
+`context/legal.incorporation.md`, `context/legal.trademark.md` — not as
+`context/legal/incorporation.md`. Both work; the dot is the convention.
+
+Why: the dot keeps every domain file one level under `context/`, so the whole
+register is one flat list, `state/map.md` groups them all under a single
+`/context` heading, and a link to a domain never has to be rewritten because the
+file moved a level deeper. The name still shows the hierarchy, and it reads the
+same in `truss status`, in the map, and in a link. This is a naming rule only —
+no code splits on the dot, and nested directories under `context/` keep working
+if a project prefers them.

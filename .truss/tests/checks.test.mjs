@@ -68,6 +68,68 @@ describe('SY-01 current.md', () => {
   // not turn green into a finding either — same "is clean for a complete,
   // fresh current.md" case above already proves this, since cleanCurrent()
   // carries a recently-done: block and asserts zero SY-01 findings.
+
+  // U5: `next:` is required only while the workspace has no domain files. The
+  // presence of a domain (a context/**.md with a non-empty frontmatter focus:)
+  // IS the definition — nothing registers one.
+  const domainFile = (focus = 'the one thing') => file(`---\nfocus: ${focus}\n---\n\n# D\n`)
+  const withoutNext = () => cleanCurrent().replace(/next:\n\s+- verify\n/, '')
+
+  it('still requires next: while no domain file exists', async () => {
+    const f = await sy.run(ctxOf({ 'state/current.md': file(withoutNext()) }))
+    assert.equal(ids(f, 'SY-01').length, 1)
+    assert.match(ids(f, 'SY-01')[0].message, /next/)
+  })
+  it('drops the next: requirement once a domain declares a focus: (U5)', async () => {
+    const f = await sy.run(ctxOf({
+      'state/current.md': file(withoutNext()),
+      'context/pricing.md': domainFile(),
+    }))
+    assert.equal(ids(f, 'SY-01').length, 0, JSON.stringify(ids(f, 'SY-01')))
+  })
+  it('a context file without a focus: is not a domain, so next: stays required', async () => {
+    const f = await sy.run(ctxOf({
+      'state/current.md': file(withoutNext()),
+      'context/notes.md': file('# Notes\n\nBody.\n'),
+      'context/half.md': file('---\nnext:\n  - a\n---\n\n# Half\n'),
+    }))
+    assert.equal(ids(f, 'SY-01').length, 1)
+    assert.match(ids(f, 'SY-01')[0].message, /next/)
+  })
+})
+
+// ── SY-12 ────────────────────────────────────────────────────────────────────
+describe('SY-12 global next: alongside domain files (U5/E6)', () => {
+  const domain = file('---\nfocus: the one thing\n---\n\n# D\n')
+
+  it('stays silent while the workspace has no domains', async () => {
+    const f = await sy.run(ctxOf({ 'state/current.md': file(cleanCurrent()) }))
+    assert.equal(ids(f, 'SY-12').length, 0)
+  })
+  it('reports — as info — a global next: that outlived the move to domains', async () => {
+    const f = await sy.run(ctxOf({
+      'state/current.md': file(cleanCurrent()),
+      'context/pricing.md': domain,
+    }))
+    assert.equal(ids(f, 'SY-12').length, 1)
+    assert.equal(ids(f, 'SY-12')[0].severity, 'I', 'D-081: a new check must not turn a green instance red')
+    assert.match(ids(f, 'SY-12')[0].message, /1 global next: entry/)
+  })
+  it('reads the inline form too, and counts the entries', async () => {
+    const inline = cleanCurrent().replace(/next:\n\s+- verify\n/, 'next: verify, then ship\n')
+    const f = await sy.run(ctxOf({ 'state/current.md': file(inline), 'context/p.md': domain }))
+    assert.equal(ids(f, 'SY-12').length, 1)
+    assert.match(ids(f, 'SY-12')[0].message, /1 global next: entry/)
+  })
+  it('an absent or placeholder next: is nothing to move', async () => {
+    const gone  = cleanCurrent().replace(/next:\n\s+- verify\n/, '')
+    const dash  = cleanCurrent().replace(/next:\n\s+- verify\n/, 'next: —\n')
+    const empty = cleanCurrent().replace(/next:\n\s+- verify\n/, 'next:\n')
+    for (const variant of [gone, dash, empty]) {
+      const f = await sy.run(ctxOf({ 'state/current.md': file(variant), 'context/p.md': domain }))
+      assert.equal(ids(f, 'SY-12').length, 0, variant)
+    }
+  })
 })
 
 // ── SY-03 ────────────────────────────────────────────────────────────────────
