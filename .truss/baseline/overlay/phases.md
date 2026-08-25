@@ -17,7 +17,6 @@ forbidden: refactors, feature work, deleting existing files, premature redesign 
 forbidden-globs: repo/**
 read: state/profile.md
 exit: file: context/import-log.md; existing system mapped and summarised (human); pursue/adjust decision recorded as D-entry (human)
-prompts:
 
 ## operate
 
@@ -28,4 +27,3 @@ allowed: all development and iteration work; refactors with a recorded reason; d
 forbidden: silent large rewrites without a D-entry; skipping the session ritual; unbounded state/current.md next list (over 5).
 read: state/profile.md, state/decisions.md, state/current.md
 exit: ongoing-run criteria met (human); doctor clean (human); human sign-off (human)
-prompts:

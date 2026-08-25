@@ -442,8 +442,8 @@ describe('risk migration bridge', () => {
   describe('bundled phase fixtures', () => {
     it('parses every shipped phase seed with the same list grammar', async () => {
       // The engine ships exactly two seeds — the core `kickoff` phase and the
-      // overlay `ingest → operate` pair. Both must parse clean and reference
-      // only prompts that exist (there are no phase profiles any more).
+      // overlay `ingest → operate` pair. Both must parse clean under the
+      // current phase grammar (there are no phase profiles any more).
       for (const [name, seed] of [
         ['core', path.join('baseline', 'state', 'phases.md')],
         ['overlay', path.join('baseline', 'overlay', 'phases.md')],
@@ -455,7 +455,6 @@ describe('risk migration bridge', () => {
         const ctx = await loadWorkspace(root)
         const findings = [...await ph.run(ctx), ...await rf.run(ctx)]
         assert.equal(findings.filter(f => f.id === 'PH-01').length, 0, name)
-        assert.equal(findings.filter(f => f.id === 'RF-04').length, 0, name)
         await fs.rm(root, { recursive: true, force: true })
       }
     })
@@ -477,6 +476,46 @@ describe('risk migration bridge', () => {
       const stray = findings.filter(f => f.id === 'PH-01' && /stray note/.test(f.message))
       assert.equal(stray.length, 1, JSON.stringify(findings))
       assert.doesNotMatch(ctx.phases.defs.get('kickoff').behavior, /stray note/)
+      await fs.rm(root, { recursive: true, force: true })
+    })
+
+    it('reports a retired phase key as I, not E (U1/D-074)', async () => {
+      // `prompts:` left the grammar with the prompt library. An upgraded
+      // workspace still carries the line it wrote correctly under the previous
+      // version, so PH-01 must hint at it — once — instead of going red.
+      const root = await makeRoot('truss-phase-retired-')
+      await runInit(root, ['--name', 'Retired', '--lang', 'English'])
+      const phasesPath = path.join(root, 'state', 'phases.md')
+      const raw = await fs.readFile(phasesPath, 'utf8')
+      await fs.writeFile(
+        phasesPath,
+        raw.replace(/^(behavior: .*)$/m, '$1\nprompts: discover-kickoff'),
+      )
+      const ctx = await loadWorkspace(root)
+      const findings = (await ph.run(ctx)).filter(f => f.id === 'PH-01')
+      const retired = findings.filter(f => /'prompts' is retired/.test(f.message))
+      // Two parsers can reject the key; exactly one of them may report it.
+      assert.equal(retired.length, 1, JSON.stringify(findings))
+      assert.equal(retired[0].severity, 'I', JSON.stringify(retired))
+      assert.equal(findings.filter(f => f.severity === 'E').length, 0, JSON.stringify(findings))
+      await fs.rm(root, { recursive: true, force: true })
+    })
+
+    it('still reports a genuinely unknown phase key as E', async () => {
+      // Retired is not the same as unknown: a typo must stay an error.
+      const root = await makeRoot('truss-phase-typo-')
+      await runInit(root, ['--name', 'Typo', '--lang', 'English'])
+      const phasesPath = path.join(root, 'state', 'phases.md')
+      const raw = await fs.readFile(phasesPath, 'utf8')
+      await fs.writeFile(
+        phasesPath,
+        raw.replace(/^(behavior: .*)$/m, '$1\nbehaviour: british spelling'),
+      )
+      const ctx = await loadWorkspace(root)
+      const findings = (await ph.run(ctx)).filter(f => f.id === 'PH-01')
+      const unknown = findings.filter(f => /unknown key 'behaviour'/.test(f.message))
+      assert.equal(unknown.length, 1, JSON.stringify(findings))
+      assert.equal(unknown[0].severity, 'E', JSON.stringify(unknown))
       await fs.rm(root, { recursive: true, force: true })
     })
 

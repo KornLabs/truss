@@ -1,20 +1,18 @@
-// checks/rf.mjs — Reference checks (RF-01 … RF-04)
+// checks/rf.mjs — Reference checks (RF-01 … RF-03)
 //
 // RF-01  E  relative markdown link doesn't resolve to an existing file/anchor
 // RF-02  W  structured ID referenced but not defined anywhere
 // RF-03  E  structured ID defined more than once
-// RF-04  W  prompts: reference in phases.md has no matching file in prompt library
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { headingToAnchor, parsePhaseList } from '../lib/md.mjs'
+import { headingToAnchor } from '../lib/md.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 export const meta = [
   { id: 'RF-01', severity: 'E', title: 'Relative markdown link does not resolve' },
   { id: 'RF-02', severity: 'W', title: 'Referenced ID has no definition' },
   { id: 'RF-03', severity: 'E', title: 'ID defined more than once' },
-  { id: 'RF-04', severity: 'W', title: 'prompts: reference not found in library' },
 ];
 
 // ID prefixes that are "structured" and require definitions
@@ -35,7 +33,7 @@ function isAnchorOnlyLink(href) {
  */
 export async function run(ctx) {
   const findings = [];
-  const { root, files, idDefs, idRefs, promptIds, phases } = ctx;
+  const { root, files, idDefs, idRefs } = ctx;
 
   // ── RF-01: relative links must resolve ────────────────────────────────
   for (const [relPath, fileCtx] of files) {
@@ -165,25 +163,6 @@ export async function run(ctx) {
         message: `'${id}' is defined ${defs.length} times (${locations})`,
         fix: `Keep exactly one definition of '${id}'; remove or supersede the duplicates`,
       });
-    }
-  }
-
-  // ── RF-04: prompts: references in phases.md must exist in library ─────
-  if (phases?.defs) {
-    for (const [phaseId, def] of phases.defs) {
-      if (!def.prompts) continue;
-
-      const promptRefs = parsePhaseList(def.prompts);
-      for (const promptId of promptRefs) {
-        if (!promptIds.has(promptId)) {
-          findings.push({
-            id: 'RF-04', severity: 'W',
-            file: 'state/phases.md',
-            message: `phase '${phaseId}': prompt '${promptId}' not found in prompts/custom/`,
-            fix: `Create .truss/prompts/custom/${promptId}.md or remove '${promptId}' from phase '${phaseId}' prompts`,
-          });
-        }
-      }
     }
   }
 

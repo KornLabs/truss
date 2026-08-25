@@ -295,12 +295,6 @@ describe('loadWorkspace + ST checks on valid fixture', () => {
     const rf02 = findings.filter(f => f.id === 'RF-02')
     assert.equal(rf02.length, 0, `unexpected RF-02 warnings: ${JSON.stringify(rf02)}`)
   })
-
-  it('RF checks: prompt stubs resolve (RF-04 clean)', async () => {
-    const findings = await rf.run(ctx)
-    const rf04 = findings.filter(f => f.id === 'RF-04')
-    assert.equal(rf04.length, 0, `unexpected RF-04 warnings: ${JSON.stringify(rf04)}`)
-  })
 })
 
 describe('BL-01: unpaired markers detected', async () => {
@@ -376,7 +370,6 @@ describe('RF-03: duplicate ID definition detected', async () => {
       files: new Map(),
       idDefs,
       idRefs: new Map(),
-      promptIds: new Set(),
       phases: { frontmatter: {}, ordered: [], defs: new Map() },
     }
     const findings = await rf.run(ctx)
@@ -753,7 +746,7 @@ describe('check registry (A2)', () => {
     const ids = [st, bl, rf, ph].flatMap(m => m.meta.map(e => e.id))
     for (const expected of [
       'ST-01', 'ST-06', 'BL-01', 'BL-02', 'BL-03',
-      'RF-01', 'RF-04', 'PH-01', 'PH-04', 'PH-05', 'PH-06',
+      'RF-01', 'PH-01', 'PH-04', 'PH-05', 'PH-06',
     ]) {
       assert(ids.includes(expected), `registry missing ${expected}`)
     }
@@ -975,7 +968,7 @@ describe('BL-02: phase block drift (T1)', () => {
   })
 })
 
-// ── T3: checks fire correctly (PH-03, RF-04, ST-02/03/05) ─────────────────────
+// ── T3: checks fire correctly (PH-03, ST-02/03/05) ───────────────────────────
 
 describe('PH-03: forbidden-glob hit fires (T3)', () => {
   it('flags a changed path, not a pre-existing clean file', async () => {
@@ -1003,26 +996,6 @@ describe('PH-03: forbidden-glob hit fires (T3)', () => {
     assert(findings.some(f => f.id === 'PH-03' && f.message.includes('repo/**')),
       `should flag forbidden-glob hit; got ${JSON.stringify(findings)}`)
     await rmTmp(tmp)
-  })
-})
-
-describe('RF-04: missing prompt fires (T3)', () => {
-  it('flags a prompts: reference with no file in the library', async () => {
-    const ctx = {
-      root: FIXTURE, files: new Map(), idDefs: new Map(), idRefs: new Map(),
-      promptIds: new Set(['discover-kickoff']),  // 'ghost-prompt' deliberately absent
-      phases: {
-        ordered: ['discover'],
-        defs: new Map([['discover', {
-          purpose: 'p.', behavior: 'b.', exit: 'done (human)',
-          prompts: 'discover-kickoff, ghost-prompt',
-        }]]),
-        frontmatter: { current: 'discover' },
-      },
-    }
-    const findings = await rf.run(ctx)
-    assert(findings.some(f => f.id === 'RF-04' && f.message.includes('ghost-prompt')),
-      'should flag missing prompt as RF-04')
   })
 })
 

@@ -267,20 +267,6 @@ export async function loadWorkspace(root) {
     }
   }
 
-  // ── Collect all prompt IDs from prompt library ────────────────────────────
-  const promptIds = new Set();
-  const promptDirs = [
-    resolve('.truss', 'prompts', 'custom'),
-  ];
-  for (const dir of promptDirs) {
-    try {
-      const entries = await fs.readdir(dir);
-      for (const entry of entries) {
-        if (entry.endsWith('.md')) promptIds.add(entry.slice(0, -3));
-      }
-    } catch { /* dir may not exist */ }
-  }
-
   // ── Ignore layer ──────────────────────────────────────────────────────────
   // Single source of scan-exclusion (.trussignore + .gitignore + engine hardcodes),
   // applied identically to the disk walk and the map so doctor and map agree on
@@ -355,7 +341,6 @@ export async function loadWorkspace(root) {
     files,           // Map<relPath, FileContext>
     idDefs,          // Map<id, Array<{file, line}>>
     idRefs,          // Map<id, Array<{file, line}>>
-    promptIds,       // Set<string>
     diskPaths,       // Array<string> — all rel paths found on disk (for ST-02)
     mdFiles,         // Array<string> — md files the map covers (for ST-07)
     ignore: { sources: ignore.sources, excluded: ignoreStats.excluded }, // for the visible report

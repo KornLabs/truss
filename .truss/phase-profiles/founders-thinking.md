@@ -21,7 +21,6 @@ forbidden: code in repo/, final decisions without D-entry, spec documents, commi
 forbidden-globs: repo/**; pm/**
 read: state/profile.md
 exit: section: VISION.md#Problem; glob: context/market*.md; glob: context/customer*.md; pursue/park leaning noted (human)
-prompts:
 
 ## validate
 
@@ -33,7 +32,6 @@ forbidden: code in repo/, treating the idea as proven, ignoring contrary signals
 forbidden-globs: repo/**; pm/**
 read: state/profile.md, VISION.md
 exit: glob: context/customer*.md; section: VISION.md#Principles; key assumptions tested with external evidence (human)
-prompts:
 
 ## concept
 
@@ -45,4 +43,3 @@ forbidden: code in repo/, building or scaffolding the solution, deferring the pu
 forbidden-globs: repo/**; pm/**
 read: state/profile.md, VISION.md, state/decisions.md
 exit: glob: context/concept*.md; section: context/concept.md#Recommendation; pursue/park decision recorded as D-entry (human)
-prompts:
