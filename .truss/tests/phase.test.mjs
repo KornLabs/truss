@@ -115,7 +115,11 @@ describe('no state/phases.md — absent is not broken (U4)', () => {
     assert.deepEqual((await runChecks(root)).filter(f => f.id === 'BL-02'), [])
   })
 
-  it('a present but unreadable phases.md stays an error — absent is not broken', async () => {
+  // chmod 000 does not restrict root, and on Windows fs.chmod only maps the
+  // read-only/write attribute — it never blocks reads — so this simulated
+  // unreadability is meaningless (and would fail) on either.
+  it('a present but unreadable phases.md stays an error — absent is not broken',
+    { skip: process.getuid?.() === 0 || process.platform === 'win32' }, async () => {
     const root = await makeRoot('truss-phase-unreadable-')
     await runInit(root, ['--name', 'NP', '--lang', 'English'])
     const phasesPath = path.join(root, 'state', 'phases.md')
