@@ -92,7 +92,11 @@ test('status stays silent about phases when the file is genuinely absent', async
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
 
-test('status flags a present-but-unreadable phases.md instead of reporting green', async () => {
+// chmod 000 does not restrict root, and on Windows fs.chmod only maps the
+// read-only/write attribute — it never blocks reads — so this simulated
+// unreadability is meaningless (and would fail) on either.
+test('status flags a present-but-unreadable phases.md instead of reporting green',
+  { skip: process.getuid?.() === 0 || process.platform === 'win32' }, async () => {
   const root = await makeRoot('truss-status-unreadable-')
   try {
     await runInit(root, ['--name', 'Locked', '--lang', 'English'])

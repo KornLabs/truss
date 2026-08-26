@@ -170,8 +170,10 @@ describe('ST-09: doctor reports engine divergence against the manifest', () => {
 // exception — plus the manifest-parsing and filename edge cases beside it.
 
 // chmod 000 does not restrict root, so the unreadability tests are meaningless
-// (and would fail) in a root container. Skip rather than silently pass.
-const IS_ROOT = process.getuid?.() === 0
+// (and would fail) in a root container. On Windows, fs.chmod only maps the
+// read-only/write attribute and never blocks reads, so the same tests would
+// fail there too. Skip rather than silently pass.
+const IS_ROOT = process.getuid?.() === 0 || process.platform === 'win32'
 
 describe('engine-manifest: unreadable input is reported, never thrown', () => {
   it('an unreadable FILE lands in unreadable — not modified, not missing', { skip: IS_ROOT }, async () => {

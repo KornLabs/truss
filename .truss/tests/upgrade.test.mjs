@@ -485,9 +485,10 @@ describe('D-070: engine manifest divergence in the upgrade report', () => {
   // abort the whole command — with none of the "nothing was changed" wording
   // every other failure path in upgrade.mjs guarantees. D-070 is reporting
   // only; it must never be able to stop an upgrade. chmod 000 does not bind
-  // root, so this is meaningless in a root container.
+  // root, so this is meaningless in a root container — and on Windows,
+  // fs.chmod never blocks reads at all, so it's meaningless there too.
   it('an unreadable engine file is reported, and never aborts the run',
-    { skip: process.getuid?.() === 0 }, async () => {
+    { skip: process.getuid?.() === 0 || process.platform === 'win32' }, async () => {
       const { ws, next } = await realFixture()
       await writeManifest(path.join(ws, '.truss'))
       const victim = path.join(ws, '.truss/lib/workspace.mjs')
