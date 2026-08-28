@@ -8,7 +8,7 @@
 // SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / findings TF-NNN / HUMAN-TODOS list form)
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 // SY-08  W  ritual drift — state/ or context/ changed well after current.md (D-010, D-058)
-// SY-09  I  state/decisions.md read cost grown large (≥ 6000 token-equivalent) — archive nudge
+// SY-09  I  decision log read cost grown large (≥ 6000 token-equivalent) — archive nudge
 // SY-10  I  an open decision has been open ≥ 30 days — does the question still stand?
 // SY-11  W  Challenged-by: names an OD that does not exist (stale challenge marker)
 //
@@ -62,7 +62,7 @@ export const meta = [
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
   { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'mtime comparison of state/ + context/ vs current.md, with a grace window for the write-back that follows a change (D-010, D-058)' },
-  { id: 'SY-09', severity: 'I', title: 'decisions.md read cost is growing large', description: '≥ 6000 token-equivalent (words × 1.5) → check for compressible superseded/absorbed entries (archive/decisions.md)' },
+  { id: 'SY-09', severity: 'I', title: 'decision log read cost is growing large', description: '≥ 6000 token-equivalent (words × 1.5) → check for superseded or fully absorbed entries that can move to archive/decisions/' },
   { id: 'SY-10', severity: 'I', title: 'open decision has been waiting a long time', description: 'Opened: ≥ 30 days ago → decide it, re-brief it, or drop it; not SY-02 (that aged all state, this asks about a question waiting on a human)' },
   { id: 'SY-11', severity: 'W', title: 'Challenged-by: points at an open decision that does not exist', description: 'The challenge was resolved or removed but the marker on the decision stayed' },
   { id: 'SY-12', severity: 'I', title: 'current.md still carries a global next: although domains exist', description: 'Open points belong in the frontmatter next: of the domain file that owns them; a project-wide next step is focus: (U5)' },
@@ -329,9 +329,11 @@ function checkDecisionsSize(files, findings) {
   const where = split ? `${DECISIONS_DIR}/ (${files.length} entries)` : 'state/decisions.md'
   findings.push({
     id: 'SY-09', severity: 'I',
-    file: files[0].relPath, line: 1,
+    // The cost belongs to the log as a whole. Pointing at one body would send
+    // the reader to a file where nothing is wrong.
+    file: split ? `${DECISIONS_DIR}/` : files[0].relPath, line: split ? undefined : 1,
     message: `${where} costs ≈ ${tokens} tokens when the log is read in full (≥ ${DECISIONS_TOKENS_MAX})`,
-    fix: `Review for entries that no longer need to be read (docs/conventions.md): a superseded entry shrinks to heading + supersede note; an entry whose consequence is carried by a check, a test, a convention or the file structure moves to archive/decisions.md with a pointer. Never delete an entry. The \`cleanup\` ritual (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
+    fix: `Review for entries that no longer need to be read (docs/conventions.md): a superseded entry shrinks to heading + supersede note; an entry whose consequence is carried by a check, a test, a convention or the file structure moves to archive/decisions/ whole, with a pointer. Never delete an entry. The \`cleanup\` ritual (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
   })
 }
 

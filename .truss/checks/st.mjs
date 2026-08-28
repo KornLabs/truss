@@ -16,7 +16,7 @@ import path from 'node:path'
 import { ADAPTER_STUBS, STUB_PATTERNS, SUMMARY_DIRS } from '../lib/workspace.mjs'
 import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
 import { verifyEngine } from '../lib/engine-manifest.mjs'
-import { buildIndex, readDecisionSource, INDEX_REL, SOURCE_REL, DECISIONS_DIR } from '../lib/decisions-index.mjs'
+import { renderIndex, parseDecisionSource, readDecisionSource, isLegacyIndex, INDEX_REL, SOURCE_REL, DECISIONS_DIR } from '../lib/decisions-index.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 // Lets consumers (--json) enumerate ALL checks, not only fired ones.
@@ -31,7 +31,7 @@ export const meta = [
   { id: 'ST-07', severity: 'W', title: 'Truss map is outdated', description: 'state/map.md does not match the actual workspace markdown files' },
   { id: 'ST-08', severity: 'W', title: 'AGENTS.md is missing a numbered top-level section', description: '§1–§6 are the contract every prompt, doc and check cross-references' },
   { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
-  { id: 'ST-10', severity: 'W', title: 'Decision index missing or out of step with state/decisions.md', description: 'D-075/D-081: info while the index has never been generated (the workspace simply has not taken the step), warning once it exists and disagrees with the source — a stale index lies to every session boot' },
+  { id: 'ST-10', severity: 'W', title: 'Decision index missing, out of step, or holding an entry it cannot address', description: 'D-075/D-081/D-087: info while the index has never been generated or is still in the pre-D-087 format (steps not taken, not defects); warning once it exists and disagrees with the source, or when a decision body sits where the index can never reach it — a stale or incomplete index lies to every session boot' },
 ];
 
 // Top-level paths that were a valid §2 routing target before an engine change
@@ -51,9 +51,11 @@ const RETIRED_PATHS = new Map([
 const DISK_EXCLUDE = new Set([
   // The legacy single-file decision log (D-087). Still fully supported and
   // still loaded (lib/workspace.mjs migration bridge), just no longer a table
-  // row — so it must not surface as "new file, not in the structure table" on
-  // every workspace that has not split. Not a RETIRED_PATH: nothing about it is
-  // retired, it is one of two valid layouts.
+  // row. Belt and braces: ST-02 already skips everything under state/, because
+  // the `(on demand)` row for state/decisions-index.md makes `state` a dynamic
+  // summary dir — a pre-existing gap this entry does not depend on. Not a
+  // RETIRED_PATH either: nothing about this path is retired, it is one of two
+  // valid layouts.
   'state/decisions.md',
   'LICENSE',
   '.gitignore',
@@ -344,7 +346,10 @@ export async function run(ctx) {
   const decisionSrc = await readDecisionSource(root);
   if (decisionSrc) {
     const label = decisionSrc.form === 'dir' ? `${DECISIONS_DIR}/` : SOURCE_REL;
-    const expected = buildIndex(decisionSrc.lines);
+    // Per part, never over a concatenated stream: one body with an unclosed
+    // fence must not be able to hide the entries after it (the defect this
+    // check would otherwise be blind to, because both sides would lose them).
+    const expected = renderIndex(parseDecisionSource(decisionSrc), decisionSrc.form);
     let actual = null;
     try { actual = await fs.readFile(path.join(root, INDEX_REL), 'utf8'); }
     catch { /* absent — handled below */ }
@@ -356,6 +361,18 @@ export async function run(ctx) {
         message: `no decision index yet — until it exists, the §1 boot context has no decision summary (source: ${label})`,
         fix: `Run 'node .truss/bin/truss.mjs render' to generate ${INDEX_REL}, then commit it.`,
       });
+    } else if (isLegacyIndex(actual)) {
+      // D-081: an engine upgrade alone must not turn a green workspace red.
+      // The index format changed with D-087, so EVERY pre-D-087 workspace has a
+      // mismatching index the moment it swaps the engine — through no fault of
+      // its own and with nothing yet wrong in its files. Regenerating is one
+      // command, so this is a step not yet taken, not a file that lies.
+      findings.push({
+        id: 'ST-10', severity: 'I',
+        file: INDEX_REL,
+        message: `decision index is in the pre-D-087 format (it carries Decision: lines) — regenerating shrinks the boot context`,
+        fix: `Run 'node .truss/bin/truss.mjs render'. The index now carries title and status only; the bodies are read on demand.`,
+      });
     } else if (actual !== expected) {
       findings.push({
         id: 'ST-10', severity: 'W',
@@ -363,6 +380,49 @@ export async function run(ctx) {
         message: `decision index no longer matches ${label} — every session boots on a summary that is out of date`,
         fix: `Run 'node .truss/bin/truss.mjs render' to regenerate ${INDEX_REL}. It is generated, never hand-edited — a local edit here is overwritten, so fix the wording in ${label}.`,
       });
+    }
+
+    // ── ST-10, second half: an entry that exists but can never be indexed ──
+    // The index is addressed by ID: `D-NNN` resolves to state/decisions/D-NNN.md
+    // and nothing else. A body somewhere else, or under a name that disagrees
+    // with its own heading, still DEFINES its id (lib/workspace.mjs loads the
+    // whole tree), so RF-02 is satisfied and nothing else notices — the entry is
+    // simply invisible to every session. That is the most expensive shape a
+    // defect can take here, so it gets a warning of its own.
+    if (decisionSrc.form === 'dir') {
+      const prefix = `${DECISIONS_DIR}/`;
+      for (const [rel, f] of ctx.files) {
+        if (!rel.startsWith(prefix) || !rel.endsWith('.md')) continue;
+        const declared = rel.slice(prefix.length).match(/^(D-\d{3})\.md$/)?.[1] ?? null;
+        const defined = f.idDefs.filter((d) => d.id.startsWith('D-')).map((d) => d.id);
+        if (!defined.length) continue;
+        const wrong = declared === null || defined.some((id) => id !== declared);
+        if (!wrong) continue;
+        findings.push({
+          id: 'ST-10', severity: 'W',
+          file: rel, line: f.idDefs[0].line,
+          message: `${defined.join(', ')} defined in ${rel}, which the index cannot address — a decision is reached as ${DECISIONS_DIR}/<ID>.md`,
+          fix: declared === null
+            ? `Rename it to ${DECISIONS_DIR}/${defined[0]}.md (top level, no suffix). Until then the entry is invisible to every session boot, even though its id still resolves.`
+            : `Either rename the file to ${DECISIONS_DIR}/${defined[0]}.md or change the heading to '## ${declared} — …' so name and entry agree.`,
+        });
+      }
+
+      // A leftover state/decisions.md is inert for indexing once the directory
+      // wins — so an entry written into it after the split is loaded, defines
+      // its id, and is read by nobody. `split-decisions` leaves the file behind
+      // on purpose (its preamble is real content), which makes this trap easy
+      // to fall into rather than exotic.
+      const legacy = ctx.files.get(SOURCE_REL);
+      const stranded = legacy?.idDefs.filter((d) => d.id.startsWith('D-')) ?? [];
+      if (stranded.length) {
+        findings.push({
+          id: 'ST-10', severity: 'W',
+          file: SOURCE_REL, line: stranded[0].line,
+          message: `${stranded.map((d) => d.id).join(', ')} still in ${SOURCE_REL}, but this workspace reads ${DECISIONS_DIR}/ — the entr${stranded.length === 1 ? 'y is' : 'ies are'} indexed by nobody`,
+          fix: `Move each entry to ${DECISIONS_DIR}/<ID>.md, then run 'node .truss/bin/truss.mjs render'. ${SOURCE_REL} keeps only what the split left there (archive pointers and notes); route those and delete it.`,
+        });
+      }
     }
   }
 

@@ -476,7 +476,8 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       theirsDir,
       { exclude: buildExcludes(groups, selected) },
     )
-    printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence })
+    printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence,
+      legacyDecisionLog: await hasLegacyDecisionLog(target) })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
   }
 
@@ -568,7 +569,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 
   const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan, engineDivergence }
-  printReport({ ...result, dryRun: false })
+  printReport({ ...result, dryRun: false, legacyDecisionLog: await hasLegacyDecisionLog(target) })
   // A run that still needs a human must not look like a clean one to a script.
   if (plan.some((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))) {
     process.exitCode = EXIT_NEEDS_ATTENTION
@@ -603,6 +604,22 @@ function engineDivergenceTotal(engineDivergence) {
  *   unreadable.length > 0  named separately (Defect 1) — never known to be "local
  *                          changes", only known to be unverifiable
  */
+/**
+ * True when this workspace still keeps its decisions in one state/decisions.md
+ * with entries in it, and has not split (D-087). `upgrade` cannot perform that
+ * migration — it never writes state/ — so the report names it instead.
+ */
+async function hasLegacyDecisionLog(target) {
+  try {
+    const names = await fs.readdir(path.join(target, 'state', 'decisions'))
+    if (names.some((n) => /^D-\d{3}\.md$/.test(n))) return false
+  } catch { /* no directory — the normal legacy case */ }
+  try {
+    const log = await fs.readFile(path.join(target, 'state', 'decisions.md'), 'utf8')
+    return /^##\s+D-\d{3}\b/m.test(log)
+  } catch { return false }
+}
+
 function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
   if (engineDivergence === null) {
     return [dryRun
@@ -643,7 +660,7 @@ function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
   return lines
 }
 
-function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence }) {
+function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog }) {
   const L = []
   L.push('')
   L.push(dryRun ? `  truss upgrade — dry run: ${from} → ${to}` : `  truss upgrade — ${from} → ${to}`)
@@ -675,17 +692,36 @@ function printReport({ target, from, to, plan, backup, customRestored, gitignore
   L.push('')
 
   const attention = plan.filter((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))
+
+  // `upgrade` never writes state/ (see the SEED note in the file header), so a
+  // migration that only touches state/ can never be applied here — it would be
+  // invisible to the adopter otherwise, and the benefit of the change with it.
+  if (legacyDecisionLog) {
+    L.push('  Optional migration:')
+    L.push('    This workspace keeps its decisions in one state/decisions.md. Splitting them into')
+    L.push('    state/decisions/<ID>.md shrinks the boot index (~77 → ~20 tokens per decision) and')
+    L.push('    makes looking one up cost a single small file. Nothing forces it — the single-file')
+    L.push('    layout stays supported and reports nothing.')
+    L.push('      node .truss/bin/truss.mjs split-decisions --dry-run')
+    L.push('')
+  }
+
   L.push('  Next steps:')
   if (dryRun) {
     L.push('    1. Re-run without --dry-run to apply.')
   } else if (attention.length === 0) {
-    L.push('    1. node .truss/bin/truss.mjs doctor')
-    L.push(`    2. Looks right? Remove the backup: rm -rf ${path.basename(backup)}`)
+    // render/map before doctor: a version can change what the generated files
+    // should contain, so running doctor first reports drift the adopter did not
+    // cause and cannot read as anything but their own workspace going red.
+    L.push('    1. node .truss/bin/truss.mjs render && node .truss/bin/truss.mjs map')
+    L.push('    2. node .truss/bin/truss.mjs doctor')
+    L.push(`    3. Looks right? Remove the backup: rm -rf ${path.basename(backup)}`)
     L.push(`       Anything wrong? Roll back: git checkout . && rm -rf .truss && mv ${path.basename(backup)} .truss`)
   } else {
     L.push(`    1. ${attention.length} file(s) need judgment — paste the prompt below into your AI tool.`)
-    L.push('    2. node .truss/bin/truss.mjs doctor')
-    L.push(`    3. Then remove the backup: rm -rf ${path.basename(backup)}`)
+    L.push('    2. node .truss/bin/truss.mjs render && node .truss/bin/truss.mjs map')
+    L.push('    3. node .truss/bin/truss.mjs doctor')
+    L.push(`    4. Then remove the backup: rm -rf ${path.basename(backup)}`)
     L.push('')
     L.push('  Prompt for your AI tool:')
     L.push('    "Read AGENTS.md fully, then follow §1 load order. This workspace was just')

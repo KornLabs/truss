@@ -194,7 +194,7 @@ error.
 
 Regenerate what the workspace derives from its own files: the phase block inside
 `AGENTS.md` (from `state/phases.md`) and the decision index
-`state/decisions-index.md` (from `state/decisions.md`). Run it after any edit to
+`state/decisions-index.md` (from `state/decisions/`, or from `state/decisions.md` in a workspace that has not split). Run it after any edit to
 the phase definitions, the `current:` pointer, or a decision entry. This is the
 only sanctioned writer of both; editing the phase block by hand is a `BL` error,
 and a hand-edit of the index is reported by `ST-10` and overwritten on the next
@@ -205,11 +205,11 @@ truss render
 ```
 
 The index is what AGENTS.md §1 loads every session: one bold list item per
-decision, carrying its title and its `Decision:` line, with the full log loaded
-on demand before a decision is made or proposed. It is a plain workspace file —
-commit it. An entry with no `Decision:` line is still indexed, marked as
-incomplete rather than dropped. Missing the file entirely is not an error
-(`ST-10` reports it as info); an index that disagrees with `state/decisions.md`
+decision, carrying its title and its status, with the bodies opened on demand —
+the ones a task touches, and all of them before a decision is made or proposed.
+It is a plain workspace file — commit it. An entry whose body is incomplete is
+still indexed rather than dropped. Missing the file entirely is not an error
+(`ST-10` reports it as info); an index that disagrees with the decision bodies
 is a warning, because §1 then feeds every session a decision log that no longer
 exists. Adding the file changes what `state/map.md` should contain, so run
 `truss map` after the first `render` that creates it.
@@ -220,6 +220,41 @@ model, so `render` writes the one-line no-phases notice into the block and exits
 still promises gates the workspace no longer has. A `state/phases.md` that exists
 but cannot be read is a different case and stays fatal (exit `2`, block untouched):
 absent is not the same as broken.
+
+---
+
+## `split-decisions`
+
+Move a single-file `state/decisions.md` into one body per entry under
+`state/decisions/D-NNN.md` (D-087). A one-time migration, and opt-in: the
+single-file layout stays fully supported and produces no finding, so nothing
+forces this. What it buys is measurable — the boot index drops from roughly 77
+to 20 tokens per decision, and looking one up costs one small file instead of
+the whole log.
+
+```bash
+truss split-decisions --dry-run   # what it would write, nothing touched
+truss split-decisions
+```
+
+It is a split, not a rewrite: every body is copied through unchanged, and the
+run proves it by rebuilding the entry list before and after and refusing to keep
+a result whose entries differ. It refuses outright when the workspace is already
+split, when an id appears twice (one body would overwrite another), or when a
+heading carries a malformed id such as `## D-99` (the parser would swallow it
+into the entry above). A failure partway rolls back to the workspace it started
+with.
+
+Two things it deliberately does **not** do. It never deletes the preamble — the
+text above the first entry, including pointers to already-archived ranges — so
+`state/decisions.md` is left holding it; route that content and remove the file
+by hand. And content *below* the last entry cannot be told apart from that
+entry's own trailing note, so it travels with it; when the run sees a horizontal
+rule in that body it says which file to check. Afterwards, run `truss render` and
+`truss map`.
+
+`upgrade` will never do this for you: it does not write `state/`, because a
+template diff must not be able to rewrite recorded decisions (AGENTS.md §5).
 
 ---
 

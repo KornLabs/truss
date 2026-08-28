@@ -175,7 +175,7 @@ workspace was changed without running the CLI.
 | Missing command | Manual fallback |
 |---|---|
 | `doctor` | inspect touched files and disclose that mechanical validation did not run |
-| `render` | edit `state/phases.md` and `state/decisions.md` only; the phase block and `state/decisions-index.md` may be stale until CLI returns — say so, and read `state/decisions.md` in full meanwhile |
+| `render` | edit `state/phases.md` and `state/decisions.md` only; the phase block and `state/decisions-index.md` may be stale until CLI returns — say so, and read the decision bodies meanwhile |
 | `set` | do not hand-edit generated preferences; leave the change as a human todo |
 | `map` | use existing domain files directly; `state/map.md` may be stale |
 

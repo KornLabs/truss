@@ -272,6 +272,12 @@ describe('runUpgrade', () => {
 
   it('leaves the real shipped state files alone while applying real framework changes', async () => {
     const { ws, next } = await realFixture()
+    // A legacy single-file log (D-087 no longer ships one as a seed). Written
+    // here on purpose: this is the adopter who upgrades the engine WITHOUT
+    // migrating, and their decision log must come through untouched.
+    await fs.writeFile(path.join(ws, 'state/decisions.md'),
+      '# Decisions\n\n## D-001 — Recorded before the upgrade\nDate: 2026-01-01\n'
+      + 'Decision: This must survive byte-identically.\nRationale: r.\nConsequences: c.\n')
     const before = {
       current: await read(ws, 'state/current.md'),
       profile: await read(ws, 'state/profile.md'),

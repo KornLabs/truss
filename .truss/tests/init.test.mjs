@@ -66,7 +66,7 @@ describe('init — the §1 scaffold set', () => {
     const root = await makeRoot('truss-init-scaffold-')
     await runInit(root, ['--name', 'Scaffold', '--lang', 'English'])
 
-    for (const rel of ['AGENTS.md', 'VISION.md', 'state/current.md', 'state/decisions.md',
+    for (const rel of ['AGENTS.md', 'VISION.md', 'state/current.md',
                        'state/open-decisions.md', 'state/profile.md', 'state/phases.md']) {
       await assert.doesNotReject(() => read(root, rel), `§1 file ${rel} must be scaffolded`)
     }

@@ -277,6 +277,9 @@ describe('ST-10 — the index against its source', () => {
   it('reports I — not W — when the index has never been generated', async () => {
     const root = await makeRoot('truss-didx-absent-')
     await runInit(root, ['--name', 'Indexed', '--lang', 'English'])
+    // init ships no decision log (D-087: state/decisions/ is on demand), so a
+    // log has to exist for there to be anything to index.
+    await fs.writeFile(path.join(root, SOURCE_REL), SOURCE)
     await fs.rm(path.join(root, INDEX_REL))
 
     const f = ids(await runChecks(root), 'ST-10')
@@ -295,7 +298,7 @@ describe('ST-10 — the index against its source', () => {
         + 'Decision: Something the index has never heard of.\nRationale: r.\nConsequences: c.\n'
 
       if (layout === 'file') {
-        await fs.appendFile(path.join(root, SOURCE_REL), '\n' + entry)
+        await fs.writeFile(path.join(root, SOURCE_REL), '# Decisions\n\n' + entry)
       } else {
         await fs.mkdir(path.join(root, DECISIONS_DIR), { recursive: true })
         await fs.writeFile(path.join(root, decisionPath('D-001')), entry)
@@ -311,6 +314,8 @@ describe('ST-10 — the index against its source', () => {
   it('reports W for a hand-edit of the index itself', async () => {
     const root = await makeRoot('truss-didx-handedit-')
     await runInit(root, ['--name', 'Indexed', '--lang', 'English'])
+    await fs.writeFile(path.join(root, SOURCE_REL), SOURCE)
+    await writeIndex(root)
     const abs = path.join(root, INDEX_REL)
     await fs.writeFile(abs, (await fs.readFile(abs, 'utf8')) + '\n- **D-404** — invented by hand\n')
 
@@ -322,6 +327,8 @@ describe('ST-10 — the index against its source', () => {
   it('compares content, not mtime — touching the log changes nothing', async () => {
     const root = await makeRoot('truss-didx-mtime-')
     await runInit(root, ['--name', 'Indexed', '--lang', 'English'])
+    await fs.writeFile(path.join(root, SOURCE_REL), SOURCE)
+    await writeIndex(root)
     const later = new Date(Date.now() + 60_000)
     await fs.utimes(path.join(root, SOURCE_REL), later, later)
 
@@ -329,9 +336,10 @@ describe('ST-10 — the index against its source', () => {
   })
 
   it('stays silent when there is no decision log to be stale against', async () => {
+    // This is what a fresh workspace looks like since D-087: no bodies yet.
     const root = await makeRoot('truss-didx-nosource-')
     await runInit(root, ['--name', 'Indexed', '--lang', 'English'])
-    await fs.rm(path.join(root, SOURCE_REL))
+    await fs.rm(path.join(root, SOURCE_REL), { force: true })
     await fs.rm(path.join(root, INDEX_REL))
 
     // ST-01 owns the missing file; ST-10 has nothing to say about it.

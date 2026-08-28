@@ -13,7 +13,7 @@ import path from 'node:path'
 
 import { runSplitDecisions } from '../lib/commands/split-decisions.mjs'
 import {
-  buildIndex, readDecisionSource, parseDecisionEntries,
+  buildIndex, renderIndex, readDecisionSource, parseDecisionEntries, parseDecisionSource,
   INDEX_REL, SOURCE_REL, DECISIONS_DIR, decisionPath,
 } from '../lib/decisions-index.mjs'
 import { runInit } from '../lib/commands/init.mjs'
@@ -60,7 +60,10 @@ async function workspaceWith(log, prefix) {
 describe('split-decisions — the split itself', () => {
   it('writes one file per entry and leaves the index byte-identical', async () => {
     const root = await workspaceWith(LOG, 'truss-split-happy-')
-    const before = buildIndex(LOG.split('\n'))
+    // Entry lines only: the header sentence names the layout, so it changes on
+    // purpose. What must not change is which entries the index carries.
+    const entryLines = (idx) => idx.split('\n').filter(l => l.startsWith('- **'))
+    const before = entryLines(buildIndex(LOG.split('\n')))
 
     const res = await runSplitDecisions(root)
     assert.equal(res.entries, 3)
@@ -75,8 +78,12 @@ describe('split-decisions — the split itself', () => {
 
     const after = await readDecisionSource(root)
     assert.equal(after.form, 'dir')
-    assert.equal(buildIndex(after.lines), before, 'the split must not change the index')
-    assert.equal(await fs.readFile(path.join(root, INDEX_REL), 'utf8'), before)
+    assert.deepEqual(entryLines(renderIndex(parseDecisionSource(after), 'dir')), before,
+      'the split must not lose, reorder or alter an entry')
+    assert.deepEqual(entryLines(await fs.readFile(path.join(root, INDEX_REL), 'utf8')), before)
+    // …and the header must now describe the layout the workspace actually has.
+    assert.match(await fs.readFile(path.join(root, INDEX_REL), 'utf8'),
+      /body of `D-NNN` is `state\/decisions\/D-NNN\.md`/)
   })
 
   it('carries a supersede note with the entry it belongs to', async () => {
@@ -126,10 +133,12 @@ describe('split-decisions — the split itself', () => {
     assert.deepEqual(ids(after, 'RF-03').map(f => f.message), [],
       'no id may end up defined twice')
     assert.deepEqual(ids(after, 'ST-10'), [], 'the index matches its new source')
-    assert.deepEqual(
-      after.map(f => f.id).sort(), before.map(f => f.id).sort(),
-      'the finding set is unchanged — the split is not an excuse for new noise',
-    )
+    // Compared by id AND message: an id-only comparison would call a finding
+    // that moved from state/decisions.md:12 to state/decisions/D-004.md:6
+    // "unchanged", which is exactly the kind of drift this is meant to catch.
+    const shape = (fs_) => fs_.map(f => `${f.id} ${f.message}`).sort()
+    assert.deepEqual(shape(after), shape(before),
+      'the finding set is unchanged — the split is not an excuse for new noise')
   })
 
   it('keeps the bodies out of the map but inside the checks', async () => {
@@ -148,6 +157,32 @@ describe('split-decisions — the split itself', () => {
       assert.equal(ids(findings, 'RF-02').filter(f => f.message.includes(id)).length, 0,
         `${id} is defined in ${DECISIONS_DIR}/ and must be visible to RF`)
     }
+  })
+})
+
+describe('split-decisions — what the review found', () => {
+  it('refuses a malformed id rather than swallow it into the entry above', async () => {
+    // `## D-99` is not an entry to the parser, so it would silently become part
+    // of the previous body — a second decision hidden inside another one.
+    const root = await workspaceWith(LOG + '\n## D-99 — zu kurz\nDate: 2026-01-07\nDecision: x\n', 'truss-split-malformed-')
+    await assert.rejects(() => runSplitDecisions(root), /malformed id/)
+    await assert.rejects(() => fs.readdir(path.join(root, DECISIONS_DIR)), 'nothing written')
+  })
+
+  it('keeps the file\'s own line endings', async () => {
+    const root = await workspaceWith(LOG.replace(/\n/g, '\r\n'), 'truss-split-crlf-')
+    await runSplitDecisions(root)
+    const body = await fs.readFile(path.join(root, decisionPath('D-003')), 'utf8')
+    assert.ok(body.includes('\r\n'), 'CRLF input must not come back as LF')
+    assert.doesNotMatch(body, /[^\r]\n/, 'and must not come back mixed')
+  })
+
+  it('says which body to check when content follows a horizontal rule', async () => {
+    // Everything after the last entry travels with it; a horizontal rule is the
+    // one reliable sign that it was file-level content, not part of the entry.
+    const root = await workspaceWith(LOG + '\n---\n> D-001 – D-002 archived → archive/decisions-d001-d002.md\n', 'truss-split-tail-')
+    const res = await runSplitDecisions(root)
+    assert.equal(res.tail, true, 'the run must flag it rather than move it silently')
   })
 })
 
@@ -180,6 +215,26 @@ describe('split-decisions — refusals', () => {
   it('refuses a log with no entries at all', async () => {
     const root = await workspaceWith(PREAMBLE, 'truss-split-empty-')
     await rejects(root, /no '## D-NNN' entries/)
+  })
+})
+
+describe('split-decisions — dispatch and documentation', () => {
+  it('is dispatchable and documented in lockstep', async () => {
+    // Same guard as `ack`: a migration nobody can find is a migration nobody
+    // runs, and `truss help` alone does not explain what it costs or protects.
+    const { COMMAND_META } = await import('../lib/command-meta.mjs')
+    assert.ok(COMMAND_META.find(c => c.name === 'split-decisions'), 'missing from COMMAND_META')
+    const cli = await fs.readFile(
+      path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'docs', 'cli.md'), 'utf8')
+    assert.match(cli, /^## `split-decisions`$/m)
+  })
+
+  it('is named by the upgrade report, the one place an adopter is looking', async () => {
+    // `upgrade` never writes state/, so this migration cannot be applied there.
+    // If the report does not name it, the change is invisible to every adopter.
+    const src = await fs.readFile(
+      path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'lib', 'commands', 'upgrade.mjs'), 'utf8')
+    assert.match(src, /split-decisions/)
   })
 })
 
