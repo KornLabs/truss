@@ -30,6 +30,7 @@ Consequences: [what changes because of this]
 Closes: [OD-MMM or omit when none]
 Rejected: [not-chosen option — one-line why; only with Closes:, omit otherwise]
 Supersedes: [D-MMM or omit when none]
+Addresses: [L-MMM when this decision implements a learning's adjustment; omit otherwise]
 Challenged-by: [OD-MMM while the decision is contested — the one transient field; removed when the challenge resolves]
 ```
 
@@ -55,6 +56,9 @@ files (conventions, profile, domain files): keep heading + `Decision:` line +
 a pointer to the owning file, move the rest to `archive/decisions.md`. Only
 compress when the canonical file carries the truth — a decision that still
 governs behaviour on its own stays full. Never delete an entry either way.
+Compression keeps the trace lines with the heading — `Closes:`, `Supersedes:` /
+`Superseded-by:`, `Addresses:` — and moves only prose; a link that survives one
+compression but not the next is the same as no link.
 doctor nudges when the file's read cost grows large (SY-09).
 
 `Closes:` is the durable trace of a resolved open decision. Because the OD entry
@@ -63,6 +67,12 @@ resolution here — never leave a "DECIDED" tombstone in open-decisions.md inste
 `Rejected:` preserves the not-chosen options in one line — without it, the OD's
 alternatives survive only in git history and "why not B?" becomes unanswerable
 from active context.
+
+`Addresses:` is the same kind of trace pointing the other way: it names the
+`L-NNN` whose adjustment this decision implements, so "did that learning ever
+change anything?" is answerable from the decision side instead of only from the
+learning's prose. It is what keeps the pair readable once the decision is
+compressed or its body archived.
 
 **Challenging a decision.** A decision binds until it is superseded, but it is
 evidence, not scripture — and the agent that spots a wrong one must be able to say
@@ -201,6 +211,20 @@ Ordinary product bugs go to the repo issue tracker, a test, a local domain task,
 or a domain file for project-wide planning. If a bug exposes a technical
 decision, record a D-NNN; if it creates project, launch, or safety exposure,
 record an R-NNN.
+
+**The adjustment belongs where the behaviour happens, not only here.** A rule
+that lives only in this file is read when someone opens this file, and nothing
+makes them — so the weakness gets found a second time by the session that had no
+reason to look. Put the rule where the next session must pass anyway: the check
+that would catch it, the test, the convention that governs it, a comment at the
+line that got it wrong. `Adjustment:` then names that place, and the entry keeps
+the trace rather than the rule. A weakness with no such place — a habit, not a
+rule — stays here in full; that is the exception, and it is the one case where
+re-reading this file is the only mechanism there is.
+
+When the adjustment is itself a decision, record the D-NNN with `Addresses:
+L-NNN`. Without that line the pair is readable only from this side, and the link
+breaks the moment the decision is compressed or archived.
 
 ### TF-NNN — Truss finding (upstream feedback)
 
