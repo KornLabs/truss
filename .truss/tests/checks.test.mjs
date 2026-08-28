@@ -31,8 +31,12 @@ function file(content, ageDays = 0) {
   return { lines, content, stat: { mtimeMs: Date.now() - ageDays * DAY } }
 }
 function ctxOf(files = {}, { phases, diskPaths = [], root = '/tmp/none' } = {}) {
+  // relPath is filled in from the key: a check that attributes a finding to
+  // `file.relPath` (SY-03 and SY-11 do, since the bodies moved apart in D-087)
+  // would otherwise be tested against `undefined` and look fine.
+  const entries = Object.entries(files).map(([rel, f]) => [rel, { relPath: rel, ...f }])
   return {
-    files: new Map(Object.entries(files)),
+    files: new Map(entries),
     phases: phases ?? { frontmatter: {}, defs: new Map() },
     diskPaths, root,
   }
@@ -304,8 +308,32 @@ describe('SY-09 decisions.md read cost', () => {
     // D-075: the full log is no longer read at every boot — it is loaded before
     // a decision is made or proposed, and the index carries the rest.
     assert.match(f[0].message, /tokens when the log is read in full/)
-    assert.match(f[0].fix, /archive\/decisions\.md/)
+    // D-087: the archive target is the directory, not a single file. This
+    // assertion froze the stale path once already — keep it pointed at what
+    // docs/conventions.md actually tells the agent to do.
+    assert.match(f[0].fix, /archive\/decisions\//)
     assert.match(f[0].fix, /never delete/i)
+  })
+
+  it('attributes a grammar finding to the body that has the defect (D-087)', async () => {
+    // The reason the checks loop over files at all: a finding must point at the
+    // body to open, not at a log that no longer exists.
+    const f = ids(await sy.run(ctxOf({
+      'state/decisions/D-001.md': file('## D-001 — fine\nDate: 2026-01-01\nDecision: d\nRationale: r\nConsequences: c\n'),
+      'state/decisions/D-002.md': file('## D-002 — missing fields\nDate: 2026-01-02\nDecision: d\n'),
+    })), 'SY-03')
+    assert.equal(f.length, 1, 'only the defective body is reported')
+    assert.equal(f[0].file, 'state/decisions/D-002.md')
+  })
+
+  it('reports a stale Challenged-by: against its own body (D-087)', async () => {
+    const f = ids(await sy.run(ctxOf({
+      'state/decisions/D-004.md': file('## D-004 — contested\nDate: 2026-01-04\nDecision: d\nRationale: r\nConsequences: c\nChallenged-by: OD-901\n'),
+      'state/open-decisions.md': file('# Open Decisions\n'),
+    })), 'SY-11')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].file, 'state/decisions/D-004.md')
+    assert.match(f[0].message, /OD-901/)
   })
 
   it('sums the split bodies, because §1 still reads the whole log (D-087)', async () => {
@@ -323,6 +351,9 @@ describe('SY-09 decisions.md read cost', () => {
     const f = ids(await sy.run(ctxOf(bodies)), 'SY-09')
     assert.equal(f.length, 1, 'one finding for the log, not one per body')
     assert.match(f[0].message, /state\/decisions\/ \(4 entries\)/)
+    // The cost belongs to the log, so the finding must not send the reader into
+    // one arbitrary body where nothing is wrong.
+    assert.equal(f[0].file, 'state/decisions/')
   })
   it('stays silent below the threshold and for a missing file', async () => {
     assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(500)) })), 'SY-09').length, 0)

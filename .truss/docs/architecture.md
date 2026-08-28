@@ -18,7 +18,7 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── scaffold.mjs     # atomic/no-overwrite whole-file primitives
 │   ├── writer.mjs       # generated-block writer
 │   ├── render.mjs       # render phase / preferences blocks
-│   ├── decisions-index.mjs # build state/decisions-index.md from state/decisions.md
+│   ├── decisions-index.mjs # build state/decisions-index.md from the decision log
 │   ├── prefs.mjs        # preferences catalogue (single source of truth)
 │   ├── md.mjs           # markdown parsing helpers
 │   ├── severity.mjs     # E/W/I severity + family metadata
@@ -53,7 +53,7 @@ surfaces:
   in `AGENTS.md`) for `init`, `render`, `set`, and `phase`.
 - `phase` owns the `current:` update in `state/phases.md`; `map` owns
   `state/map.md`; `render` (and `init`) own `state/decisions-index.md`, which is
-  derived from `state/decisions.md` and never edited by hand; doctor report modes
+  derived from `the decision log` and never edited by hand; doctor report modes
   own files under `.truss/out/`.
 
 Checks and `status` are read-only.

@@ -63,7 +63,7 @@ than carrying it silently for another year.
 **When to archive:**
 
 - A domain file exceeds ~500 lines → split the oldest / least-active section to `archive/<domain>/<topic>.md`
-- A decision is superseded (see D-NNN grammar in docs/conventions.md) → the entry stays in state/decisions.md with `Superseded-by:`; once its full text no longer informs current work, compress it in place to heading + supersede note and move the body to `archive/decisions.md` — decisions.md is loaded in full before every decision, and its `Decision:` lines are boot context via `state/decisions-index.md`
+- A decision is superseded (see D-NNN grammar in docs/conventions.md) → the entry stays in state/decisions.md with `Superseded-by:`; once its full text no longer informs current work, compress it in place to heading + supersede note and move the body to `archive/decisions.md` — decisions.md is loaded in full before every decision, and its titles are boot context via `state/decisions-index.md`
 - A HUMAN-TODOS.md entry is checked `[x]` and clearly settled (the next session no longer needs it) → move the line verbatim to `archive/human-todos.md`; the HT counter continues across archived entries
 - An open-decisions.md entry was decided → it is removed the moment the D-NNN (with `Closes: OD-NNN`) is written — never park a "DECIDED" tombstone; update references to point at the D-NNN instead
 

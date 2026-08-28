@@ -1,8 +1,8 @@
 # Open Decisions
 
 > Briefings for undecided questions that block or shape work — including a challenge to a recorded decision (AGENTS.md §3).
-> On decision → `D-NNN` in state/decisions.md with `Closes: OD-NNN`, then remove the entry here; no "DECIDED" tombstones. Empty is the correct state of a project with nothing undecided — never delete this file.
-> `OD-NNN` sequential, never reused: the next free number is one above the highest `OD-NNN` here **or** in a `Closes:` line in state/decisions.md.
+> On decision → `D-NNN` in state/decisions/ with `Closes: OD-NNN`, then remove the entry here; no "DECIDED" tombstones. Empty is the correct state of a project with nothing undecided — never delete this file.
+> `OD-NNN` sequential, never reused: the next free number is one above the highest `OD-NNN` here **or** in a `Closes:` line under state/decisions/.
 > The entry shape below is a machine contract — `doctor`'s SY-03 parses the option lines, so keep it. Full grammar: docs/conventions.md.
 
 <!-- Entry template — an OD is a briefing the human can decide from without reconstructing your analysis.

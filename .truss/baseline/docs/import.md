@@ -14,7 +14,7 @@ List all significant files and folders. For each, decide:
 | Existing item | Maps to |
 |---|---|
 | Core idea / README | VISION.md |
-| Past decisions (in docs, Notion, Slack) | state/decisions.md (D-NNN) |
+| Past decisions (in docs, Notion, Slack) | state/decisions/ (D-NNN) |
 | Open questions | state/open-decisions.md (OD-NNN) |
 | Tasks / backlog | local domain `## Tasks`, a domain file for project-wide planning, `HUMAN-TODOS.md`, or `state/open-decisions.md` |
 | Code repository | repo/ (or symlink) |
@@ -32,7 +32,7 @@ An overlay starts in `ingest` (import the system), then moves to `operate` (run 
 ## Step 3 — Fill state files
 
 - `state/profile.md`: fill in name, language, tools, style from existing docs.
-- `state/decisions.md`: create D-NNN entries for significant past decisions. Use the date they were made if known; today's date otherwise.
+- `state/decisions/`: create D-NNN entries for significant past decisions. Use the date they were made if known; today's date otherwise.
 - `state/current.md`: set the actual current focus and next actions; do not copy a long imported backlog here.
 - Imported TODOs: route small domain-bound tasks to the owning domain's optional `## Tasks`, project-wide planning to a domain file under `context/`, human-only work to `HUMAN-TODOS.md`, and unresolved choices to `state/open-decisions.md`.
 

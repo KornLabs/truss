@@ -57,7 +57,10 @@ up. An entry only leaves the boot when its file leaves `state/decisions/`.
 - **Compress** a superseded entry, or one whose consequence is fully carried by
   a canonical file: keep heading, trace lines and `Decision:`, move the prose to
   `archive/decisions/D-NNN.md` with a pointer. The ID stays; a lookup gets
-  cheaper.
+  cheaper. **The archived block must not repeat the heading**: a heading whose
+  first token is the ID (`## D-NNN — …`) is a *definition*, so the same id would
+  be defined twice and RF-03 fires with an error. Write `## Body of D-NNN — …`
+  instead — anything where the id is not the first token after the hashes.
 - **Archive whole** once acting correctly no longer requires reading the entry
   at all — because a check, a test, a convention or the file structure carries
   its consequence, and nothing still open depends on it. The file moves to
