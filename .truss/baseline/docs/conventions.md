@@ -9,7 +9,7 @@ IDs are sequential integers, zero-padded to three digits. Never reused. Issued i
 
 | Prefix | File | Owner | Meaning |
 |---|---|---|---|
-| D-NNN | state/decisions.md | A | Decided decision |
+| D-NNN | state/decisions/D-NNN.md | A | Decided decision (one file per entry) |
 | HT-NNN | HUMAN-TODOS.md | A | Human-only todo |
 | R-NNN | state/risks.md | A | Risk |
 | OD-NNN | state/open-decisions.md | A | Open decision briefing |
@@ -44,18 +44,32 @@ still hold)` — and always name what still holds, so the old entry is not misre
 This is a tolerance for entries written before the one-decision rule, not a second
 revision mode: new entries are small enough to supersede whole.
 
-Keep `Decision:`/`Rationale:`/`Consequences:` to roughly one line each — the
-`Decision:` line is copied verbatim into `state/decisions-index.md`, which *is*
-boot context, read every session; design detail belongs in the owning domain
-file, linked from the entry. Once a superseded entry's full
-text no longer informs current work, compress it in place to its heading plus
-the supersede note and move the body to `archive/decisions.md` — the ID and its
-trace never leave state/decisions.md. The same compression applies to a
-never-superseded entry whose consequences are fully absorbed into canonical
-files (conventions, profile, domain files): keep heading + `Decision:` line +
-a pointer to the owning file, move the rest to `archive/decisions.md`. Only
-compress when the canonical file carries the truth — a decision that still
-governs behaviour on its own stays full. Never delete an entry either way.
+Each decision is its own file, `state/decisions/D-NNN.md`, holding exactly the
+entry above. Keep `Decision:`/`Rationale:`/`Consequences:` to roughly one line
+each; design detail belongs in the owning domain file, linked from the entry.
+
+**Two different costs, two different moves.** The boot loads
+`state/decisions-index.md`, which carries one line per decision — title and
+status, nothing else. So compressing a body saves nothing at boot: it makes the
+*body* cheaper to open, which is the cost a task pays when it looks a decision
+up. An entry only leaves the boot when its file leaves `state/decisions/`.
+
+- **Compress** a superseded entry, or one whose consequence is fully carried by
+  a canonical file: keep heading, trace lines and `Decision:`, move the prose to
+  `archive/decisions/D-NNN.md` with a pointer. The ID stays; a lookup gets
+  cheaper.
+- **Archive whole** once acting correctly no longer requires reading the entry
+  at all — because a check, a test, a convention or the file structure carries
+  its consequence, and nothing still open depends on it. The file moves to
+  `archive/decisions/`, the index loses its line, and a pointer in
+  `archive/decisions/README.md` records the range and why. This is the only move
+  that changes what the boot costs, and the `cleanup` ritual
+  (`.truss/docs/rituals/cleanup.md`) proposes it — it is never automatic.
+
+Never delete an entry either way: archived is findable, and RF-02 resolves an
+archived `D-NNN` because `archive/` is indexed. If in doubt, compress rather
+than archive — the cost of guessing wrong is one extra file read, but a decision
+that still constrains an open choice must stay where every session sees it.
 Compression keeps the trace lines with the heading — `Closes:`, `Supersedes:` /
 `Superseded-by:`, `Addresses:` — and moves only prose; a link that survives one
 compression but not the next is the same as no link.
@@ -85,10 +99,10 @@ knowing the reasoning are not grounds — read the `Rationale:` first.
 The split is deliberate: **opening a challenge is the agent's to do, changing the
 decision is not.** Open it as an `OD-NNN` that names the decision and states which
 of (a)/(b)/(c) applies, and add `Challenged-by: OD-NNN` to the decision itself —
-`state/decisions-index.md` carries only titles and `Decision:` lines, and §1
-loads decisions.md in full exactly when it matters — before a decision is made or
-proposed — so without that line the session that is about to build on the
-decision reads it as settled. Then:
+`state/decisions-index.md` carries only titles and status, and §1 opens a body
+exactly when it matters — before a decision is made or proposed — so without
+that line the session that is about to build on the decision reads it as
+settled. Then:
 
 - **Human agrees** → new `D-NNN` with `Supersedes:` and `Closes:`, `Superseded-by:`
   on the old entry, `Challenged-by:` removed.
@@ -169,7 +183,7 @@ so the shape is not cosmetic:
 An entry without keyed, dashed option lines still displays, but as free text: the
 human then re-reads your prose instead of choosing. doctor warns (SY-03).
 
-`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). Because entries are removed on decision, the counter is not readable from this file alone: the next free number is one above the highest `OD-NNN` found here **or** in a `Closes:` line in state/decisions.md. `Opened:` records when the question arose; nothing expires by the calendar, but `truss status` shows each open entry with its age and doctor asks once past 30 days whether the question still stands (SY-10). When decided: create a D-NNN in state/decisions.md with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
+`OD-NNN` is sequential and never reused (its own counter — the question only earns a `D-NNN` once decided). Because entries are removed on decision, the counter is not readable from this file alone: the next free number is one above the highest `OD-NNN` found here **or** in a `Closes:` line under state/decisions/. `Opened:` records when the question arose; nothing expires by the calendar, but `truss status` shows each open entry with its age and doctor asks once past 30 days whether the question still stands (SY-10). When decided: create a D-NNN in state/decisions/ with a `Closes: OD-NNN` line, update any references to the OD to point at the D-NNN, then **remove the entry here in the same change** — no "DECIDED" tombstones; the `Closes:` line is the permanent trace. doctor checks numbering via SY-03 and flags leftover decided entries via SY-06.
 
 Removing the last entry empties this file; it does not delete it. `state/open-decisions.md` is part of the §1 load order and ships with every workspace — empty is the correct state of a project with no open questions.
 

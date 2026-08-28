@@ -5,6 +5,7 @@ import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
 import { listDomains } from '../domains.mjs'
 import { branchReport, recentCommits } from '../git.mjs'
+import { decisionFilesFrom } from '../decisions-index.mjs'
 
 const RECENT_COMMITS_MAX = 5
 // Same 60-char cutoff other status-adjacent messages use (checks/sy.mjs,
@@ -208,10 +209,10 @@ function openDecisionLines(ctx, now, useColor) {
   const od = ctx.files.get('state/open-decisions.md')
   if (!od) return []
 
-  // OD-NNN → D-NNN, from the `Challenged-by:` markers in decisions.md.
+  // OD-NNN → D-NNN, from the `Challenged-by:` markers in the decision log —
+  // split bodies or the legacy single file, whichever this workspace uses.
   const challenges = new Map()
-  const dec = ctx.files.get('state/decisions.md')
-  if (dec) {
+  for (const dec of decisionFilesFrom(ctx)) {
     let currentD = null
     for (const line of dec.lines) {
       const h = line.match(/^##\s+(D-\d{3})\b/)

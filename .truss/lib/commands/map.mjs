@@ -58,6 +58,17 @@ export function mapComparisonKey(content) {
 // of truth so doctor can reproduce the same file set without a second walk.
 export const MAP_SKIP_DIRS = new Set(['.truss', '.git', '.github', 'node_modules', 'packages', 'archive']);
 
+// Directories the map skips by their EXACT relative path, not by bare name.
+// state/decisions/ (D-087) holds one body per decision — listing 40+ rows with
+// individual read-cost estimates would bury the domain files the map exists to
+// show, and the decision index already is that listing. Path-keyed rather than
+// name-keyed on purpose: a project's own context/decisions/ must stay mapped.
+export const MAP_SKIP_PATHS = new Set(['state/decisions']);
+
+// True for a path inside a MAP_SKIP_PATHS directory (or the directory itself).
+export const isMapSkippedPath = (rel) =>
+  MAP_SKIP_PATHS.has(rel) || [...MAP_SKIP_PATHS].some(d => rel.startsWith(`${d}/`));
+
 // Files the map skips (AI-agent adapter stubs), matched by lowercase basename.
 export const MAP_SKIP_FILES = new Set(['claude.md', 'gemini.md', 'roo_code.md', 'cursor.md']);
 
@@ -113,6 +124,7 @@ async function walkMdFiles(root, isIgnored, codeRootRel = null) {
         if (rel === codeRootRel) continue;
         const isCodeRootParent = codeRootRel?.startsWith(`${rel}/`);
         if (MAP_SKIP_DIRS.has(entry.name) && !isCodeRootParent) continue;
+        if (MAP_SKIP_PATHS.has(rel)) continue;
         if (isIgnored(rel, true)) continue; // user-declared / gitignored tree
         // Sequential traversal avoids EMFILE limits from massive directory trees
         await walk(rel);
@@ -138,6 +150,7 @@ export function mapMdFilesFromDiskPaths(diskPaths, isIgnored, codeRootRel = null
     }
     const segs = rel.split('/');
     if (segs.some(s => MAP_SKIP_DIRS.has(s))) return false;
+    if (isMapSkippedPath(rel)) return false;
     if (MAP_SKIP_FILES.has(segs[segs.length - 1].toLowerCase())) return false;
     // diskPaths from walkWorkspace are already ignore-filtered; re-checking here
     // keeps this a pure, self-consistent filter matching walkMdFiles for callers

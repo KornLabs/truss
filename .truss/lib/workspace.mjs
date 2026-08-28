@@ -12,6 +12,7 @@ import { mapMdFilesFromDiskPaths } from './commands/map.mjs'
 import { loadIgnore } from './ignore.mjs'
 import { resolveCodeRoot } from './code-root.mjs'
 import { readContextAck } from './context-ack.mjs'
+import { DECISIONS_DIR } from './decisions-index.mjs';
 
 /**
  * OS / editor junk files that are never part of a Truss workspace and must not
@@ -209,6 +210,11 @@ export async function loadWorkspace(root) {
   // Migration bridge: older AGENTS.md structure tables may not list risks.md,
   // but if the file exists its R-NNN definitions must still be visible to RF/SY.
   managedRelPaths.add('state/risks.md');
+  // Same bridge for the legacy single-file decision log (D-087). The §2 table
+  // now names state/decisions/, so a workspace that has not split would lose
+  // every D-NNN definition — one RF-02 per reference — the day it upgrades.
+  // D-077/D-081: the old form stays supported and stays silent.
+  managedRelPaths.add('state/decisions.md');
 
   const files = new Map();
 
@@ -303,7 +309,13 @@ export async function loadWorkspace(root) {
   // archive/ is deliberately absent from mdFiles (MAP_SKIP_DIRS keeps it out of
   // the domain map), so its markdown is taken from diskPaths directly.
   const archiveMd = diskPaths.filter(p => p.startsWith('archive/') && p.endsWith('.md'))
-  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd]) {
+  // state/decisions/<ID>.md (D-087) is loaded for the same reason as archive/:
+  // the bodies moved out of state/decisions.md, so without indexing them every
+  // D-NNN reference in the workspace would become an RF-02 warning and the
+  // index would look like it defines ids it only cites. Taken from diskPaths,
+  // not mdFiles, because the map summarises the directory instead of listing it.
+  const decisionMd = diskPaths.filter(p => p.startsWith(DECISIONS_DIR + '/') && p.endsWith('.md'))
+  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd, ...decisionMd]) {
     if (files.has(rel)) continue;
     const raw = await readFile(resolve(rel));
     if (!raw) continue;

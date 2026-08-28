@@ -19,7 +19,7 @@
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
 4. `state/profile.md` — project language, tools, style.
-5. `state/decisions-index.md` — always: every decision's title and its `Decision:` line. Then `state/decisions.md` in full before making or proposing any decision — the index says *what* was decided, the file *why* and *at what cost*. `state/open-decisions.md` when the task touches an open question.
+5. `state/decisions-index.md` — always: every decision's title and status. Then the bodies your task touches (`state/decisions/D-NNN.md`), and all of them before making or proposing any decision — the index says *what* was decided, the body *why* and *at what cost*. `state/open-decisions.md` when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to (§2).
 
 Load the smallest context that can answer the task; stop as soon as it is unambiguous — no archives, history, bulk data, engine internals, or unrelated domains unless the task requires them.
@@ -34,8 +34,8 @@ Routing policy: which file owns what. Not a file inventory — that is `state/ma
 | README.md | H | human onboarding — not agent context |
 | VISION.md | H+A | problem, idea, principles, constraints |
 | state/current.md | A | the live snapshot: focus · next · blockers (limits in the file); recently done is `git log`, not a maintained list — see `truss status` |
-| state/decisions.md | A | decided decisions D-NNN; supersede, never delete |
-| state/decisions-index.md (on demand) | S | auto-generated, do not edit: title + `Decision:` line per D-NNN, written by `truss render`. This is what §1 loads every session; the full file above is loaded on demand |
+| state/decisions/ (on demand) | A | decided decisions, one file per entry (`state/decisions/D-NNN.md`); supersede, never delete — summary row, contents not table-managed. A workspace that still keeps them in one `state/decisions.md` is equally valid and equally checked |
+| state/decisions-index.md (on demand) | S | auto-generated, do not edit: title + status per D-NNN, written by `truss render`. This is what §1 loads every session; a body is opened by its ID |
 | state/phases.md (on demand) | H pointer · H+A definitions | phase definitions and `current:` pointer; without this file the workspace runs with no phase model — no gates, no forbidden lists, no exit criteria |
 | state/profile.md | H+A | project name/language, code-root, tools, style, and the durable behaviour preferences the human dictates |
 | state/open-decisions.md | A | briefings for undecided questions (options + trade-offs); on decision → D-NNN with `Closes:`, remove the entry; also where you challenge a decision (§3) |
@@ -58,7 +58,7 @@ On demand means: the path does not exist until its first real entry. Never creat
 
 Not Truss territory: agent skills (`SKILL.md`) and agents (`.md` role files) belong in the directory your AI tool reads automatically — `.claude/skills/` and `.claude/agents/` for Claude Code (primary). No single path works across all tools; pick your primary. Truss neither scans nor places these; `.trussignore` keeps them out of `state/map.md` and doctor. Add a skill or agent there, not in a Truss-owned path.
 
-Routing tie-breakers: "remember this" / any durable rule about how you work → state/profile.md · technical convention → docs/conventions.md · describes the world → domain file · commits us to act → owning domain · is a decision → state/decisions.md · only a human can do it → HUMAN-TODOS.md · a systemic weakness in how you or the framework work → state/learnings.md, or state/truss-findings.md when only Truss itself can fix it · unsure → ask, don't guess.
+Routing tie-breakers: "remember this" / any durable rule about how you work → state/profile.md · technical convention → docs/conventions.md · describes the world → domain file · commits us to act → owning domain · is a decision → state/decisions/ · only a human can do it → HUMAN-TODOS.md · a systemic weakness in how you or the framework work → state/learnings.md, or state/truss-findings.md when only Truss itself can fix it · unsure → ask, don't guess.
 
 ## 3 Rules
 
@@ -82,7 +82,7 @@ Goal-driven execution: before multi-step work, state a brief plan with verificat
 
 Decisions bind until superseded — and they are evidence, not scripture. Challenge one when, and only when: new evidence it did not have · a consequence it predicted demonstrably did not hold · it now contradicts another canonical file or a later decision. Not a different preference, not taste, not "this could be cleaner", not "I don't see why". Open the challenge yourself — an OD entry naming the decision, plus `Challenged-by: OD-NNN` on it — but never change or supersede a decision without the human's explicit go-ahead. Rejected challenge → put the tested alternative into that decision's `Rationale:` in one clause; a rejected challenge hardens the decision instead of returning next session.
 
-Conflict tie-breaker: AGENTS.md §2 table governs structure · state/decisions.md governs decided facts · domain files govern domain content · flag all others via open-decisions.
+Conflict tie-breaker: AGENTS.md §2 table governs structure · state/decisions/ governs decided facts · domain files govern domain content · flag all others via open-decisions.
 
 Scan scope: foreign or bulk data placed in the project belongs in `.trussignore` so it stays out of state/map.md and doctor findings; git-ignored paths are skipped automatically.
 

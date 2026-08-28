@@ -303,9 +303,26 @@ describe('SY-09 decisions.md read cost', () => {
     assert.equal(f[0].severity, 'I')
     // D-075: the full log is no longer read at every boot — it is loaded before
     // a decision is made or proposed, and the index carries the rest.
-    assert.match(f[0].message, /tokens every time it is loaded in full/)
+    assert.match(f[0].message, /tokens when the log is read in full/)
     assert.match(f[0].fix, /archive\/decisions\.md/)
     assert.match(f[0].fix, /never delete/i)
+  })
+
+  it('sums the split bodies, because §1 still reads the whole log (D-087)', async () => {
+    // Splitting makes ONE lookup cheap; it does not make the full read cheap.
+    // Reporting only the largest body would silence the nudge exactly when the
+    // log has grown enough to need it.
+    const bodies = {}
+    for (let n = 1; n <= 4; n++) {
+      const id = `D-${String(n).padStart(3, '0')}`
+      bodies[`state/decisions/${id}.md`] = file(
+        `## ${id} — big ${n}\nDate: 2026-01-01\nDecision: x\nRationale: y\nConsequences: z\n`
+        + Array(1000).fill('lorem').join(' ') + '\n'
+      )
+    }
+    const f = ids(await sy.run(ctxOf(bodies)), 'SY-09')
+    assert.equal(f.length, 1, 'one finding for the log, not one per body')
+    assert.match(f[0].message, /state\/decisions\/ \(4 entries\)/)
   })
   it('stays silent below the threshold and for a missing file', async () => {
     assert.equal(ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(500)) })), 'SY-09').length, 0)

@@ -1,18 +1,26 @@
-// lib/decisions-index.mjs — the boot-sized index of state/decisions.md (D-075).
+// lib/decisions-index.mjs — the boot-sized index of the decision log (D-075, D-087).
 //
-// state/decisions.md is boot context and the only §1 file that grows without
-// bound (≈160 tokens per entry). Archiving fights the symptom; the real waste is
-// that a session loads every `Rationale:` and `Consequences:` line to find out
-// *which* decisions exist. So the full file leaves the always-loaded set and an
-// index takes its place: one entry per decision, title plus its `Decision:`
-// line. The full file is loaded on demand — before making or proposing a
-// decision (AGENTS.md §1). The source file itself is never touched.
+// The decision log is the only §1 input that grows without bound, so the boot
+// loads an index instead. D-075 made that index title + `Decision:` line over a
+// single state/decisions.md. D-087 went one step further, because measurement
+// showed the `Decision:` line *is* the growth: 44 real entries cost 77 tokens
+// each in the index, 16 without it. Dropping it is only safe if looking one up
+// is cheap — which it is not while the bodies share one 11 648-token file. So
+// the two moves are one package:
+//
+//   • bodies live in state/decisions/<ID>.md, one file per decision
+//   • the index carries title + status only; the path is derived from the ID
+//
+// ── TWO FORMS, ONE CODE PATH (D-077) ───────────────────────────────────────
+// A workspace that has never split still has state/decisions.md, and it must
+// keep working and produce no finding. `readDecisionSource` detects the form
+// from the workspace itself and returns lines either way; everything below
+// operates on those lines and never learns which form it came from.
 //
 // ── FORM CONTRACT — do not "clean this up" into headings ────────────────────
-// Entries are **bold list items with an indented continuation line**:
+// Entries are **bold list items**, one line each:
 //
 //   - **D-074** — Dashboard und Prompt-Bibliothek verlassen den Motor
-//     Decision: …
 //
 // This is not a style choice, it is what keeps the index a pure *reference*:
 //
@@ -22,16 +30,13 @@
 //   • `ID_LIST_RE` requires the id token immediately after `- `; the two
 //     asterisks block that, so a bold list item is a reference, not a
 //     definition.
-//   • The continuation line is indented by two spaces: neither a heading nor a
-//     list item, so it defines nothing either — and two spaces (not four) keep
-//     it out of `parseIdReferences`' indented-code-block skip, which is what
-//     lets RF-01 still validate links carried over from a `Decision:` line.
 //
-// RF-02 stays satisfied because state/decisions.md remains loaded (it is
-// table-managed), so every id the index mentions is still defined exactly once.
-// No loader special-case is needed anywhere. tests/decisions-index.test.mjs
-// nails the form down: a refactor to headings must go red, not silently produce
-// one RF-03 error per decision.
+// RF-02 stays satisfied because the bodies stay loaded: lib/workspace.mjs reads
+// state/decisions/*.md into ctx the same way it reads archive/, so every id the
+// index mentions is still defined exactly once — in exactly one file, which is
+// what keeps RF-03 quiet. tests/decisions-index.test.mjs nails the form down: a
+// refactor to headings must go red, not silently produce one RF-03 error per
+// decision.
 //
 // The provenance line carries no timestamp on purpose: ST-10 compares the index
 // against a freshly built one BY CONTENT (not by mtime), and a timestamp would
@@ -43,7 +48,39 @@ import { writeFileAtomic } from './scaffold.mjs'
 
 /** Where the index lives, and what it is generated from. */
 export const INDEX_REL  = 'state/decisions-index.md'
+/** Legacy single-file log — still fully supported (D-077). */
 export const SOURCE_REL = 'state/decisions.md'
+/** Split log (D-087): one body per decision, addressed by bare ID. */
+export const DECISIONS_DIR = 'state/decisions'
+
+/** Body path for a decision id — the index never stores it, it is derived. */
+export const decisionPath = (id) => `${DECISIONS_DIR}/${id}.md`
+
+/** Only `D-NNN.md` counts; anything else in the directory is ignored. */
+export const DECISION_FILE_RE = /^(D-\d{3})\.md$/
+
+/**
+ * The loaded decision-log files from a workspace context, in ID order.
+ * Split bodies when the workspace has them, the legacy single file otherwise —
+ * the same precedence readDecisionSource applies, so a check and `render` can
+ * never disagree about which form a workspace is in. Empty array = no log.
+ *
+ * Consumers loop and attribute findings to `file.relPath`: in the split form a
+ * grammar finding must point at the body that has the defect, not at a file
+ * that no longer exists.
+ *
+ * @param {{ files: Map<string, any> }} ctx
+ * @returns {Array<any>} FileContext[]
+ */
+export function decisionFilesFrom(ctx) {
+  const prefix = DECISIONS_DIR + '/'
+  const split = [...ctx.files.keys()]
+    .filter((rel) => rel.startsWith(prefix) && DECISION_FILE_RE.test(rel.slice(prefix.length)))
+    .sort()
+  if (split.length) return split.map((rel) => ctx.files.get(rel))
+  const legacy = ctx.files.get(SOURCE_REL)
+  return legacy ? [legacy] : []
+}
 
 const HEADING_RE  = /^##\s+(D-\d{3})\b\s*(.*)$/
 const DECISION_RE = /^Decision:\s*(.*)$/
@@ -56,20 +93,11 @@ const DECISION_RE = /^Decision:\s*(.*)$/
 const SUPERSEDED_RE = /^Superseded-by:\s*(.*)$/
 const CHALLENGED_RE = /^Challenged-by:\s*(.*)$/
 
-/**
- * Marker for an entry whose body has no `Decision:` line. The title still gets
- * an index entry — an entry the index silently dropped would be invisible to
- * every session, which is worse than an entry that says what is missing. The
- * marker deliberately does NOT start with `Decision:` so that comparing index
- * lines against source lines stays unambiguous.
- */
-export const NO_DECISION_MARK = '(no `Decision:` line — read the full entry in state/decisions.md)'
-
 const HEADER = [
   '# Decisions — Index',
   '',
-  '> Auto-generated from `state/decisions.md` by `node .truss/bin/truss.mjs render` — do not edit; edit the source and re-run.',
-  '> Title, status and `Decision:` line per entry. Load `state/decisions.md` in full before making or proposing a decision (AGENTS.md §1).',
+  '> Auto-generated by `node .truss/bin/truss.mjs render` — do not edit; edit the source and re-run.',
+  '> Title and status per decision. The body of `D-NNN` is `state/decisions/D-NNN.md`; open the ones your task touches, and all of them before making or proposing a decision (AGENTS.md §1).',
 ]
 
 /**
@@ -133,11 +161,9 @@ function statusMark(entry) {
 }
 
 export function buildIndex(lines) {
-  const out = [...HEADER]
+  const out = [...HEADER, '']
   for (const entry of parseDecisionEntries(lines)) {
-    out.push('')
     out.push(`- **${entry.id}**${statusMark(entry)} — ${entry.title}`)
-    out.push('  ' + (entry.decision ? `Decision: ${entry.decision}` : NO_DECISION_MARK))
   }
   return out.join('\n') + '\n'
 }
@@ -149,15 +175,48 @@ export function buildIndex(lines) {
  *
  * @param {string} root  absolute workspace root
  */
-export async function writeIndex(root) {
-  let source
+export async function readDecisionSource(root) {
+  // Split form wins when it holds at least one body: a workspace mid-migration
+  // may still carry an emptied state/decisions.md, and the directory is the
+  // deliberate act. An empty or absent directory falls through to the file, so
+  // creating state/decisions/ by accident cannot blank a workspace's index.
+  let names = []
   try {
-    source = await fs.readFile(path.join(root, SOURCE_REL), 'utf8')
+    names = (await fs.readdir(path.join(root, DECISIONS_DIR)))
+      .filter((n) => DECISION_FILE_RE.test(n))
+      .sort()
+  } catch { /* no directory — legacy form */ }
+
+  if (names.length) {
+    const lines = []
+    for (const name of names) {
+      const body = await fs.readFile(path.join(root, DECISIONS_DIR, name), 'utf8')
+      // A body that lost its heading would silently vanish from the index, so
+      // it is not repaired here — parseDecisionEntries simply finds nothing and
+      // ST-10 reports the resulting drift against the directory.
+      lines.push(...body.split('\n'), '')
+    }
+    return { form: 'dir', lines, files: names.map((n) => `${DECISIONS_DIR}/${n}`) }
+  }
+
+  try {
+    const source = await fs.readFile(path.join(root, SOURCE_REL), 'utf8')
+    return { form: 'file', lines: source.split('\n'), files: [SOURCE_REL] }
   } catch {
     return null
   }
-  const lines = source.split('\n')
-  const content = buildIndex(lines)
-  await writeFileAtomic(path.join(root, INDEX_REL), content)
-  return { entries: parseDecisionEntries(lines).length, path: INDEX_REL }
+}
+
+/**
+ * Read the decision log in whichever form the workspace uses and write
+ * state/decisions-index.md next to it. Returns null when there is no log at all
+ * (nothing to index is not an error), otherwise { entries, path, form }.
+ *
+ * @param {string} root  absolute workspace root
+ */
+export async function writeIndex(root) {
+  const src = await readDecisionSource(root)
+  if (!src) return null
+  await writeFileAtomic(path.join(root, INDEX_REL), buildIndex(src.lines))
+  return { entries: parseDecisionEntries(src.lines).length, path: INDEX_REL, form: src.form }
 }
