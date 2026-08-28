@@ -546,10 +546,10 @@ async function runRender() {
   await renderDecisionsIndex()
 }
 
-// state/decisions-index.md — the boot-sized index of state/decisions.md (D-075).
-// No source file is not an error: nothing to index, nothing to say beyond a note.
+// state/decisions-index.md — the boot-sized index of the decision log (D-075, D-087).
+// No log at all is not an error: nothing to index, nothing to say beyond a note.
 async function renderDecisionsIndex() {
-  const { writeIndex, INDEX_REL, SOURCE_REL } = await import('../lib/decisions-index.mjs')
+  const { writeIndex, INDEX_REL, SOURCE_REL, DECISIONS_DIR } = await import('../lib/decisions-index.mjs')
   let result
   try {
     result = await writeIndex(root)
@@ -558,10 +558,11 @@ async function renderDecisionsIndex() {
     process.exit(2)
   }
   if (result === null) {
-    console.log(`truss render: no ${SOURCE_REL} — decision index not written.`)
+    console.log(`truss render: no decision log (${DECISIONS_DIR}/ or ${SOURCE_REL}) — index not written.`)
     return
   }
-  console.log(`truss render: ${INDEX_REL} updated (${result.entries} decision${result.entries === 1 ? '' : 's'}).`)
+  const from = result.form === 'dir' ? `${DECISIONS_DIR}/` : SOURCE_REL
+  console.log(`truss render: ${INDEX_REL} updated (${result.entries} decision${result.entries === 1 ? '' : 's'} from ${from}).`)
 }
 
 async function renderPhaseInto(ctx) {
@@ -732,6 +733,10 @@ async function runSet(keyArg, valueArg) {
 const HANDLERS = {
   doctor:    (args) => runDoctor(args),
   render:    ()     => runRender(),
+  'split-decisions': async (args) => {
+    const { runSplitDecisions } = await import('../lib/commands/split-decisions.mjs')
+    return runSplitDecisions(root, args)
+  },
   set:       (args) => runSet(args[0], args[1]),
   ack:       (args) => runAck(args),
   phase:     (args) => runPhase(root, args),
@@ -747,7 +752,7 @@ const HANDLERS = {
 }
 
 // init/phase surface user-facing fatals as a throw → exit code 2.
-const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); process.exit(0)

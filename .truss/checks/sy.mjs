@@ -48,6 +48,7 @@ import path from 'node:path'
 import { wordCount, toTokens } from '../lib/context-budget.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE } from '../lib/md.mjs'
 import { hasDomains, meaningful } from '../lib/domains.mjs'
+import { decisionFilesFrom, DECISIONS_DIR } from '../lib/decisions-index.mjs'
 
 // Built from the shared checkbox fragments (lib/md.mjs) so this module can never
 // disagree with parseIdDefinitions about what a settled entry looks like — D-046.
@@ -165,7 +166,11 @@ export async function run(ctx) {
   // ── SY-03: entry grammars ──────────────────────────────────────────────────
   checkProfileGrammar(ctx.files.get('state/profile.md'), findings)
   await checkCodeRootConfig(ctx, findings)
-  checkDecisionsGrammar(ctx.files.get('state/decisions.md'), findings)
+  // Both layouts (D-087): the split bodies when they exist, the legacy single
+  // file otherwise. Without this the checks would silently do nothing on a split
+  // workspace — the grammar of the decision log would stop being checked at all.
+  const decisionFiles = decisionFilesFrom(ctx)
+  for (const f of decisionFiles) checkDecisionsGrammar(f, findings)
   checkOpenDecisionsGrammar(ctx.files.get('state/open-decisions.md'), findings)
   checkRisksGrammar(ctx.files.get('state/risks.md'), findings)
   checkLearningsGrammar(ctx.files.get('state/learnings.md'), findings)
@@ -184,17 +189,15 @@ export async function run(ctx) {
   checkHumanTodosDonePile(ctx.files.get('HUMAN-TODOS.md'), findings)
 
   // ── SY-09: decisions.md read cost growing large ──────────────────────────────
-  checkDecisionsSize(ctx.files.get('state/decisions.md'), findings)
+  checkDecisionsSize(decisionFiles, findings)
 
   // ── SY-10: open decisions that have been waiting a long time ────────────────
   checkOpenDecisionsAge(ctx.files.get('state/open-decisions.md'), findings)
 
   // ── SY-11: stale Challenged-by: markers on decisions ────────────────────────
-  checkStaleChallenges(
-    ctx.files.get('state/decisions.md'),
-    ctx.files.get('state/open-decisions.md'),
-    findings
-  )
+  for (const f of decisionFiles) {
+    checkStaleChallenges(f, ctx.files.get('state/open-decisions.md'), findings)
+  }
 
   // ── SY-12: a global next: that outlived the move to domain files ────────────
   if (domainsExist) checkGlobalNextWithDomains(current, findings)
@@ -294,7 +297,7 @@ function checkStaleChallenges(decisions, openDecisions, findings) {
       if (defined.has(id)) continue
       findings.push({
         id: 'SY-11', severity: 'W',
-        file: 'state/decisions.md', line: i + 1,
+        file: decisions.relPath, line: i + 1,
         message: `Challenged-by: ${id} — no such entry in state/open-decisions.md`,
         fix: `If the challenge was decided, the superseding D-NNN carries 'Closes: ${id}' and this line goes. If it was rejected, this line goes and the tested alternative belongs in the decision's Rationale:. If the OD was lost, restore it. See docs/conventions.md.`,
       })
@@ -313,15 +316,22 @@ function checkStaleChallenges(decisions, openDecisions, findings) {
 //    the numbers never disagree. A workspace whose decisions are all still
 //    load-bearing may legitimately sit above the line — the check asks for a
 //    review, it does not demand deletion (deleting decisions is forbidden). ────
-function checkDecisionsSize(file, findings) {
-  if (!file) return
-  const tokens = toTokens(wordCount(file.content))
+function checkDecisionsSize(files, findings) {
+  if (!files.length) return
+  // The cost of reading the WHOLE log, which §1 still requires before making or
+  // proposing a decision. Split across bodies (D-087) that is the sum, not the
+  // largest file — splitting makes a lookup cheap, it does not make the full
+  // read cheap, and pretending otherwise would silence the nudge exactly when
+  // the log has grown enough to need it.
+  const tokens = files.reduce((n, f) => n + toTokens(wordCount(f.content)), 0)
   if (tokens < DECISIONS_TOKENS_MAX) return
+  const split = files.length > 1 || files[0].relPath !== 'state/decisions.md'
+  const where = split ? `${DECISIONS_DIR}/ (${files.length} entries)` : 'state/decisions.md'
   findings.push({
     id: 'SY-09', severity: 'I',
-    file: 'state/decisions.md', line: 1,
-    message: `state/decisions.md costs ≈ ${tokens} tokens every time it is loaded in full (≥ ${DECISIONS_TOKENS_MAX})`,
-    fix: `Review for compressible entries (docs/conventions.md): superseded entries shrink to heading + supersede note; entries whose consequences are fully absorbed into canonical files shrink to heading + Decision: line + pointer. Move bodies to archive/decisions.md — never delete an entry, IDs and traces stay here. The \`cleanup\` prompt (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
+    file: files[0].relPath, line: 1,
+    message: `${where} costs ≈ ${tokens} tokens when the log is read in full (≥ ${DECISIONS_TOKENS_MAX})`,
+    fix: `Review for entries that no longer need to be read (docs/conventions.md): a superseded entry shrinks to heading + supersede note; an entry whose consequence is carried by a check, a test, a convention or the file structure moves to archive/decisions.md with a pointer. Never delete an entry. The \`cleanup\` ritual (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
   })
 }
 
@@ -509,7 +519,7 @@ function checkDecisionsGrammar(file, findings) {
     if (!m) {
       findings.push({
         id: 'SY-03', severity: 'W',
-        file: 'state/decisions.md', line: i + 1,
+        file: file.relPath, line: i + 1,
         message: `decision entry must be numbered '## D-NNN — title'`,
         fix: `Number the entry '## D-NNN — title'. See docs/conventions.md.`,
       })
@@ -519,7 +529,7 @@ function checkDecisionsGrammar(file, findings) {
     const body = entryBody(lines, i, fenced)
     warnMissingFields(
       findings,
-      'state/decisions.md',
+      file.relPath,
       i + 1,
       m[1],
       missingFields(body, ['Date', 'Decision', ['Rationale', 'Why'], 'Consequences'])

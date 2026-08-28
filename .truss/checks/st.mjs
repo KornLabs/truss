@@ -16,7 +16,7 @@ import path from 'node:path'
 import { ADAPTER_STUBS, STUB_PATTERNS, SUMMARY_DIRS } from '../lib/workspace.mjs'
 import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
 import { verifyEngine } from '../lib/engine-manifest.mjs'
-import { buildIndex, INDEX_REL, SOURCE_REL } from '../lib/decisions-index.mjs'
+import { buildIndex, readDecisionSource, INDEX_REL, SOURCE_REL, DECISIONS_DIR } from '../lib/decisions-index.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 // Lets consumers (--json) enumerate ALL checks, not only fired ones.
@@ -49,6 +49,12 @@ const RETIRED_PATHS = new Map([
 // Paths that exist on disk but are intentionally not in the structure table
 // (system files, adapter stubs handled by ST-04, gitignore, etc.)
 const DISK_EXCLUDE = new Set([
+  // The legacy single-file decision log (D-087). Still fully supported and
+  // still loaded (lib/workspace.mjs migration bridge), just no longer a table
+  // row — so it must not surface as "new file, not in the structure table" on
+  // every workspace that has not split. Not a RETIRED_PATH: nothing about it is
+  // retired, it is one of two valid layouts.
+  'state/decisions.md',
   'LICENSE',
   '.gitignore',
   '.trussignore',
@@ -331,9 +337,14 @@ export async function run(ctx) {
   //     missing step, it is a file that lies: §1 loads it every session, so a
   //     stale index feeds every boot a decision log that no longer exists.
   // No source file → nothing to be stale against; ST-01 owns that case.
-  const decisionsSource = ctx.files?.get(SOURCE_REL);
-  if (decisionsSource) {
-    const expected = buildIndex(decisionsSource.lines);
+  // The source is whichever form this workspace uses (D-087): the split
+  // directory, or the legacy single file. readDecisionSource decides, so this
+  // check never has to know — and a workspace that has not split produces
+  // exactly the findings it produced before.
+  const decisionSrc = await readDecisionSource(root);
+  if (decisionSrc) {
+    const label = decisionSrc.form === 'dir' ? `${DECISIONS_DIR}/` : SOURCE_REL;
+    const expected = buildIndex(decisionSrc.lines);
     let actual = null;
     try { actual = await fs.readFile(path.join(root, INDEX_REL), 'utf8'); }
     catch { /* absent — handled below */ }
@@ -342,15 +353,15 @@ export async function run(ctx) {
       findings.push({
         id: 'ST-10', severity: 'I',
         file: INDEX_REL,
-        message: `no decision index yet — until it exists, ${SOURCE_REL} is the §1 boot context in full`,
+        message: `no decision index yet — until it exists, the §1 boot context has no decision summary (source: ${label})`,
         fix: `Run 'node .truss/bin/truss.mjs render' to generate ${INDEX_REL}, then commit it.`,
       });
     } else if (actual !== expected) {
       findings.push({
         id: 'ST-10', severity: 'W',
         file: INDEX_REL,
-        message: `decision index no longer matches ${SOURCE_REL} — every session boots on a summary that is out of date`,
-        fix: `Run 'node .truss/bin/truss.mjs render' to regenerate ${INDEX_REL}. It is generated, never hand-edited — a local edit here is overwritten, so fix the wording in ${SOURCE_REL}.`,
+        message: `decision index no longer matches ${label} — every session boots on a summary that is out of date`,
+        fix: `Run 'node .truss/bin/truss.mjs render' to regenerate ${INDEX_REL}. It is generated, never hand-edited — a local edit here is overwritten, so fix the wording in ${label}.`,
       });
     }
   }

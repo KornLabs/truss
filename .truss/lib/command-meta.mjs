@@ -32,6 +32,11 @@ export const COMMAND_META = [
     flags: {},
   },
   {
+    name: 'split-decisions', display: 'split-decisions [--dry-run]',
+    summary: 'move state/decisions.md into one file per decision (D-087)',
+    flags: { '--dry-run': {} },
+  },
+  {
     name: 'phase', display: 'phase [<id>] [--override-gate]',
     summary: 'show phases, or gate and set the current phase',
     flags: { '--override-gate': {} },

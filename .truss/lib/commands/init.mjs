@@ -64,7 +64,7 @@ import { renderPrefsBlock, renderPhaseBlock, renderNoPhasesBlock } from "../rend
 import { parsePhases, parseBlocks } from "../md.mjs";
 import { defaultPrefsRows } from "../defaults.mjs";
 import { generateMapContent } from "./map.mjs";
-import { buildIndex, INDEX_REL, SOURCE_REL } from "../decisions-index.mjs";
+import { buildIndex, readDecisionSource, INDEX_REL } from "../decisions-index.mjs";
 import {
   assertExistingCodeRoot,
   CodeRootError,
@@ -680,10 +680,10 @@ export async function runInit(root, argv, invokedCwd = null) {
     const existingIndex = await readMaybe(indexPath);
     if (existingIndex != null) await rememberOriginal(indexPath);
     else created.push(indexPath);
-    await writeFileAtomic(
-      indexPath,
-      buildIndex(((await readMaybe(path.join(root, SOURCE_REL))) ?? "").split("\n")),
-    );
+    // Built through readDecisionSource so `init` on an existing workspace
+    // (overlay, re-run) honours whichever layout it already uses (D-087).
+    const decisionSrc = await readDecisionSource(root);
+    await writeFileAtomic(indexPath, buildIndex(decisionSrc?.lines ?? [""]));
 
     const existingMap = await readMaybe(mapPath);
     if (existingMap != null) await rememberOriginal(mapPath);
