@@ -47,6 +47,12 @@ describe('parseSchema — the shipped table', () => {
     assert.equal(d.form, 'heading')
     assert.deepEqual(d.required, [['Date'], ['Decision'], ['Rationale', 'Why'], ['Consequences']])
 
+    // The heading LEVEL of every shipped class is pinned here on purpose: a
+    // class parses at any level, and one written at a level nothing checks would
+    // otherwise pass the whole suite while being invisible to SY-03.
+    assert.deepEqual(classes.filter(c => c.form === 'heading').map(c => c.level),
+      [2, 2, 2, 2, 2])
+
     const ht = classes.find(c => c.id === 'HT')
     assert.equal(ht.form, 'list')
     assert.deepEqual(ht.required, [])            // an empty cell means no fields
@@ -54,15 +60,60 @@ describe('parseSchema — the shipped table', () => {
   })
 
   it('reports what it cannot use instead of guessing', () => {
-    const rows = (...r) => ['| Class | File | Form | Required | Optional |',
-      '|---|---|---|---|---|', ...r]
-    assert.match(parseSchema(rows('| bl | x.md | `## bl-NNN — t` | | |')).problems[0],
-      /not a usable class prefix/)
-    assert.match(parseSchema(rows('| BL | x.md | prose, not a form | | |')).problems[0],
-      /no usable form/)
-    assert.match(parseSchema(rows('| BL | x.md | `- BL-NNN — d` | | |',
-      '| BL | y.md | `- BL-NNN — d` | | |')).problems[0], /listed more than once/)
-    assert.match(parseSchema(['# nothing here']).problems[0], /no class rows/)
+    const p = (...r) => parseSchema(['| Class | File | Form | Required | Optional |',
+      '|---|---|---|---|---|', ...r]).problems[0]
+    assert.match(p('| bl | x.md | `## bl-NNN — t` | | |'), /not a usable class prefix/)
+    assert.match(p('| BL | x.md | prose, not a form | | |'), /no usable form/)
+    assert.match(p('| BL | x.md | `- BL-NNN — d` | | |', '| BL | y.md | `- BL-NNN — d` | | |'),
+      /listed more than once/)
+    // The Class cell and the Form cell repeat the prefix, so they can disagree.
+    // Unchecked, SY-03 matched on one and printed the other as the fix, i.e.
+    // advice that cannot clear the finding it explains.
+    assert.match(p('| BL | x.md | `## D-NNN — title` | | |'), /must name the same prefix/)
+    // A File cell is a path inside the workspace, or it is not used. `..` made
+    // doctor read and report on files outside the workspace; `./x` and `x` are
+    // the same file under two keys, which RF-03 then called a double definition.
+    assert.match(p('| BL | ../outside.md | `## BL-NNN — t` | | |'), /not a path inside the workspace/)
+    assert.match(p('| BL | /etc/passwd | `## BL-NNN — t` | | |'), /not a path inside the workspace/)
+    assert.equal(parseSchema(['| Class | File | Form | Required | Optional |', '|---|---|---|---|---|',
+      '| BL | ./state//x.md | `## BL-NNN — t` | | |']).classes[0].file, 'state/x.md')
+  })
+
+  it('a file that is no Truss schema at all is not a broken one', () => {
+    // docs/schema.md is a name projects used before Truss reserved it. Without
+    // a Class-headed table there is nothing here for us, and saying so would
+    // turn a workspace red for a document it wrote first (D-081).
+    const foreign = parseSchema(['# Database schema', '', '| Column | Type |', '|---|---|',
+      '| id | uuid |'])
+    assert.equal(foreign.recognised, false)
+    assert.deepEqual(foreign.problems, [])
+    assert.equal(parseSchema(['| Class | File |', '|---|---|', '| D | x.md |']).recognised, true)
+  })
+
+  it('a fenced example is documentation, never configuration', async () => {
+    // schema.md documents its own table format by example. Parsed, an example
+    // row would silently replace the real one — and the shipped file survived
+    // only because its example happens to sit after the real table.
+    const parsed = parseSchema([
+      '```markdown',
+      '| Class | File | Form | Required | Optional |',
+      '|---|---|---|---|---|',
+      '| R | docs/EXAMPLE.md | `## R-NNN — title` | | |',
+      '```',
+      '',
+      '| Class | File | Form | Required | Optional |',
+      '|---|---|---|---|---|',
+      '| R | state/risks.md | `## R-NNN — title` | Severity | |',
+    ])
+    assert.equal(parsed.classes.length, 1)
+    assert.equal(parsed.classes[0].file, 'state/risks.md')
+    assert.deepEqual(parsed.problems, [])
+  })
+
+  it('the heading level is part of the form, and it is honoured', () => {
+    const { classes } = parseSchema(['| Class | File | Form | Required | Optional |',
+      '|---|---|---|---|---|', '| BL | x.md | `### BL-NNN — title` | Owner | |'])
+    assert.equal(classes[0].level, 3)
   })
 })
 
@@ -89,6 +140,22 @@ describe('a project adds a class of its own', () => {
     assert.equal(rf02.length, 1)
     assert.match(rf02[0].fix, /state\/backlog\.md/)
     assert.match(rf02[0].fix, /## BL-NNN — title/)
+  })
+
+  it('a directory class does not swallow another class\'s file', async () => {
+    // `| X | state/ | ... |` should not make X's heading grammar apply to
+    // risks.md, learnings.md and every other state file at once.
+    const root = await initWorkspace('truss-schema-dir-')
+    const src = (await read(root, SCHEMA_REL)).split('\n')
+    const head = src.findIndex(l => /^\|\s*Class\s*\|/.test(l))
+    src.splice(head + 2, 0, '| X | state/ | `## X-NNN — title` | Date | |')
+    await fs.writeFile(path.join(root, SCHEMA_REL), src.join('\n'))
+    await fs.writeFile(path.join(root, 'state/risks.md'),
+      '# Risks\n\n## R-001 — a risk\n\nSeverity: low\nStatus: open\nTrigger: x\nMitigation: y\n')
+
+    const f = await runChecks(root)
+    assert.equal(idsOf(f, 'SY-03').filter(x => x.file === 'state/risks.md').length, 0,
+      JSON.stringify(idsOf(f, 'SY-03')))
   })
 
   it('a class the project removed stops being checked at all', async () => {
@@ -119,9 +186,10 @@ describe('the fallback keeps an unmigrated workspace working', () => {
     assert.equal(errorsOf(before).length, 0, JSON.stringify(errorsOf(before)))
   })
 
-  it('an unusable docs/schema.md: falls back, and ST-11 says so', async () => {
+  it('a Truss schema with an empty table: falls back, and ST-11 says so', async () => {
     const root = await initWorkspace('truss-schema-broken-')
-    await fs.writeFile(path.join(root, SCHEMA_REL), '# Schema\n\nsomebody deleted the table.\n')
+    await fs.writeFile(path.join(root, SCHEMA_REL),
+      '# Schema\n\n| Class | File | Form | Required | Optional |\n|---|---|---|---|---|\n')
 
     const schema = await loadSchema(root)
     assert.equal(schema.source, 'baseline')
@@ -132,6 +200,62 @@ describe('the fallback keeps an unmigrated workspace working', () => {
     assert.equal(idsOf(f, 'ST-11').length, 1)
     assert.match(idsOf(f, 'ST-11')[0].message, /no class rows/)
     assert.equal(idsOf(f, 'ST-11')[0].severity, 'W')
+  })
+
+  it('one bad row does not switch a class off in silence', async () => {
+    // The gap this closes: loadSchema used to drop `problems` as soon as any
+    // class parsed, and ST-11 only fired on total failure. A single malformed
+    // row therefore removed a class — RF-02, RF-03 and SY-03 all passing with
+    // nothing to say, which is the exact outcome ST-11 exists to prevent.
+    const root = await initWorkspace('truss-schema-partial-')
+    const src = await read(root, SCHEMA_REL)
+    await fs.writeFile(path.join(root, SCHEMA_REL),
+      src.replace('| R | state/risks.md | `## R-NNN — title`', '| R | state/risks.md | `R-NNN — title`'))
+    await fs.writeFile(path.join(root, 'state/risks.md'),
+      '# Risks\n\n## R-001 — no fields at all\n\n## Not an entry\n')
+
+    const schema = await loadSchema(root)
+    assert.equal(schema.source, 'workspace')
+    assert.ok(!schema.ids.includes('R'))
+    assert.equal(schema.problems.length, 1)
+
+    const f = await runChecks(root)
+    assert.equal(idsOf(f, 'ST-11').length, 1)
+    assert.match(idsOf(f, 'ST-11')[0].message, /row\(s\) ignored/)
+    assert.match(idsOf(f, 'ST-11')[0].message, /no usable form/)
+  })
+
+  it("someone else's docs/schema.md keeps a green workspace green (D-081)", async () => {
+    // The filename collision is real: a database or API schema doc is a likelier
+    // docs/schema.md than ours in an existing project. It is not a broken Truss
+    // schema, it is not one — so it is not reported, and nothing goes red.
+    const root = await initWorkspace('truss-schema-foreign-')
+    await fs.writeFile(path.join(root, SCHEMA_REL),
+      '# Database schema\n\n## users\n\n| Column | Type | Null |\n|---|---|---|\n| id | uuid | no |\n')
+
+    const schema = await loadSchema(root)
+    assert.equal(schema.source, 'baseline')
+    assert.equal(schema.rel, null)          // what ST-11 keys on — so it stays quiet
+    assert.deepEqual(schema.ids, (await shipped()).ids)
+
+    const f = await runChecks(root)
+    assert.equal(idsOf(f, 'ST-11').length, 0)
+    // ST-07 excluded: writing any .md file makes map.md outdated, which is the
+    // test's own doing and clears with `truss map`.
+    const red = f.filter(x => x.severity !== 'I' && x.id !== 'ST-07')
+    assert.equal(red.length, 0, JSON.stringify(red))
+  })
+
+  it('a docs/schema.md the engine cannot read is reported, not skipped', async () => {
+    const root = await initWorkspace('truss-schema-unreadable-')
+    await fs.rm(path.join(root, SCHEMA_REL))
+    await fs.mkdir(path.join(root, SCHEMA_REL))   // a directory where a file belongs
+    const schema = await loadSchema(root)
+    assert.equal(schema.source, 'baseline')
+    assert.equal(schema.rel, SCHEMA_REL)
+    assert.equal(schema.problems.length, 1)
+    assert.match(schema.problems[0], /could not be read/)
+    assert.equal(idsOf(await runChecks(root), 'ST-11').length, 1)
   })
 
   it('idMatchers refuses an empty class list rather than matching bare -042', () => {

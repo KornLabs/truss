@@ -52,11 +52,9 @@ import path from 'node:path'
 import { wordCount, toTokens } from '../lib/context-budget.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE } from '../lib/md.mjs'
 import { hasDomains, meaningful } from '../lib/domains.mjs'
-import { decisionFilesFrom, DECISIONS_DIR } from '../lib/decisions-index.mjs'
+import { DECISIONS_DIR } from '../lib/decisions-index.mjs'
+import { filesForClass, fileForClass, classById } from '../lib/schema.mjs'
 
-// Built from the shared checkbox fragments (lib/md.mjs) so this module can never
-// disagree with parseIdDefinitions about what a settled entry looks like — D-046.
-const HT_DONE_RE    = new RegExp(`^[-*]\\s+${CHECKBOX_DONE}\\s+HT-\\d{3}\\b`)
 
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key' },
@@ -192,7 +190,7 @@ export async function run(ctx) {
   checkDecidedTombstones(openDecisions, findings)
 
   // ── SY-07: HUMAN-TODOS.md piling up checked-off entries ─────────────────────
-  checkHumanTodosDonePile(ctx.files.get('HUMAN-TODOS.md'), findings)
+  checkHumanTodosDonePile(classById(classes, 'HT'), fileForClass(ctx, classById(classes, 'HT')), findings)
 
   // ── SY-09: decisions.md read cost growing large ──────────────────────────────
   checkDecisionsSize(decisionFiles, findings)
@@ -376,20 +374,23 @@ function checkDecidedTombstones(file, findings) {
 // ── SY-07 — HUMAN-TODOS.md is working memory, not history: settled [x] entries
 //    move to archive/human-todos.md (docs/protocols.md). Info-level nudge once
 //    more than HT_DONE_MAX checked-off entries have piled up. ─────────────────
-function checkHumanTodosDonePile(file, findings) {
-  if (!file) return
+function checkHumanTodosDonePile(cls, file, findings) {
+  if (!cls || !file) return
+  // Prefix and file both come from the class, so renaming either in the schema
+  // keeps this check pointed at the entries instead of switching it off.
+  const doneRe = new RegExp(`^[-*]\\s+${CHECKBOX_DONE}\\s+${cls.id}-\\d{3}\\b`)
   const fenced = ignoredLines(file.lines)
   const done = []
   for (let i = 0; i < file.lines.length; i++) {
     if (fenced.has(i)) continue
-    if (HT_DONE_RE.test(file.lines[i].trimStart())) done.push(i + 1)
+    if (doneRe.test(file.lines[i].trimStart())) done.push(i + 1)
   }
   if (done.length > HT_DONE_MAX) {
     findings.push({
       id: 'SY-07', severity: 'I',
-      file: 'HUMAN-TODOS.md', line: done[0],
-      message: `${done.length} checked-off HT entries have piled up (> ${HT_DONE_MAX})`,
-      fix: `Move settled [x] lines verbatim to archive/human-todos.md (create on demand); keep only recently checked-off entries here. The HT counter continues across archived entries (docs/protocols.md).`,
+      file: file.relPath, line: done[0],
+      message: `${done.length} checked-off ${cls.id} entries have piled up (> ${HT_DONE_MAX})`,
+      fix: `Move settled [x] lines verbatim to archive/human-todos.md (create on demand); keep only recently checked-off entries here. The ${cls.id} counter continues across archived entries (docs/protocols.md).`,
     })
   }
 }
@@ -479,10 +480,11 @@ function ignoredLines(lines) {
   return inside
 }
 
-function entryBody(lines, startIdx, fenced) {
+function entryBody(lines, startIdx, fenced, level = 2) {
+  const stop = new RegExp(`^#{1,${level}}\\s`)
   const body = []
   for (let j = startIdx + 1; j < lines.length; j++) {
-    if (/^##\s/.test(lines[j]) && !fenced.has(j)) break
+    if (stop.test(lines[j]) && !fenced.has(j)) break
     if (!fenced.has(j)) body.push(lines[j])
   }
   return body
@@ -512,30 +514,6 @@ function warnMissingFields(findings, file, line, entryId, missing) {
   })
 }
 
-// ── Which loaded files hold entries of a class ───────────────────────────────
-// A class whose File ends in `/` is a directory with one file per entry; every
-// other class is one file. The decision log is the single exception, and it is
-// not a special case of *this* function: `decisionFilesFrom` carries the D-087
-// migration bridge (split bodies when they exist, the legacy single file
-// otherwise), and re-deriving that here would give a split workspace and a
-// non-split one two different answers about what the log is.
-function filesForClass(ctx, cls) {
-  if (!cls) return []
-  if (cls.dir === DECISIONS_DIR) return decisionFilesFrom(ctx)
-  if (cls.dir) {
-    const prefix = cls.dir + '/'
-    return [...ctx.files.keys()]
-      .filter(rel => rel.startsWith(prefix) && rel.endsWith('.md'))
-      .sort()
-      .map(rel => ctx.files.get(rel))
-  }
-  const file = ctx.files.get(cls.file)
-  return file ? [file] : []
-}
-
-const fileForClass = (ctx, cls) => filesForClass(ctx, cls)[0] || null
-const classById = (classes, id) => classes.find(c => c.id === id) || null
-
 // ── SY-03, the whole of it: one class, one file ──────────────────────────────
 // Everything class-specific — the ID prefix, whether entries are headings or
 // list items, which fields are owed — arrives in `cls`, read from docs/schema.md
@@ -552,10 +530,15 @@ function checkEntryGrammar(cls, file, findings) {
 
   if (cls.form === 'list') { checkListGrammar(cls, file, fenced, findings); return }
 
-  const headingRe = new RegExp(`^##\\s+(${cls.id}-\\d{3})\\b`)
+  // The class's own heading level, both for "is this line an entry slot" and for
+  // what counts as a valid entry. A class written as `### X-NNN` is checked at
+  // level 3; `##` headings in its file are then sections, not malformed entries.
+  const hashes = '#'.repeat(cls.level)
+  const slotRe = new RegExp(`^${hashes}\\s+\\S`)
+  const headingRe = new RegExp(`^${hashes}\\s+(${cls.id}-\\d{3})\\b`)
   for (let i = 0; i < lines.length; i++) {
     if (fenced.has(i)) continue
-    if (!/^##\s+\S/.test(lines[i])) continue     // only level-2 headings are entries
+    if (!slotRe.test(lines[i])) continue           // only this class's heading level
 
     const m = lines[i].match(headingRe)
     if (!m) {
@@ -568,7 +551,7 @@ function checkEntryGrammar(cls, file, findings) {
       continue
     }
 
-    const body = entryBody(lines, i, fenced)
+    const body = entryBody(lines, i, fenced, cls.level)
     const missing = missingFields(body, cls.required)
     // `Opened:` is the one required field that must also parse: SY-10 measures
     // its age, and an unparseable date makes that check silently skip the entry.

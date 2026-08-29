@@ -7,6 +7,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { headingToAnchor } from '../lib/md.mjs'
+import { locationForNewEntry } from '../lib/schema.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
 export const meta = [
@@ -153,8 +154,11 @@ export async function run(ctx) {
       file: first.file, line: first.line,
       message: `reference to '${id}' but no definition found in any file`,
       // The schema names the file, so this text cannot go stale the way a
-      // hard-coded list did when the decision log became a directory (D-087).
-      fix: `Define '${id}' in ${cls.dir ? `${cls.dir}/${id}.md` : cls.file}, in the form '${cls.formText}' (docs/schema.md). If it was decided and removed, the deciding entry's 'Closes: ${id}' line is the trace — point the reference at that entry instead.`,
+      // hard-coded list did when the decision log became a directory (D-087) —
+      // and it names the layout this workspace actually uses, not the one the
+      // schema prefers, so a workspace still on a single decisions.md is not
+      // told to create a file in a directory it does not keep.
+      fix: `Define '${id}' in ${locationForNewEntry(ctx, cls, id)}, in the form '${cls.formText}' (docs/schema.md). If it was decided and removed, the deciding entry's 'Closes: ${id}' line is the trace — point the reference at that entry instead.`,
     });
   }
 
