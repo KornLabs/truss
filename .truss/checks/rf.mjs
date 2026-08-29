@@ -15,8 +15,9 @@ export const meta = [
   { id: 'RF-03', severity: 'E', title: 'ID defined more than once' },
 ];
 
-// ID prefixes that are "structured" and require definitions
-const TRACKED_PREFIXES = new Set(['D', 'HT', 'R', 'OD', 'L', 'TF']);
+// Which prefixes are "structured" and therefore require a definition is not a
+// constant here: it is whatever docs/schema.md lists (D-079, lib/schema.mjs).
+// A project that adds a class gets RF-02/RF-03 on it without touching code.
 
 // Files exempt from RF-01 link checking (e.g., external links, anchors-only links)
 function isExternalLink(href) {
@@ -34,6 +35,7 @@ function isAnchorOnlyLink(href) {
 export async function run(ctx) {
   const findings = [];
   const { root, files, idDefs, idRefs } = ctx;
+  const classById = new Map((ctx.schema?.classes || []).map(c => [c.id, c]));
 
   // ── RF-01: relative links must resolve ────────────────────────────────
   for (const [relPath, fileCtx] of files) {
@@ -134,7 +136,8 @@ export async function run(ctx) {
 
   for (const [id, allRefs] of idRefs) {
     const prefix = id.split('-')[0];
-    if (!TRACKED_PREFIXES.has(prefix)) continue;
+    const cls = classById.get(prefix);
+    if (!cls) continue;
     if (idDefs.has(id)) continue;
     if (closedIds.has(id)) continue;
 
@@ -149,7 +152,9 @@ export async function run(ctx) {
       id: 'RF-02', severity: 'W',
       file: first.file, line: first.line,
       message: `reference to '${id}' but no definition found in any file`,
-      fix: `Define '${id}' in its canonical file (D/OD → state/decisions.md or state/open-decisions.md; HT → HUMAN-TODOS.md; R → state/risks.md; L → state/learnings.md; TF → state/truss-findings.md)`,
+      // The schema names the file, so this text cannot go stale the way a
+      // hard-coded list did when the decision log became a directory (D-087).
+      fix: `Define '${id}' in ${cls.dir ? `${cls.dir}/${id}.md` : cls.file}, in the form '${cls.formText}' (docs/schema.md). If it was decided and removed, the deciding entry's 'Closes: ${id}' line is the trace — point the reference at that entry instead.`,
     });
   }
 

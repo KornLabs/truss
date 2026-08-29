@@ -22,8 +22,12 @@ import {
   INDEX_REL, SOURCE_REL, DECISIONS_DIR, decisionPath,
 } from '../lib/decisions-index.mjs'
 import { parseIdDefinitions, parseIdReferences } from '../lib/md.mjs'
+import { loadSchema } from '../lib/schema.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { makeRoot, runChecks, errorsOf, read } from './helpers.mjs'
+
+// The shipped ID classes — since D-079 the ID parsers take them as an argument.
+const IDS = (await loadSchema(path.join(path.sep, 'truss-no-such-workspace'))).ids
 
 const ids = (findings, id) => findings.filter(f => f.id === id)
 
@@ -169,7 +173,7 @@ describe('buildIndex — form (this is what keeps RF-03 at zero)', () => {
   it('defines no ID at all — the index is pure reference', () => {
     const index = buildIndex(SOURCE.split('\n'))
     assert.deepEqual(
-      parseIdDefinitions(index.split('\n')),
+      parseIdDefinitions(index.split('\n'), IDS),
       [],
       'an index entry must never parse as an ID definition — headings here would '
       + 'mean one RF-03 error per decision in the workspace',
@@ -177,7 +181,7 @@ describe('buildIndex — form (this is what keeps RF-03 at zero)', () => {
   })
 
   it('still references every ID, so nothing goes invisible', () => {
-    const refs = parseIdReferences(buildIndex(SOURCE.split('\n')).split('\n')).map(r => r.id)
+    const refs = parseIdReferences(buildIndex(SOURCE.split('\n')).split('\n'), IDS).map(r => r.id)
     assert.deepEqual([...new Set(refs)].sort(), ['D-001', 'D-002', 'D-003'])
   })
 
@@ -199,7 +203,7 @@ describe('buildIndex — form (this is what keeps RF-03 at zero)', () => {
       many.push(`## ${id} — Entry number ${n}`, `Date: 2026-01-01`, `Decision: Do thing ${n}.`, '')
     }
     const index = buildIndex(many)
-    assert.equal(parseIdDefinitions(index.split('\n')).length, 0)
+    assert.equal(parseIdDefinitions(index.split('\n'), IDS).length, 0)
     assert.equal((index.match(/^- \*\*D-\d{3}\*\*/gm) || []).length, 42)
   })
 })

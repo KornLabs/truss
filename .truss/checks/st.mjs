@@ -10,6 +10,7 @@
 // ST-05  I  file has more than 450 lines (growth-rule hint)
 // ST-09  I  engine file(s) diverged from .truss/MANIFEST.sha256 (silent if absent)
 // ST-10  I/W decision index absent (I) or out of step with decisions.md (W)
+// ST-11  W  docs/schema.md exists but yields no usable entry class (engine fell back)
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -32,6 +33,7 @@ export const meta = [
   { id: 'ST-08', severity: 'W', title: 'AGENTS.md is missing a numbered top-level section', description: '§1–§6 are the contract every prompt, doc and check cross-references' },
   { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
   { id: 'ST-10', severity: 'W', title: 'Decision index missing, out of step, or holding an entry it cannot address', description: 'D-075/D-081/D-087: info while the index has never been generated or is still in the pre-D-087 format (steps not taken, not defects); warning once it exists and disagrees with the source, or when a decision body sits where the index can never reach it — a stale or incomplete index lies to every session boot' },
+  { id: 'ST-11', severity: 'W', title: 'docs/schema.md defines no usable entry class', description: 'D-079: the entry classes are read from this file. A workspace copy the engine cannot use would silently switch off RF-02, RF-03 and SY-03 for every ID, so the engine falls back to its own shipped copy and says so here' },
 ];
 
 // Top-level paths that were a valid §2 routing target before an engine change
@@ -424,6 +426,22 @@ export async function run(ctx) {
         });
       }
     }
+  }
+
+  // ── ST-11: the workspace's own schema could not be used ────────────────
+  // The failure this guards against is silence, not noise: a docs/schema.md that
+  // parses to zero classes would make every XX-NNN token unstructured, and
+  // RF-02, RF-03 and SY-03 would all pass with nothing to say. loadSchema falls
+  // back to the shipped copy in that case (so the workspace keeps working); this
+  // is where the fallback becomes visible. A workspace with no docs/schema.md at
+  // all is not this case — it never had one, and the fallback is the normal path.
+  if (ctx.schema?.rel && ctx.schema.source === 'baseline') {
+    findings.push({
+      id: 'ST-11', severity: 'W',
+      file: ctx.schema.rel, line: 1,
+      message: `${ctx.schema.rel} defines no usable entry class (${ctx.schema.problems.join('; ')}) — the engine's own copy is being used instead`,
+      fix: `Restore the class table: a header row starting with 'Class', then one row per class with File, Form, Required and Optional columns. The shipped copy in .truss/baseline/${ctx.schema.rel} is a working example.`,
+    })
   }
 
   // ── ST-09: engine files diverged from the release manifest ────────────

@@ -19,6 +19,7 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── writer.mjs       # generated-block writer
 │   ├── render.mjs       # render phase / preferences blocks
 │   ├── decisions-index.mjs # build state/decisions-index.md from the decision log
+│   ├── schema.mjs       # the entry classes, read from docs/schema.md (never a constant)
 │   ├── prefs.mjs        # preferences catalogue (single source of truth)
 │   ├── md.mjs           # markdown parsing helpers
 │   ├── severity.mjs     # E/W/I severity + family metadata
@@ -82,7 +83,10 @@ first write, writes substituted skeletons, then copies the rest of the tree with
 `applyTree`, skipping anything already present. A fatal write or render failure
 restores modified files and removes files created by that run. Because
 the state grammars the `SY` checks enforce are grounded in this baseline, the
-baseline *is* the spec — keep them in sync.
+baseline *is* the spec — keep them in sync. `baseline/docs/schema.md` is that
+literally rather than by convention: it is the file SY-03 and the reference
+checks read, and a workspace without its own copy is checked against the one
+here.
 
 ## Tests
 
@@ -107,5 +111,8 @@ and throw typed errors, which the dispatcher maps to exit codes.
 - A new check → add its `meta` entry and logic to the right family module.
 - A change to the workspace format → update `baseline/` and the matching checks
   together.
+- A change to what an entry *is* — a class, a file, a field → `baseline/docs/schema.md`.
+  There is no ID-class constant in the source; `md.mjs`, `checks/rf.mjs` and SY-03
+  all read that file through `lib/schema.mjs` (D-079).
 - `node --test` (from `.truss/`) green, and `truss doctor` clean on a fresh
   `init`, before you ship.
