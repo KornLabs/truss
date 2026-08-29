@@ -16,10 +16,16 @@ import * as rf from '../checks/rf.mjs'
 import * as st from '../checks/st.mjs'
 import { loadWorkspace } from '../lib/workspace.mjs'
 import { parseIdDefinitions } from '../lib/md.mjs'
+import { loadSchema } from '../lib/schema.mjs'
 import { makeRoot, read, runChecks, ENGINE_DIR } from './helpers.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 
 const execFileP = promisify(execFile)
+// The entry classes every hand-built ctx below is checked against: the copy the
+// engine ships, loaded the same way a workspace without its own docs/schema.md
+// loads it. Tests that need a different class set pass their own `schema`.
+const SCHEMA = await loadSchema(path.join(os.tmpdir(), 'truss-no-such-workspace'))
+
 const DAY = 86_400_000
 const today  = () => new Date().toISOString().slice(0, 10)
 const daysAgo = (n) => new Date(Date.now() - n * DAY).toISOString().slice(0, 10)
@@ -30,7 +36,7 @@ function file(content, ageDays = 0) {
   if (lines.at(-1) === '') lines.pop()
   return { lines, content, stat: { mtimeMs: Date.now() - ageDays * DAY } }
 }
-function ctxOf(files = {}, { phases, diskPaths = [], root = '/tmp/none' } = {}) {
+function ctxOf(files = {}, { phases, diskPaths = [], root = '/tmp/none', schema = SCHEMA } = {}) {
   // relPath is filled in from the key: a check that attributes a finding to
   // `file.relPath` (SY-03 and SY-11 do, since the bodies moved apart in D-087)
   // would otherwise be tested against `undefined` and look fine.
@@ -38,6 +44,7 @@ function ctxOf(files = {}, { phases, diskPaths = [], root = '/tmp/none' } = {}) 
   return {
     files: new Map(entries),
     phases: phases ?? { frontmatter: {}, defs: new Map() },
+    schema,
     diskPaths, root,
   }
 }
@@ -253,7 +260,7 @@ describe('checkbox syntax is shared, not re-invented per module', () => {
       '- HT-005 — no checkbox at all',
     ]
     assert.deepEqual(
-      parseIdDefinitions(lines).map(d => d.id),
+      parseIdDefinitions(lines, SCHEMA.ids).map(d => d.id),
       ['HT-001', 'HT-002', 'HT-003', 'HT-004', 'HT-005'],
     )
   })
@@ -265,7 +272,7 @@ describe('checkbox syntax is shared, not re-invented per module', () => {
     // SY-07 sees six settled entries …
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(ht) })), 'SY-07').length, 1)
     // … and every one of them is a definition, so RF-02 has nothing to report.
-    assert.equal(parseIdDefinitions(ht.split('\n')).length, 6)
+    assert.equal(parseIdDefinitions(ht.split('\n'), SCHEMA.ids).length, 6)
   })
 
   it('SY-03 accepts uppercase X as valid HT grammar', async () => {
@@ -282,7 +289,7 @@ describe('checkbox syntax is shared, not re-invented per module', () => {
       const findings = await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(ht) }))
       assert.equal(ids(findings, 'SY-03').length, 0, `SY-03 rejects '${box}'`)
       assert.deepEqual(
-        parseIdDefinitions(ht.split('\n')).map(d => d.id), ['HT-001'],
+        parseIdDefinitions(ht.split('\n'), SCHEMA.ids).map(d => d.id), ['HT-001'],
         `parseIdDefinitions misses '${box}' — RF-02 would warn about a defined ID`,
       )
     }

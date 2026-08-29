@@ -19,6 +19,12 @@ import {
 } from '../lib/md.mjs'
 
 import { parseStructureTable, loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
+import { loadSchema } from '../lib/schema.mjs'
+
+// The ID classes the engine ships (docs/schema.md). parseIdDefinitions and
+// parseIdReferences take them as an argument since D-079 — there is no built-in
+// list to fall back on, which is the point: the classes are workspace data.
+const IDS = (await loadSchema(path.join(os.tmpdir(), 'truss-no-such-workspace'))).ids
 import {
   parseExitItems, globToRegex, renderPhaseBlock, renderNoPhasesBlock,
   renderPrefsBlock, parsePrefsRows, endSentence,
@@ -179,26 +185,26 @@ describe('headingToAnchor', () => {
 describe('parseIdReferences — skips noise', () => {
   it('skips fenced code blocks', () => {
     const lines = ['```', 'D-001 in code block', '```', 'D-002 in prose']
-    const refs = parseIdReferences(lines)
+    const refs = parseIdReferences(lines, IDS)
     assert.equal(refs.length, 1)
     assert.equal(refs[0].id, 'D-002')
   })
 
   it('skips inline code', () => {
-    const refs = parseIdReferences(['See `D-001` for example but also D-002.'])
+    const refs = parseIdReferences(['See `D-001` for example but also D-002.'], IDS)
     assert.equal(refs.length, 1)
     assert.equal(refs[0].id, 'D-002')
   })
 
   it('skips single-line HTML comments', () => {
-    const refs = parseIdReferences(['<!-- D-001 example --> but D-002 is real.'])
+    const refs = parseIdReferences(['<!-- D-001 example --> but D-002 is real.'], IDS)
     assert.equal(refs.length, 1)
     assert.equal(refs[0].id, 'D-002')
   })
 
   it('skips multi-line HTML comments', () => {
     const lines = ['<!-- Example:', '- D-001 through D-003', '-->', 'Real ref: D-004.']
-    const refs = parseIdReferences(lines)
+    const refs = parseIdReferences(lines, IDS)
     assert.equal(refs.length, 1)
     assert.equal(refs[0].id, 'D-004')
   })
@@ -207,7 +213,7 @@ describe('parseIdReferences — skips noise', () => {
     const refs = parseIdReferences([
       'Closes: OD-001',
       'Related follow-up: OD-002',
-    ])
+    ], IDS)
     assert.deepEqual(refs, [{ id: 'OD-002', line: 2 }])
   })
 })
@@ -215,7 +221,7 @@ describe('parseIdReferences — skips noise', () => {
 describe('parseIdDefinitions', () => {
   it('detects heading definitions', () => {
     const lines = ['## D-001 — Tech stack decision', 'content']
-    const defs = parseIdDefinitions(lines)
+    const defs = parseIdDefinitions(lines, IDS)
     assert.equal(defs.length, 1)
     assert.equal(defs[0].id, 'D-001')
     assert.equal(defs[0].line, 1)
@@ -223,7 +229,7 @@ describe('parseIdDefinitions', () => {
 
   it('detects list item definitions', () => {
     const lines = ['- [ ] HT-001 — Review the spec']
-    const defs = parseIdDefinitions(lines)
+    const defs = parseIdDefinitions(lines, IDS)
     assert.equal(defs.length, 1)
     assert.equal(defs[0].id, 'HT-001')
   })

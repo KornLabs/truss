@@ -114,17 +114,16 @@ export function parseTrussMarker(line) {
   return { type: m[1], id: m[2] };
 }
 
-/** Regex for structured IDs used in truss workspaces. */
-const ID_RE = /\b(D|HT|R|OD|L|TF)-(\d{3})\b/g;
-
 /**
- * Find all structured IDs (D-NNN, HT-NNN, R-NNN, OD-NNN, L-NNN, TF-NNN) in a string.
+ * Find all structured IDs (D-NNN, OD-NNN, …) in a string.
+ * `classes` is the list of ID prefixes the workspace knows — it comes from
+ * docs/schema.md via lib/schema.mjs, never from a constant here (D-079).
  * Returns Array<string> (e.g. ['D-001', 'HT-003']).
  */
-export function findIds(text) {
+export function findIds(text, classes) {
+  const re = new RegExp(idMatchers(classes).any.source, 'g');
   const found = [];
   let m;
-  const re = new RegExp(ID_RE.source, 'g');
   while ((m = re.exec(text)) !== null) {
     found.push(`${m[1]}-${m[2]}`);
   }
@@ -194,18 +193,40 @@ export function parseAllLinks(lines) {
 export const CHECKBOX_ANY  = '\\[[ xX]\\]'
 export const CHECKBOX_DONE = '\\[[xX]\\]'
 
-/** Structured-ID token as it appears in headings and list items. */
-export const ID_TOKEN = '(?:D|HT|R|OD|L|TF)-\\d{3}'
+/**
+ * Regexes for one set of ID classes. The set is workspace data (docs/schema.md,
+ * see lib/schema.mjs), so these cannot be module constants — they are built per
+ * class list and cached, because every loaded file asks for the same one.
+ *
+ * An empty class list would otherwise compile to `(?:)-\\d{3}`, which matches a
+ * bare "-042" in any file; it is refused instead. A workspace whose schema
+ * yields no class falls back to the shipped one before it ever reaches here.
+ */
+const MATCHER_CACHE = new Map()
+export function idMatchers(classes) {
+  const key = (classes || []).join('|')
+  if (!key) throw new Error('idMatchers: no ID classes — the schema must define at least one')
+  let m = MATCHER_CACHE.get(key)
+  if (!m) {
+    const token = `(?:${key})-\\d{3}`
+    m = {
+      token,
+      any:     new RegExp(`\\b(${key})-(\\d{3})\\b`, 'g'),
+      heading: new RegExp(`^#{1,6}\\s+(${token})\\b`),
+      list:    new RegExp(`^[-*]\\s+(?:${CHECKBOX_ANY}\\s+)?(${token})\\b`),
+    }
+    MATCHER_CACHE.set(key, m)
+  }
+  return m
+}
 
 /**
  * Find all structured IDs defined in a file (i.e. appearing as definition headings).
  * A "definition" is a heading like "## D-001 — Title" or a list item "- [ ] HT-001 — ...".
  * Returns Array<{ id: string, line: number }> (line is 1-based).
  */
-const ID_HEADING_RE = new RegExp(`^#{1,6}\\s+(${ID_TOKEN})\\b`)
-const ID_LIST_RE    = new RegExp(`^[-*]\\s+(?:${CHECKBOX_ANY}\\s+)?(${ID_TOKEN})\\b`)
-
-export function parseIdDefinitions(lines) {
+export function parseIdDefinitions(lines, classes) {
+  const { heading: ID_HEADING_RE, list: ID_LIST_RE } = idMatchers(classes);
   const defs = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -230,7 +251,7 @@ export function parseIdDefinitions(lines) {
  * and indented code blocks.
  * Returns Array<{ id: string, line: number }> (line is 1-based).
  */
-export function parseIdReferences(lines) {
+export function parseIdReferences(lines, classes) {
   const refs = [];
   let inFencedBlock = false;
   let inHtmlComment = false;
@@ -271,7 +292,7 @@ export function parseIdReferences(lines) {
     // Strip inline code `...` (single backticks)
     working = working.replace(/`[^`]+`/g, '');
 
-    const ids = findIds(working);
+    const ids = findIds(working, classes);
     for (const id of ids) {
       refs.push({ id, line: i + 1 });
     }

@@ -5,7 +5,7 @@
 //           'next' drops out of the requirement as soon as domains exist, U5 — see below)
 // SY-12  I  state/current.md still carries a global next: although domains exist (U5/E6)
 // SY-02  —  retired (age-based staleness; a resting project is not a broken one) — id not reused
-// SY-03  W  entry grammar violated (profile / decisions D-NNN / open-decisions OD-NNN / risks R-NNN / learnings L-NNN / findings TF-NNN / HUMAN-TODOS list form)
+// SY-03  W  entry grammar violated — one pass per class in docs/schema.md, plus profile.md and code-root
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 // SY-08  W  ritual drift — state/ or context/ changed well after current.md (D-010, D-058)
 // SY-09  I  decision log read cost grown large (≥ 6000 token-equivalent) — archive nudge
@@ -33,8 +33,12 @@
 // OD is in — so a forgotten `Challenged-by:` would point at a closed question with
 // nothing complaining.
 //
-// Grammar is grounded in the *baseline* the `init` command renders, which is the
-// canonical fresh-instance format (STRUKTUR.md §2.1). Notably current.md uses
+// Grammar is no longer grounded in this file: since D-079 the entry classes,
+// their files, their heading or list form and their required fields come from
+// docs/schema.md (lib/schema.mjs), and a workspace without one gets the copy the
+// engine ships. Everything else here is still grounded in the *baseline* the
+// `init` command renders, which is the canonical fresh-instance format.
+// Notably current.md uses
 // `key:` lines (focus:/next:/…), NOT `## Section` headings — so this module does
 // not rely on parseHeadings for current.md.
 //
@@ -53,11 +57,10 @@ import { decisionFilesFrom, DECISIONS_DIR } from '../lib/decisions-index.mjs'
 // Built from the shared checkbox fragments (lib/md.mjs) so this module can never
 // disagree with parseIdDefinitions about what a settled entry looks like — D-046.
 const HT_DONE_RE    = new RegExp(`^[-*]\\s+${CHECKBOX_DONE}\\s+HT-\\d{3}\\b`)
-const HT_GRAMMAR_RE = new RegExp(`^[-*]\\s+${CHECKBOX_ANY}\\s+HT-\\d{3}\\s+—\\s+\\S`)
 
 export const meta = [
   { id: 'SY-01', severity: 'W', title: 'current.md missing a required key' },
-  { id: 'SY-03', severity: 'W', title: 'state entry grammar violated (profile / decisions / open-decisions / risks / learnings / findings / HUMAN-TODOS)' },
+  { id: 'SY-03', severity: 'W', title: 'entry grammar violated', description: 'Heading or list form, and the required fields, per entry class in docs/schema.md; also profile.md sections and the code-root setting' },
   { id: 'SY-05', severity: 'W', title: 'code-root checkout present but no branch: declared in current.md' },
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
@@ -164,18 +167,21 @@ export async function run(ctx) {
   }
 
   // ── SY-03: entry grammars ──────────────────────────────────────────────────
+  // One pass per class the schema declares (D-079). There is no per-class
+  // function any more: heading form, list form, required fields and the file
+  // they live in all come from docs/schema.md, so a project that adds a class
+  // gets its grammar checked without touching this module.
   checkProfileGrammar(ctx.files.get('state/profile.md'), findings)
   await checkCodeRootConfig(ctx, findings)
+  const classes = ctx.schema?.classes || []
+  for (const cls of classes) {
+    for (const file of filesForClass(ctx, cls)) checkEntryGrammar(cls, file, findings)
+  }
   // Both layouts (D-087): the split bodies when they exist, the legacy single
-  // file otherwise. Without this the checks would silently do nothing on a split
-  // workspace — the grammar of the decision log would stop being checked at all.
-  const decisionFiles = decisionFilesFrom(ctx)
-  for (const f of decisionFiles) checkDecisionsGrammar(f, findings)
-  checkOpenDecisionsGrammar(ctx.files.get('state/open-decisions.md'), findings)
-  checkRisksGrammar(ctx.files.get('state/risks.md'), findings)
-  checkLearningsGrammar(ctx.files.get('state/learnings.md'), findings)
-  checkFindingsGrammar(ctx.files.get('state/truss-findings.md'), findings)
-  checkHumanTodosGrammar(ctx.files.get('HUMAN-TODOS.md'), findings)
+  // file otherwise. The class-driven pass above already covers both; SY-09 and
+  // SY-11 below take the same list so they cannot disagree about what the log is.
+  const decisionFiles = filesForClass(ctx, classById(classes, 'D'))
+  const openDecisions = fileForClass(ctx, classById(classes, 'OD'))
 
   // ── SY-05: code-root checkout present but branch: undeclared ───────────────
   // Pure fs read (no git): if the code root is a checkout, current.md declares the
@@ -183,7 +189,7 @@ export async function run(ctx) {
   await checkOverlayBranchDeclared(ctx, findings)
 
   // ── SY-06: decided OD entries left as tombstones ────────────────────────────
-  checkDecidedTombstones(ctx.files.get('state/open-decisions.md'), findings)
+  checkDecidedTombstones(openDecisions, findings)
 
   // ── SY-07: HUMAN-TODOS.md piling up checked-off entries ─────────────────────
   checkHumanTodosDonePile(ctx.files.get('HUMAN-TODOS.md'), findings)
@@ -192,11 +198,11 @@ export async function run(ctx) {
   checkDecisionsSize(decisionFiles, findings)
 
   // ── SY-10: open decisions that have been waiting a long time ────────────────
-  checkOpenDecisionsAge(ctx.files.get('state/open-decisions.md'), findings)
+  checkOpenDecisionsAge(openDecisions, findings)
 
   // ── SY-11: stale Challenged-by: markers on decisions ────────────────────────
   for (const f of decisionFiles) {
-    checkStaleChallenges(f, ctx.files.get('state/open-decisions.md'), findings)
+    checkStaleChallenges(f, openDecisions, findings)
   }
 
   // ── SY-12: a global next: that outlived the move to domain files ────────────
@@ -246,7 +252,7 @@ function checkGlobalNextWithDomains(current, findings) {
 //    overtaken and should go. Info severity: the check asks, the human answers. ──
 function checkOpenDecisionsAge(file, findings, now = Date.now()) {
   if (!file) return
-  const { lines } = file
+  const { lines, relPath } = file
   const fenced = ignoredLines(lines)
 
   for (let i = 0; i < lines.length; i++) {
@@ -262,7 +268,7 @@ function checkOpenDecisionsAge(file, findings, now = Date.now()) {
 
     findings.push({
       id: 'SY-10', severity: 'I',
-      file: 'state/open-decisions.md', line: i + 1,
+      file: relPath, line: i + 1,
       message: `${m[1]} has been open for ${days} days`,
       fix: `Does the question still stand? Decide it (D-NNN with 'Closes: ${m[1]}'), re-brief it if the options have moved, or remove it if events answered it — say which in state/current.md. Age alone is not a defect; an unanswered briefing usually is.`,
     })
@@ -344,7 +350,7 @@ function checkDecisionsSize(files, findings) {
 //    old workspaces migrate at their own pace. ────────────────────────────────
 function checkDecidedTombstones(file, findings) {
   if (!file) return
-  const { lines } = file
+  const { lines, relPath } = file
   const fenced = ignoredLines(lines)
 
   for (let i = 0; i < lines.length; i++) {
@@ -359,7 +365,7 @@ function checkDecidedTombstones(file, findings) {
     if (headingDecided || bodyDecided) {
       findings.push({
         id: 'SY-06', severity: 'W',
-        file: 'state/open-decisions.md', line: i + 1,
+        file: relPath, line: i + 1,
         message: `${m[1]} is decided but still parked here as a tombstone`,
         fix: `Ensure the resolving D-NNN carries 'Closes: ${m[1]}', point any references at that D-NNN, then delete the ${m[1]} entry. The Closes: line is the permanent trace (docs/conventions.md).`,
       })
@@ -506,172 +512,99 @@ function warnMissingFields(findings, file, line, entryId, missing) {
   })
 }
 
-// ── decisions.md: check heading format + migration-friendly fields ──
-function checkDecisionsGrammar(file, findings) {
-  if (!file) return
-  const { lines } = file
-  const fenced = ignoredLines(lines)
+// ── Which loaded files hold entries of a class ───────────────────────────────
+// A class whose File ends in `/` is a directory with one file per entry; every
+// other class is one file. The decision log is the single exception, and it is
+// not a special case of *this* function: `decisionFilesFrom` carries the D-087
+// migration bridge (split bodies when they exist, the legacy single file
+// otherwise), and re-deriving that here would give a split workspace and a
+// non-split one two different answers about what the log is.
+function filesForClass(ctx, cls) {
+  if (!cls) return []
+  if (cls.dir === DECISIONS_DIR) return decisionFilesFrom(ctx)
+  if (cls.dir) {
+    const prefix = cls.dir + '/'
+    return [...ctx.files.keys()]
+      .filter(rel => rel.startsWith(prefix) && rel.endsWith('.md'))
+      .sort()
+      .map(rel => ctx.files.get(rel))
+  }
+  const file = ctx.files.get(cls.file)
+  return file ? [file] : []
+}
 
+const fileForClass = (ctx, cls) => filesForClass(ctx, cls)[0] || null
+const classById = (classes, id) => classes.find(c => c.id === id) || null
+
+// ── SY-03, the whole of it: one class, one file ──────────────────────────────
+// Everything class-specific — the ID prefix, whether entries are headings or
+// list items, which fields are owed — arrives in `cls`, read from docs/schema.md
+// (D-079). Two field names carry a rule beyond "is it there", both documented in
+// that file because they are contracts a reader can see: `Opened:` must be a
+// real YYYY-MM-DD date (SY-10 counts days off it), and `Options:` lines are
+// parsed into a chooser (checkOptionLines). Both are keyed on the field name,
+// not on a class, so a project's own class gets the same treatment.
+function checkEntryGrammar(cls, file, findings) {
+  if (!file) return
+  const { lines, relPath } = file
+  const fenced = ignoredLines(lines)
+  const requires = (name) => cls.required.some(alts => alts.includes(name))
+
+  if (cls.form === 'list') { checkListGrammar(cls, file, fenced, findings); return }
+
+  const headingRe = new RegExp(`^##\\s+(${cls.id}-\\d{3})\\b`)
   for (let i = 0; i < lines.length; i++) {
     if (fenced.has(i)) continue
-    // Only check level-2 headings that aren't the file title.
-    if (!/^##\s+\S/.test(lines[i])) continue
+    if (!/^##\s+\S/.test(lines[i])) continue     // only level-2 headings are entries
 
-    const m = lines[i].match(/^##\s+(D-\d{3})\b/)
+    const m = lines[i].match(headingRe)
     if (!m) {
       findings.push({
         id: 'SY-03', severity: 'W',
-        file: file.relPath, line: i + 1,
-        message: `decision entry must be numbered '## D-NNN — title'`,
-        fix: `Number the entry '## D-NNN — title'. See docs/conventions.md.`,
+        file: relPath, line: i + 1,
+        message: `heading is not a numbered ${cls.id} entry — expected '${cls.formText}'`,
+        fix: `Number the entry '${cls.formText}', or move this section out of ${relPath}: every '## ' heading here is read as an entry. See docs/schema.md.`,
       })
       continue
     }
 
     const body = entryBody(lines, i, fenced)
-    warnMissingFields(
-      findings,
-      file.relPath,
-      i + 1,
-      m[1],
-      missingFields(body, ['Date', 'Decision', ['Rationale', 'Why'], 'Consequences'])
-    )
+    const missing = missingFields(body, cls.required)
+    // `Opened:` is the one required field that must also parse: SY-10 measures
+    // its age, and an unparseable date makes that check silently skip the entry.
+    if (requires('Opened') && !missing.includes('Opened') && !parseOpenedDate(body)) {
+      missing.unshift('Opened')
+    }
+    warnMissingFields(findings, relPath, i + 1, m[1], missing)
+    if (requires('Options')) checkOptionLines(body, m[1], i + 1, relPath, findings)
   }
 }
 
-// ── learnings.md: check heading format + migration-friendly fields ──
-function checkLearningsGrammar(file, findings) {
-  if (!file) return
-  const { lines } = file
-  const fenced = ignoredLines(lines)
+// ── list-form classes (HUMAN-TODOS.md, and any class a project writes that way)
+// Scope is every line that names an ID of the class, not just well-formed ones —
+// the point is to catch the entry that got written as prose. Quoted lines and
+// comment openers are documentation about the form, not entries in it.
+function checkListGrammar(cls, file, fenced, findings) {
+  const { lines, relPath } = file
+  const mentions = new RegExp(`\\b${cls.id}-\\d{3}\\b`)
+  // The checkbox is part of the grammar only if the class writes one. Built from
+  // the shared CHECKBOX_ANY fragment so this can never disagree with
+  // parseIdDefinitions about what a task line looks like — D-046.
+  const box = /\[\s*[ xX]\s*\]/.test(cls.formText) ? `${CHECKBOX_ANY}\\s+` : ''
+  const grammar = new RegExp(`^[-*]\\s+${box}${cls.id}-\\d{3}\\s+—\\s+\\S`)
 
   for (let i = 0; i < lines.length; i++) {
     if (fenced.has(i)) continue
-    // Only check level-2 headings that aren't the file title.
-    if (!/^##\s+\S/.test(lines[i])) continue
-
-    const m = lines[i].match(/^##\s+(L-\d{3})\b/)
-    if (!m) {
-      findings.push({
-        id: 'SY-03', severity: 'W',
-        file: 'state/learnings.md', line: i + 1,
-        message: `learning entry must be numbered '## L-NNN — title'`,
-        fix: `Number the entry '## L-NNN — title'. See docs/conventions.md.`,
-      })
-      continue
-    }
-
-    const body = entryBody(lines, i, fenced)
-    warnMissingFields(
-      findings,
-      'state/learnings.md',
-      i + 1,
-      m[1],
-      missingFields(body, ['Trigger', 'Systemic cause', 'Adjustment'])
-    )
-  }
-}
-
-// ── truss-findings.md: check heading format + upstream-feedback fields ──
-function checkFindingsGrammar(file, findings) {
-  if (!file) return
-  const { lines } = file
-  const fenced = ignoredLines(lines)
-
-  for (let i = 0; i < lines.length; i++) {
-    if (fenced.has(i)) continue
-    // Only check level-2 headings that aren't the file title.
-    if (!/^##\s+\S/.test(lines[i])) continue
-
-    const m = lines[i].match(/^##\s+(TF-\d{3})\b/)
-    if (!m) {
-      findings.push({
-        id: 'SY-03', severity: 'W',
-        file: 'state/truss-findings.md', line: i + 1,
-        message: `finding entry must be numbered '## TF-NNN — title'`,
-        fix: `Number the entry '## TF-NNN — title'. See docs/conventions.md.`,
-      })
-      continue
-    }
-
-    const body = entryBody(lines, i, fenced)
-    warnMissingFields(
-      findings,
-      'state/truss-findings.md',
-      i + 1,
-      m[1],
-      missingFields(body, ['Date', 'Observed', 'Impact', 'Suggestion'])
-    )
-  }
-}
-
-// ── risks.md: check heading format + migration-friendly fields ──
-function checkRisksGrammar(file, findings) {
-  if (!file) return
-  const { lines } = file
-  const fenced = ignoredLines(lines)
-
-  for (let i = 0; i < lines.length; i++) {
-    if (fenced.has(i)) continue
-    // Only check level-2 headings that aren't the file title.
-    if (!/^##\s+\S/.test(lines[i])) continue
-
-    const m = lines[i].match(/^##\s+(R-\d{3})\b/)
-    if (!m) {
-      findings.push({
-        id: 'SY-03', severity: 'W',
-        file: 'state/risks.md', line: i + 1,
-        message: `risk entry must be numbered '## R-NNN — title'`,
-        fix: `Number the entry '## R-NNN — title'. See docs/conventions.md.`,
-      })
-      continue
-    }
-
-    const body = entryBody(lines, i, fenced)
-    warnMissingFields(
-      findings,
-      'state/risks.md',
-      i + 1,
-      m[1],
-      missingFields(body, ['Severity', 'Status', 'Trigger', 'Mitigation'])
-    )
-  }
-}
-
-
-// ── open-decisions.md: check heading format and Opened date ──
-function checkOpenDecisionsGrammar(file, findings) {
-  if (!file) return
-  const { lines } = file
-  const fenced = ignoredLines(lines)
-  const titleIdx = lines.findIndex((l, i) => !fenced.has(i) && /^#\s+\S/.test(l))
-
-  for (let i = 0; i < lines.length; i++) {
-    if (fenced.has(i) || i === titleIdx) continue
-    if (!/^##\s+\S/.test(lines[i])) continue        // only level-2 entry headings
-
-    const m = lines[i].match(/^##\s+(OD-\d{3})\b/)
-    if (!m) {
-      findings.push({
-        id: 'SY-03', severity: 'W',
-        file: 'state/open-decisions.md', line: i + 1,
-        message: `open-decision entry must be numbered '## OD-NNN — title'`,
-        fix: `Number the entry '## OD-NNN — title' (sequential, never reused — the OD counter is its own). See docs/conventions.md.`,
-      })
-      continue
-    }
-
-    const body = entryBody(lines, i, fenced)
-    const missing = missingFields(body, ['Options', 'Trade-offs', 'Leaning'])
-    if (!parseOpenedDate(body)) missing.unshift('Opened')
-    warnMissingFields(
-      findings,
-      'state/open-decisions.md',
-      i + 1,
-      m[1],
-      missing
-    )
-    checkOptionLines(body, m[1], i + 1, findings)
+    if (!mentions.test(lines[i])) continue
+    const t = lines[i].trimStart()
+    if (t.startsWith('>') || t.startsWith('<!--')) continue
+    if (grammar.test(t)) continue
+    findings.push({
+      id: 'SY-03', severity: 'W',
+      file: relPath, line: i + 1,
+      message: `${cls.id} entry does not match the list grammar '${cls.formText}'`,
+      fix: `Rewrite as '${cls.formText}'${box ? " (use '[x]' when it is done; never delete)" : ''}. See docs/schema.md.`,
+    })
   }
 }
 
@@ -680,7 +613,7 @@ function checkOpenDecisionsGrammar(file, findings) {
 //    ` — ` separator still renders, but as one undifferentiated block of text —
 //    the human then re-reads the prose instead of choosing, and nothing in the
 //    file says why. Warn at the point of writing instead. ───────────────────────
-function checkOptionLines(body, id, entryLine, findings) {
+function checkOptionLines(body, id, entryLine, relPath, findings) {
   let inOptions = false
   for (const line of body) {
     if (/^\*{0,2}\s*options\s*:?\s*\*{0,2}\s*$/i.test(line.trim())) { inOptions = true; continue }
@@ -696,7 +629,7 @@ function checkOptionLines(body, id, entryLine, findings) {
 
     findings.push({
       id: 'SY-03', severity: 'W',
-      file: 'state/open-decisions.md', line: entryLine,
+      file: relPath, line: entryLine,
       message: `${id}: option line is not in chooser form${keyed ? ' (no " — " after the label)' : dashed ? ' (no A:/B: key)' : ' (no key, no " — ")'} — "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`,
       fix: `Write options as '- A: [short label] — [what it means] +[upside] / –[downside]'; mark at most one '(recommended)'. The shape is what makes the options choosable instead of prose. See docs/conventions.md.`,
     })
@@ -709,29 +642,6 @@ function parseOpenedDate(body) {
   if (!m) return null
   const parsed = Date.parse(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`)
   return Number.isNaN(parsed) ? null : parsed
-}
-
-// ── HUMAN-TODOS.md: entries must be the checkbox list form ───────────────────
-// Canonical (AGENTS.md §2 + STRUKTUR.md §11 + the shipped file):
-// `- [ ] HT-NNN — description` (checkbox list form, em-dash separator).
-function checkHumanTodosGrammar(file, findings) {
-  if (!file) return
-  const fenced = ignoredLines(file.lines)
-  for (let i = 0; i < file.lines.length; i++) {
-    if (fenced.has(i)) continue                        // examples inside ``` blocks are not entries
-    const line = file.lines[i]
-    if (!/\bHT-\d{3}\b/.test(line)) continue           // only lines that define/mention a real HT id
-    const t = line.trimStart()
-    if (t.startsWith('>') || t.startsWith('<!--')) continue   // doc/comment lines, not entries
-    if (!HT_GRAMMAR_RE.test(t)) {
-      findings.push({
-        id: 'SY-03', severity: 'W',
-        file: 'HUMAN-TODOS.md', line: i + 1,
-        message: `HT entry does not match the list grammar '- [ ] HT-NNN — description'`,
-        fix: `Rewrite as '- [ ] HT-NNN — description' (use '[x]' when the human has done it; never delete). See docs/conventions.md.`,
-      })
-    }
-  }
 }
 
 // ── profile.md: strict headings for core config ───────────────────────────────

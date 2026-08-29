@@ -7,16 +7,16 @@
 
 IDs are sequential integers, zero-padded to three digits. Never reused. Issued in the file they belong to.
 
-| Prefix | File | Owner | Meaning |
-|---|---|---|---|
-| D-NNN | state/decisions/D-NNN.md | A | Decided decision (one file per entry) |
-| HT-NNN | HUMAN-TODOS.md | A | Human-only todo |
-| R-NNN | state/risks.md | A | Risk |
-| OD-NNN | state/open-decisions.md | A | Open decision briefing |
-| L-NNN | state/learnings.md | A | Learning from systemic agent weakness |
-| TF-NNN | state/truss-findings.md | A | Finding about Truss itself from long-term use |
+Which classes exist, which file each lives in and which fields it owes is **not
+repeated here** — it is the class table in [schema.md](schema.md), and that table
+is what `doctor` reads. Add a class there and it is checked; change a field there
+and SY-03 follows. This file says how to *use* the classes well.
 
 ## Entry grammars
+
+The templates below are the written form of the classes in
+[schema.md](schema.md). They and the table are held together by a test, so a
+field cannot appear in one and go missing from the other.
 
 ### D-NNN — Decided decision
 
@@ -31,6 +31,7 @@ Closes: [OD-MMM or omit when none]
 Rejected: [not-chosen option — one-line why; only with Closes:, omit otherwise]
 Supersedes: [D-MMM or omit when none]
 Addresses: [L-MMM when this decision implements a learning's adjustment; omit otherwise]
+Superseded-by: [D-MMM once a later decision replaces this one; omit until then]
 Challenged-by: [OD-MMM while the decision is contested — the one transient field; removed when the challenge resolves]
 ```
 

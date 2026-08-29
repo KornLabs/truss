@@ -80,9 +80,17 @@ traced to one place:
 - `HT-NNN` — a human-only to-do
 - `L-NNN` — a learning
 - `R-NNN` — a risk
+- `TF-NNN` — a finding about Truss itself
 
 The `RF` checks verify links and structured IDs across Truss operational files,
 including every non-ignored Markdown file under `context/`.
+
+**The set is yours to extend.** Which classes exist, which file each lives in
+and which fields it owes is a table in `docs/schema.md`, and that table is what
+the checks read. Add a row — say, `BL` for a backlog in `state/backlog.md` — and
+`BL-042` is a structured ID from that moment: references to a missing entry are
+warnings, duplicate definitions are errors, and entries that do not match the
+form you wrote are flagged. No fork, no engine change.
 
 ## 5. Phases
 

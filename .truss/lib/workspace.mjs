@@ -12,7 +12,7 @@ import { mapMdFilesFromDiskPaths } from './commands/map.mjs'
 import { loadIgnore } from './ignore.mjs'
 import { resolveCodeRoot } from './code-root.mjs'
 import { readContextAck } from './context-ack.mjs'
-import { DECISIONS_DIR } from './decisions-index.mjs';
+import { loadSchema } from './schema.mjs';
 
 /**
  * OS / editor junk files that are never part of a Truss workspace and must not
@@ -185,6 +185,13 @@ export async function loadWorkspace(root) {
     agentsHeadings = parseHeadings(agentsRaw.lines);
   }
 
+  // ── Load the entry-class schema ──────────────────────────────────────────
+  // Before any file is parsed: which XX-NNN tokens are structured IDs at all is
+  // the schema's answer, and every parse below needs it (D-079). A workspace
+  // without docs/schema.md gets the engine's shipped copy — same form, no
+  // behaviour change for an instance that never migrated.
+  const schema = await loadSchema(root);
+
   // ── Load state/phases.md ─────────────────────────────────────────────────
   const phasesRaw = await readFile(resolve('state', 'phases.md'));
   let phases = { frontmatter: {}, ordered: [], defs: new Map() };
@@ -215,6 +222,13 @@ export async function loadWorkspace(root) {
   // every D-NNN definition — one RF-02 per reference — the day it upgrades.
   // D-077/D-081: the old form stays supported and stays silent.
   managedRelPaths.add('state/decisions.md');
+  // Every file the schema names, whether or not the §2 table lists it. A class
+  // whose file is never read is a class that is never checked — the same silent
+  // pass ST-11 exists to prevent, just reached from the other side. A project
+  // that adds `| BL | state/backlog.md | … |` gets its entries checked from that
+  // row alone (D-079/U7); listing the file in §2 is still its own concern, and
+  // ST-02 still asks for it.
+  for (const cls of schema.classes) if (!cls.dir) managedRelPaths.add(cls.file);
 
   const files = new Map();
 
@@ -228,8 +242,8 @@ export async function loadWorkspace(root) {
         relPath: rel,
         links: parseAllLinks(raw.lines),
         headings: parseHeadings(raw.lines),
-        idDefs: parseIdDefinitions(raw.lines),
-        idRefs: parseIdReferences(raw.lines),
+        idDefs: parseIdDefinitions(raw.lines, schema.ids),
+        idRefs: parseIdReferences(raw.lines, schema.ids),
       });
     }
   }
@@ -241,8 +255,8 @@ export async function loadWorkspace(root) {
       relPath: 'AGENTS.md',
       links: agentsLinks,
       headings: agentsHeadings,
-      idDefs: parseIdDefinitions(agentsRaw.lines),
-      idRefs: parseIdReferences(agentsRaw.lines),
+      idDefs: parseIdDefinitions(agentsRaw.lines, schema.ids),
+      idRefs: parseIdReferences(agentsRaw.lines, schema.ids),
     });
   }
 
@@ -253,8 +267,8 @@ export async function loadWorkspace(root) {
       relPath: 'state/phases.md',
       links: parseAllLinks(phasesRaw.lines),
       headings: parseHeadings(phasesRaw.lines),
-      idDefs: parseIdDefinitions(phasesRaw.lines),
-      idRefs: parseIdReferences(phasesRaw.lines),
+      idDefs: parseIdDefinitions(phasesRaw.lines, schema.ids),
+      idRefs: parseIdReferences(phasesRaw.lines, schema.ids),
     });
   }
 
@@ -309,13 +323,15 @@ export async function loadWorkspace(root) {
   // archive/ is deliberately absent from mdFiles (MAP_SKIP_DIRS keeps it out of
   // the domain map), so its markdown is taken from diskPaths directly.
   const archiveMd = diskPaths.filter(p => p.startsWith('archive/') && p.endsWith('.md'))
-  // state/decisions/<ID>.md (D-087) is loaded for the same reason as archive/:
-  // the bodies moved out of state/decisions.md, so without indexing them every
-  // D-NNN reference in the workspace would become an RF-02 warning and the
-  // index would look like it defines ids it only cites. Taken from diskPaths,
-  // not mdFiles, because the map summarises the directory instead of listing it.
-  const decisionMd = diskPaths.filter(p => p.startsWith(DECISIONS_DIR + '/') && p.endsWith('.md'))
-  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd, ...decisionMd]) {
+  // One file per entry: state/decisions/<ID>.md (D-087) and any other class the
+  // schema declares that way. Loaded for the same reason as archive/ — the
+  // bodies live outside the §2 table, so without indexing them every D-NNN
+  // reference in the workspace would become an RF-02 warning and the index would
+  // look like it defines ids it only cites. Taken from diskPaths, not mdFiles,
+  // because the map summarises such a directory instead of listing it.
+  const classDirs = schema.classes.map(c => c.dir).filter(Boolean)
+  const classDirMd = diskPaths.filter(p => p.endsWith('.md') && classDirs.some(d => p.startsWith(d + '/')))
+  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd, ...classDirMd]) {
     if (files.has(rel)) continue;
     const raw = await readFile(resolve(rel));
     if (!raw) continue;
@@ -324,8 +340,8 @@ export async function loadWorkspace(root) {
       relPath: rel,
       links: parseAllLinks(raw.lines),
       headings: parseHeadings(raw.lines),
-      idDefs: parseIdDefinitions(raw.lines),
-      idRefs: parseIdReferences(raw.lines),
+      idDefs: parseIdDefinitions(raw.lines, schema.ids),
+      idRefs: parseIdReferences(raw.lines, schema.ids),
     };
     files.set(rel, fileCtx);
     for (const { id, line } of fileCtx.idDefs) {
@@ -345,6 +361,7 @@ export async function loadWorkspace(root) {
 
   return {
     root,
+    schema,          // { classes, ids, source, rel, problems } — docs/schema.md (D-079)
     structureTable,
     blocks,          // Map<id, BlockInfo> from AGENTS.md
     contextAck,      // { version, acks: { 'CX-01': { tokens, date, note? } } } | null
