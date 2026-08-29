@@ -46,7 +46,7 @@ export function mapComparisonKey(content) {
   return content
     .replace(/\r\n/g, '\n')
     .trim()
-    .split('\n')
+    .split(/\r?\n/)
     .map(line => line.trimEnd().startsWith('|') && line.trimEnd().endsWith('|')
       ? line.trimEnd().replace(/\|[^|]*\|$/, '|')
       : line)

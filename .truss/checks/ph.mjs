@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseExitItems, globToRegex } from '../lib/render.mjs'
-import { parseHeadings, headingToAnchor, parsePhaseList, PHASE_STRAY, PHASE_UNKNOWN_KEYS } from '../lib/md.mjs'
+import { parseHeadings, headingToAnchor, parsePhaseList, splitLines, PHASE_STRAY, PHASE_UNKNOWN_KEYS } from '../lib/md.mjs'
 import { loadIgnore } from '../lib/ignore.mjs'
 import { gitChangedPaths } from '../lib/git.mjs'
 import { resolveCodeRoot } from '../lib/code-root.mjs'
@@ -490,7 +490,7 @@ async function headingExistsInFile(root, filePath, heading) {
   try { content = await fs.readFile(absPath, 'utf8') }
   catch { return false }
 
-  const headings = parseHeadings(content.split('\n'))
+  const headings = parseHeadings(splitLines(content))
   const accepted = anchorAliasSet(headingToAnchor(heading))
   return headings.some(h => accepted.has(h.anchor))
 }

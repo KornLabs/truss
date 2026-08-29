@@ -25,7 +25,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseTableRow } from './md.mjs'
+import { parseTableRow, splitLines } from './md.mjs'
 import { decisionFilesFrom, DECISIONS_DIR } from './decisions-index.mjs'
 
 export const SCHEMA_REL = 'docs/schema.md'
@@ -187,9 +187,7 @@ async function readLines(abs) {
     if (err.code === 'ENOENT') return null
     throw err
   }
-  const lines = content.split('\n')
-  if (lines.at(-1) === '') lines.pop()
-  return lines
+  return splitLines(content)
 }
 
 const shippedSchema = async () => parseSchema(await readLines(baselineSchemaPath()) ?? [])

@@ -45,6 +45,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { writeFileAtomic } from './scaffold.mjs'
+import { splitLines } from './md.mjs'
 
 /** Where the index lives, and what it is generated from. */
 export const INDEX_REL  = 'state/decisions-index.md'
@@ -208,7 +209,7 @@ export async function readDecisionSource(root) {
     const parts = []
     for (const name of names) {
       const body = await fs.readFile(path.join(root, DECISIONS_DIR, name), 'utf8')
-      parts.push({ rel: `${DECISIONS_DIR}/${name}`, lines: body.split('\n') })
+      parts.push({ rel: `${DECISIONS_DIR}/${name}`, lines: splitLines(body) })
     }
     // `parts`, not one concatenated stream. parseDecisionEntries carries fenced
     // state line by line, so a single body with an unclosed ``` would swallow
@@ -220,7 +221,7 @@ export async function readDecisionSource(root) {
 
   try {
     const source = await fs.readFile(path.join(root, SOURCE_REL), 'utf8')
-    const lines = source.split('\n')
+    const lines = splitLines(source)
     return { form: 'file', parts: [{ rel: SOURCE_REL, lines }], files: [SOURCE_REL], lines }
   } catch {
     return null

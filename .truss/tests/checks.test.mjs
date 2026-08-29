@@ -305,21 +305,43 @@ describe('checkbox syntax is shared, not re-invented per module', () => {
 
 // ── SY-09 ────────────────────────────────────────────────────────────────────
 describe('SY-09 decisions.md read cost', () => {
-  // words × 1.5 (lib/context-budget.mjs): 4000 words ≈ 6000 tokens → at threshold.
+  // words × 1.5 (lib/context-budget.mjs): 12 000 words ≈ 18 000 tokens = the whole
+  // CX-01 warn budget, so any boot at all puts the pair over it.
   const decisionsOf = (words) => '# Decisions\n\n## D-001 — big\n\nDate: 2026-01-01\nDecision: x\nRationale: y\nConsequences: z\n'
     + Array(words).fill('lorem').join(' ') + '\n'
-  it('nudges once the estimated read cost reaches 6000 tokens', async () => {
-    const f = ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(4000)) })), 'SY-09')
+  it('nudges once the log no longer fits beside the boot', async () => {
+    const f = ids(await sy.run(ctxOf({ 'state/decisions.md': file(decisionsOf(12_000)) })), 'SY-09')
     assert.equal(f.length, 1)
     assert.equal(f[0].severity, 'I')
-    // D-075: the full log is no longer read at every boot — it is loaded before
-    // a decision is made or proposed, and the index carries the rest.
-    assert.match(f[0].message, /tokens when the log is read in full/)
+    // The threshold is derived, not set: boot + full read against the CX-01 warn
+    // budget. The old flat 6000 was "one third of the boot budget", a derivation
+    // D-087 killed when the bodies left the boot (D-090).
+    assert.match(f[0].message, /over the 18000 budget/)
     // D-087: the archive target is the directory, not a single file. This
     // assertion froze the stale path once already — keep it pointed at what
     // docs/conventions.md actually tells the agent to do.
     assert.match(f[0].fix, /archive\/decisions\//)
     assert.match(f[0].fix, /never delete/i)
+  })
+
+  it('stays quiet while the log still fits, however many entries it has', async () => {
+    const bodies = {}
+    for (let n = 1; n <= 60; n++) {
+      const id = `D-${String(n).padStart(3, '0')}`
+      bodies[`state/decisions/${id}.md`] = file(
+        `## ${id} — entry ${n}\n\nDate: 2026-01-01\nDecision: d\nRationale: r\nConsequences: c\n`)
+    }
+    assert.equal(ids(await sy.run(ctxOf(bodies)), 'SY-09').length, 0)
+  })
+
+  it('counts the boot too, so the same log fires next to a fat AGENTS.md', async () => {
+    const log = { 'state/decisions.md': file(decisionsOf(9_000)) }
+    assert.equal(ids(await sy.run(ctxOf(log)), 'SY-09').length, 0)
+    const withBoot = {
+      ...log,
+      'AGENTS.md': file(Array(4_000).fill('lorem').join(' ')),
+    }
+    assert.equal(ids(await sy.run(ctxOf(withBoot)), 'SY-09').length, 1)
   })
 
   it('attributes a grammar finding to the body that has the defect (D-087)', async () => {
@@ -352,7 +374,7 @@ describe('SY-09 decisions.md read cost', () => {
       const id = `D-${String(n).padStart(3, '0')}`
       bodies[`state/decisions/${id}.md`] = file(
         `## ${id} — big ${n}\nDate: 2026-01-01\nDecision: x\nRationale: y\nConsequences: z\n`
-        + Array(1000).fill('lorem').join(' ') + '\n'
+        + Array(3200).fill('lorem').join(' ') + '\n'
       )
     }
     const f = ids(await sy.run(ctxOf(bodies)), 'SY-09')
