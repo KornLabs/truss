@@ -8,7 +8,7 @@
 // SY-03  W  entry grammar violated — one pass per class in docs/schema.md, plus profile.md and code-root
 // SY-04  —  retired (INBOX.md removed from the baseline; id not reused)
 // SY-08  W  ritual drift — state/ or context/ changed well after current.md (D-010, D-058)
-// SY-09  I  decision log read cost grown large (≥ 6000 token-equivalent) — archive nudge
+// SY-09  I  reading the whole decision log would not fit beside the boot (CX-01 budget) — archive nudge
 // SY-10  I  an open decision has been open ≥ 30 days — does the question still stand?
 // SY-11  W  Challenged-by: names an OD that does not exist (stale challenge marker)
 //
@@ -49,7 +49,7 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { wordCount, toTokens } from '../lib/context-budget.mjs'
+import { wordCount, toTokens, CONTEXT_FILES, WARN_TOKENS } from '../lib/context-budget.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE } from '../lib/md.mjs'
 import { hasDomains, meaningful } from '../lib/domains.mjs'
 import { DECISIONS_DIR } from '../lib/decisions-index.mjs'
@@ -63,7 +63,7 @@ export const meta = [
   { id: 'SY-06', severity: 'W', title: 'decided open-decision entry still present (tombstone)', description: 'On decision the OD entry is removed; the D-NNN Closes: line is the trace' },
   { id: 'SY-07', severity: 'I', title: 'HUMAN-TODOS.md accumulates checked-off entries', description: 'more than 5 settled [x] entries → move them to archive/human-todos.md' },
   { id: 'SY-08', severity: 'W', title: 'ritual drift — workspace state changed after current.md was last updated', description: 'mtime comparison of state/ + context/ vs current.md, with a grace window for the write-back that follows a change (D-010, D-058)' },
-  { id: 'SY-09', severity: 'I', title: 'decision log read cost is growing large', description: '≥ 6000 token-equivalent (words × 1.5) → check for superseded or fully absorbed entries that can move to archive/decisions/' },
+  { id: 'SY-09', severity: 'I', title: 'the whole decision log no longer fits beside the boot', description: `Boot (CX-01 files) + every decision body read in full exceeds ${WARN_TOKENS} token-equivalent — the read §1 requires before a decision is made or proposed. Check for entries whose consequence is carried elsewhere and can move to archive/decisions/` },
   { id: 'SY-10', severity: 'I', title: 'open decision has been waiting a long time', description: 'Opened: ≥ 30 days ago → decide it, re-brief it, or drop it; not SY-02 (that aged all state, this asks about a question waiting on a human)' },
   { id: 'SY-11', severity: 'W', title: 'Challenged-by: points at an open decision that does not exist', description: 'The challenge was resolved or removed but the marker on the decision stayed' },
   { id: 'SY-12', severity: 'I', title: 'current.md still carries a global next: although domains exist', description: 'Open points belong in the frontmatter next: of the domain file that owns them; a project-wide next step is focus: (U5)' },
@@ -76,7 +76,6 @@ export const meta = [
 // wrote it correctly under the previous baseline from green to warning.
 const CURRENT_REQUIRED_KEYS = ['focus', 'next', 'blockers']
 const HT_DONE_MAX           = 5
-const DECISIONS_TOKENS_MAX  = 6000 // one third of the CX-01 warn budget (18k)
 const OD_STALE_DAYS         = 30   // set, not derived — info only; correct it at the first false alarm
 // SY-08 grace window: how long state may be newer than current.md before it is
 // drift rather than a work unit still in progress. Set, not derived (D-058).
@@ -193,7 +192,7 @@ export async function run(ctx) {
   checkHumanTodosDonePile(classById(classes, 'HT'), fileForClass(ctx, classById(classes, 'HT')), findings)
 
   // ── SY-09: decisions.md read cost growing large ──────────────────────────────
-  checkDecisionsSize(decisionFiles, findings)
+  checkDecisionsSize(ctx, decisionFiles, findings)
 
   // ── SY-10: open decisions that have been waiting a long time ────────────────
   checkOpenDecisionsAge(openDecisions, findings)
@@ -309,26 +308,31 @@ function checkStaleChallenges(decisions, openDecisions, findings) {
   }
 }
 
-// ── SY-09 — decisions.md is loaded in full before any decision is made or
-//    proposed (its `Decision:` lines are boot context via state/decisions-index.md
-//    since D-075), and it only ever grows (entries are superseded, never
-//    deleted). Info-level nudge
-//    once its estimated read cost passes DECISIONS_TOKENS_MAX — one third of the
-//    CX-01 warn budget in a single file. Deliberately NOT a hard budget check
-//    (that is CX-01's aggregate job): this is the targeted archiving prompt the
-//    conventions promise. Same words × 1.5 estimate as CX-01 / `truss map`, so
-//    the numbers never disagree. A workspace whose decisions are all still
-//    load-bearing may legitimately sit above the line — the check asks for a
-//    review, it does not demand deletion (deleting decisions is forbidden). ────
-function checkDecisionsSize(files, findings) {
+// ── SY-09 — §1 requires the whole log to be read before a decision is made or
+//    proposed, and the log only grows (entries are superseded, never deleted).
+//    The threshold is DERIVED, not set: it fires when that read no longer fits
+//    beside the boot inside the CX-01 warn budget — i.e. when a session that has
+//    to make a decision cannot afford the context the rules oblige it to load.
+//
+//    It used to be a flat 6000, "one third of the CX-01 warn budget". That
+//    derivation died with D-087: the bodies left the boot entirely, so a third of
+//    a *boot* budget no longer described anything the log costs. Keeping the
+//    number would have meant a check firing against a rule nobody could name.
+//    Same words × 1.5 estimate as CX-01 and `truss map`, so the numbers agree.
+//    Info, never a gate blocker: a log whose entries are all still load-bearing
+//    may legitimately sit above the line — the check asks for a review, it does
+//    not demand deletion (deleting decisions is forbidden). ──────────────────────
+function checkDecisionsSize(ctx, files, findings) {
   if (!files.length) return
-  // The cost of reading the WHOLE log, which §1 still requires before making or
-  // proposing a decision. Split across bodies (D-087) that is the sum, not the
-  // largest file — splitting makes a lookup cheap, it does not make the full
-  // read cheap, and pretending otherwise would silence the nudge exactly when
-  // the log has grown enough to need it.
+  // The cost of reading the WHOLE log. Split across bodies (D-087) that is the
+  // sum, not the largest file — splitting makes a lookup cheap, it does not make
+  // the full read cheap, and pretending otherwise would silence the nudge
+  // exactly when the log has grown enough to need it.
   const tokens = files.reduce((n, f) => n + toTokens(wordCount(f.content)), 0)
-  if (tokens < DECISIONS_TOKENS_MAX) return
+  const boot = CONTEXT_FILES.reduce(
+    (n, rel) => n + toTokens(wordCount(ctx.files.get(rel)?.content ?? '')), 0)
+  if (boot + tokens <= WARN_TOKENS) return
+
   const split = files.length > 1 || files[0].relPath !== 'state/decisions.md'
   const where = split ? `${DECISIONS_DIR}/ (${files.length} entries)` : 'state/decisions.md'
   findings.push({
@@ -336,7 +340,7 @@ function checkDecisionsSize(files, findings) {
     // The cost belongs to the log as a whole. Pointing at one body would send
     // the reader to a file where nothing is wrong.
     file: split ? `${DECISIONS_DIR}/` : files[0].relPath, line: split ? undefined : 1,
-    message: `${where} costs ≈ ${tokens} tokens when the log is read in full (≥ ${DECISIONS_TOKENS_MAX})`,
+    message: `reading all of ${where} costs ≈ ${tokens} tokens; with the ${boot}-token boot that is ${boot + tokens}, over the ${WARN_TOKENS} budget a session making a decision has`,
     fix: `Review for entries that no longer need to be read (docs/conventions.md): a superseded entry shrinks to heading + supersede note; an entry whose consequence is carried by a check, a test, a convention or the file structure moves to archive/decisions/ whole, with a pointer. Never delete an entry. The \`cleanup\` ritual (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
   })
 }

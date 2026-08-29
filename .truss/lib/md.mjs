@@ -8,12 +8,17 @@
  * where bodyStart is the index of the first non-frontmatter line.
  */
 export function parseFrontmatter(lines) {
-  if (lines[0] !== '---') return { data: {}, bodyStart: 0 };
+  // A trailing \r is tolerated on both fences: on Windows CRLF is what git
+  // checks out by default, and a fence that fails to match here returns an EMPTY
+  // frontmatter — state/phases.md would silently lose its `current:` pointer,
+  // which is the one line the whole phase machinery turns on.
+  const fence = (line) => line?.trimEnd() === '---';
+  if (!fence(lines[0])) return { data: {}, bodyStart: 0 };
   const data = {};
   let i = 1;
   let currentKey = null;
   for (; i < lines.length; i++) {
-    if (lines[i] === '---') { i++; break; }
+    if (fence(lines[i])) { i++; break; }
     const line = lines[i].trimEnd();
     const m = line.match(/^([a-z_-]+):\s*(.*)$/);
     if (m) {
@@ -25,6 +30,17 @@ export function parseFrontmatter(lines) {
 
   }
   return { data, bodyStart: i };
+}
+
+/**
+ * Split file content into lines for parsing, tolerating CRLF.
+ * Writers must NOT use this: they split and rejoin to preserve a file's own
+ * line endings, and normalising there would rewrite the whole file.
+ */
+export function splitLines(content) {
+  const lines = String(content).split(/\r?\n/)
+  if (lines.at(-1) === '') lines.pop()
+  return lines
 }
 
 /**
@@ -152,7 +168,11 @@ export function headingToAnchor(text) {
 export function parseHeadings(lines) {
   const headings = [];
   for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^(#{1,6})\s+(.+)$/);
+    // `\r?$` and not just `$`: JS treats \r as a line terminator, so `.` never
+    // matches it and `$` never sits before it — a CRLF file yielded ZERO
+    // headings, taking RF-01's anchor checks, the map descriptions and every
+    // heading-based check down with it, silently.
+    const m = lines[i].match(/^(#{1,6})\s+(.+?)\r?$/);
     if (m) {
       const text = m[2].trim();
       headings.push({

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   parseBlocks, parseAllLinks,
-  parseHeadings, parseIdDefinitions, parseIdReferences, parsePhases,
+  parseHeadings, parseIdDefinitions, parseIdReferences, parsePhases, splitLines,
 } from './md.mjs'
 import { mapMdFilesFromDiskPaths } from './commands/map.mjs'
 import { loadIgnore } from './ignore.mjs'
@@ -48,9 +48,10 @@ async function readFile(absPath) {
   try {
     const stat = await fs.stat(absPath);
     const content = await fs.readFile(absPath, 'utf8');
-    const lines = content.split('\n');
-    // Remove trailing empty line if file ends with newline
-    if (lines.at(-1) === '') lines.pop();
+    // splitLines, not split('\n'): every check downstream runs its own regexes
+    // over these lines, and a trailing \r defeats any of them that anchors on $.
+    // `content` keeps the original bytes for anything that measures or rewrites.
+    const lines = splitLines(content);
     return { lines, content, stat };
   } catch {
     return null;
