@@ -108,7 +108,11 @@ and throw typed errors, which the dispatcher maps to exit codes.
 
 - Keep the **zero-dependency** rule: standard library only.
 - A new command → add it to `command-meta.mjs` first.
-- A new check → add its `meta` entry and logic to the right family module.
+- A new check → add its `meta` entry and logic to the right family module. If the
+  check exists to prevent *silence* — a state where other checks would pass
+  having examined nothing — enumerate the partial failures too, not only the
+  total one. One bad row in a table is the case that gets missed, and it is the
+  likelier one (`L-011`).
 - A change to the workspace format → update `baseline/` and the matching checks
   together.
 - A change to what an entry *is* — a class, a file, a field → `baseline/docs/schema.md`.

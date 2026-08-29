@@ -10,7 +10,7 @@
 // ST-05  I  file has more than 450 lines (growth-rule hint)
 // ST-09  I  engine file(s) diverged from .truss/MANIFEST.sha256 (silent if absent)
 // ST-10  I/W decision index absent (I) or out of step with decisions.md (W)
-// ST-11  W  docs/schema.md exists but yields no usable entry class (engine fell back)
+// ST-11  W  docs/schema.md holds a row the engine had to drop (that class stops being checked)
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -33,7 +33,7 @@ export const meta = [
   { id: 'ST-08', severity: 'W', title: 'AGENTS.md is missing a numbered top-level section', description: '§1–§6 are the contract every prompt, doc and check cross-references' },
   { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
   { id: 'ST-10', severity: 'W', title: 'Decision index missing, out of step, or holding an entry it cannot address', description: 'D-075/D-081/D-087: info while the index has never been generated or is still in the pre-D-087 format (steps not taken, not defects); warning once it exists and disagrees with the source, or when a decision body sits where the index can never reach it — a stale or incomplete index lies to every session boot' },
-  { id: 'ST-11', severity: 'W', title: 'docs/schema.md defines no usable entry class', description: 'D-079: the entry classes are read from this file. A workspace copy the engine cannot use would silently switch off RF-02, RF-03 and SY-03 for every ID, so the engine falls back to its own shipped copy and says so here' },
+  { id: 'ST-11', severity: 'W', title: 'docs/schema.md holds a row the engine cannot use', description: 'D-079: the entry classes are read from this file. Any row the engine drops switches RF-02, RF-03 and SY-03 off for that class in silence; a file that is not a Truss schema at all (no Class-headed table) is not reported, so an unrelated docs/schema.md stays green' },
 ];
 
 // Top-level paths that were a valid §2 routing target before an engine change
@@ -435,12 +435,22 @@ export async function run(ctx) {
   // back to the shipped copy in that case (so the workspace keeps working); this
   // is where the fallback becomes visible. A workspace with no docs/schema.md at
   // all is not this case — it never had one, and the fallback is the normal path.
-  if (ctx.schema?.rel && ctx.schema.source === 'baseline') {
+  // `rel` is set only for a file that IS a Truss schema (a Class-headed table);
+  // someone else's docs/schema.md never reaches here. Every problem means a row
+  // was dropped, and a dropped class is checked by nobody — so a partly broken
+  // table is reported just as loudly as an unusable one. Reporting only the
+  // total loss was the original gap: one bad row switched a class off in silence.
+  if (ctx.schema?.rel && ctx.schema.problems?.length) {
+    const total = ctx.schema.source === 'baseline'
     findings.push({
       id: 'ST-11', severity: 'W',
       file: ctx.schema.rel, line: 1,
-      message: `${ctx.schema.rel} defines no usable entry class (${ctx.schema.problems.join('; ')}) — the engine's own copy is being used instead`,
-      fix: `Restore the class table: a header row starting with 'Class', then one row per class with File, Form, Required and Optional columns. The shipped copy in .truss/baseline/${ctx.schema.rel} is a working example.`,
+      message: total
+        ? `${ctx.schema.rel} defines no usable entry class (${ctx.schema.problems.join('; ')}) — the engine's own copy is being used instead`
+        : `${ctx.schema.rel}: ${ctx.schema.problems.length} row(s) ignored — ${ctx.schema.problems.join('; ')}`,
+      fix: total
+        ? `Restore the class table: a header row starting with 'Class', then one row per class with File, Form, Required and Optional columns. The shipped copy in .truss/baseline/${ctx.schema.rel} is a working example.`
+        : `Fix or remove each row named above. An ignored row is not a smaller check — the class it names stops being a structured ID, so RF-02, RF-03 and SY-03 all fall silent for it.`,
     })
   }
 

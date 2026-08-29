@@ -8,7 +8,18 @@
 classes come from, not a copy of a list kept in code. `doctor` uses it for three
 things: which `XX-NNN` tokens count as structured IDs at all (RF-02, RF-03),
 which file each class belongs in, and which fields SY-03 asks for. Edit the
-table and the checks follow; there is no second place to change.
+table and those three follow; there is no second place to change them.
+
+What it does **not** govern: checks that carry a class's *meaning* rather than
+its form still name the class — that an open decision is removed when it is
+decided (SY-06), that one waiting a month is worth asking about (SY-10), that a
+decision log grows expensive (SY-09). Rename `D` or `OD` and those go quiet.
+The boot-cost estimate and `truss status` also still name their files.
+
+The header row starting with `Class` is what marks this file as a Truss schema.
+Without it the file is treated as someone else's `docs/schema.md` and ignored in
+silence — a database or API schema under this name is not a broken Truss schema.
+Rows inside a fenced code block are examples, never configuration.
 
 ## Classes
 
@@ -23,11 +34,17 @@ table and the checks follow; there is no second place to change.
 
 How the columns are read:
 
-- **Class** — the ID prefix. Uppercase letters; the number is always three digits.
-- **File** — where entries of the class live. A path ending in `/` is a
-  directory holding one file per entry (`state/decisions/D-042.md`).
-- **Form** — `##`-headed entries are checked as headings, `-`-led entries as list
-  items. `NNN` and `title`/`description` are placeholders, not literal text.
+- **Class** — the ID prefix. One to four uppercase letters; the number is always
+  three digits.
+- **File** — where entries of the class live, as a path inside the workspace. A
+  path ending in `/` is a directory holding one file per entry
+  (`state/decisions/D-042.md`); such a directory does not claim a file another
+  class already names.
+- **Form** — `#`-headed entries are checked as headings, `-`-led entries as list
+  items. `NNN` and `title`/`description` are placeholders, not literal text. The
+  **heading level is part of the form**: write `### X-NNN — title` and level-3
+  headings are the entries, while `##` headings in that file are sections. The
+  prefix in this cell must be the same as the Class cell.
 - **Required** — SY-03 warns when a field is missing. `A or B` accepts either
   name and the first is the one to write; the second is there for entries from
   before the name changed. Nothing else in the list is optional.
@@ -37,6 +54,10 @@ How the columns are read:
   so a class of your own using those names gets them too.
 - **Optional** — documented so a reader knows the field exists; never warned
   about, in either direction.
+
+A row the engine cannot use is **dropped, and reported** (`ST-11`): a dropped
+class stops being a structured ID, so RF-02, RF-03 and SY-03 all fall silent for
+it — a smaller table is a choice, a broken row is not.
 
 An empty cell means the class has no fields of that kind. The written form of
 each class — the template to copy, with what belongs in each field — is in
@@ -74,7 +95,9 @@ Add one row. Nothing else — no code, no fork.
 From that moment `BL-042` is a structured ID: a reference to one that does not
 exist is an RF-02 warning, defining the same one twice is an RF-03 error, and an
 entry that does not match the form is an SY-03 warning. Pick a prefix no shipped
-class uses and keep it short — one to four uppercase letters.
+class uses and keep it short — one to four uppercase letters. The file is read
+whether or not `AGENTS.md` §2 lists it; list it there anyway, or `ST-02` will
+ask.
 
 Removing a shipped row is allowed and means the same thing in reverse: those IDs
 stop being structured, so nothing checks them. The class does not disappear from
