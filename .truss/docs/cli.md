@@ -180,10 +180,16 @@ severity. **Read-only** — it never edits your files.
 ```bash
 truss doctor              # human-readable report
 truss doctor --gate       # also run phase-exit (PH-04) checks
-truss doctor --json       # write .truss/out/doctor.json (for tooling)
+truss doctor --json       # print the report as JSON on stdout, and write
+                          #   .truss/out/doctor.json (for tooling)
 truss doctor --html       # write .truss/out/doctor.html (static report)
 truss doctor --fix-prompt # print a copyable remediation prompt for an agent
 ```
+
+`--json` writes to **stdout** as well as to the file, so `truss doctor --json |
+jq '.findings'` works. The note naming the written path goes to stderr, which
+keeps the pipe clean. `--fix-prompt` also writes to stdout, so combining the two
+puts two formats in one stream — pick one per run if you are piping.
 
 **Exit codes** (useful in CI): `0` clean · `1` warnings only · `2` at least one
 error.

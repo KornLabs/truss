@@ -108,6 +108,16 @@ and throw typed errors, which the dispatcher maps to exit codes.
 
 - Keep the **zero-dependency** rule: standard library only.
 - A new command → add it to `command-meta.mjs` first.
+- A new check family → add its name to `CHECK_MODULES` in `lib/run-checks.mjs`.
+  That module loads, runs, sorts and dedupes every family, and both `doctor` and
+  `status` go through it — so the family list exists once. A second copy is a
+  list that can silently disagree with the first (`L-006`).
+- A finding whose *message* names the symptom rather than the cause → give it a
+  `dedupeKey`. `dedupeFindings` groups on `id + message` by default, which keeps
+  one cause in one row only while the message is stable across occurrences. RF-01
+  is the counter-example the field is there for: its message carries the link
+  text, so one dead target reached through 33 differently-worded links produced
+  33 rows.
 - A new check → add its `meta` entry and logic to the right family module. If the
   check exists to prevent *silence* — a state where other checks would pass
   having examined nothing — enumerate the partial failures too, not only the

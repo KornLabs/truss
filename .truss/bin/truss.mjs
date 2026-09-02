@@ -33,7 +33,8 @@ import { runStatus } from '../lib/commands/status.mjs'
 import { runPhase } from '../lib/commands/phase.mjs'
 import { runSkills } from '../lib/commands/skills.mjs'
 import { COMMAND_META, COMMAND_BY_NAME, inspectArgs } from '../lib/command-meta.mjs'
-import { SEV_ORDER, SEV_LABEL, FAMILY_NAMES, col, dedupeFindings } from '../lib/severity.mjs'
+import { SEV_LABEL, FAMILY_NAMES, col } from '../lib/severity.mjs'
+import { runAllChecks } from '../lib/run-checks.mjs'
 
 const root = resolveRoot(import.meta.url)
 const agentsMdPath = path.join(root, 'AGENTS.md')
@@ -264,8 +265,14 @@ async function runDoctor(flags) {
       const report = { initialized: false, message: msg, timestamp: new Date().toISOString(), root, version: getVersion() }
       const outDir  = path.join(root, '.truss', 'out')
       const outFile = path.join(outDir, 'doctor.json')
+      const json = JSON.stringify(report, null, 2)
+      // stdout as well as the file: `doctor --json | jq …` is the obvious use of
+      // a flag documented "for tooling", and writing only to a gitignored path
+      // made that pipe return nothing. The file stays — the dashboard and
+      // anything else reading .truss/out/doctor.json keep working.
+      console.log(json)
       await fs.mkdir(outDir, { recursive: true })
-      await fs.writeFile(outFile, JSON.stringify(report, null, 2), 'utf8')
+      await fs.writeFile(outFile, json, 'utf8')
       console.error('Report written to .truss/out/doctor.json')
       process.exit(0)
     }
@@ -292,67 +299,13 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
     process.exit(0)
   }
 
-  const loadTasks = [
-    import('../checks/st.mjs'),
-    import('../checks/bl.mjs'),
-    import('../checks/rf.mjs'),
-    import('../checks/ph.mjs'),
-    import('../checks/sy.mjs'),
-    import('../checks/cx.mjs'),
-  ]
-
-  // All core check modules run in parallel; no first-fail
-  const settled = await Promise.allSettled(loadTasks)
-  const modules = settled.filter(r => r.status === 'fulfilled').map(r => r.value)
-
-  // Declarative check registry (A2): the full catalog of checks, gathered from
-  // each module's `meta` export. Lets --json consumers enumerate ALL checks,
-  // not only the ones that fired this run.
-  const registry = modules.flatMap(mod => mod.meta ?? [])
-
-  const allFindings = []
-  for (const err of settled.filter(r => r.status === 'rejected').map(r => r.reason)) {
-    allFindings.push({
-      id: 'INTERNAL', severity: 'E',
-      file: '(check loader)',
-      message: `Failed to load check module: ${err?.message || String(err)}`,
-      fix: 'Check the module file for syntax errors or invalid imports.',
-    })
-  }
-
-  // Run all module checks in parallel
-  const runTasks = modules.map(async mod => {
-    try {
-      return await mod.run(ctx)
-    } catch (err) {
-      return [{
-        id: 'INTERNAL', severity: 'E',
-        file: '(check runner)',
-        message: `check threw an unexpected error: ${err?.message || String(err)}`,
-        fix: 'Report this as a truss bug — include the stack trace from stderr',
-      }]
-    }
-  })
-  
-  const results = await Promise.all(runTasks)
-  allFindings.push(...results.flat())
-
-  // Sort: E → W → I, then by file+line
-  allFindings.sort((a, b) =>
-    ((SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9)) ||
-    (a.file || '').localeCompare(b.file || '') ||
-    ((a.line || 0) - (b.line || 0))
-  )
-
-  // Collapse identical (id + message) findings so one cause surfaces once with an
-  // occurrence count, instead of N duplicate rows burying the actionable ones.
-  const findings = dedupeFindings(allFindings)
-  const occurrenceTotal = allFindings.length
-
-  const errors   = findings.filter(f => f.severity === 'E')
-  const warnings = findings.filter(f => f.severity === 'W')
-  const infos    = findings.filter(f => f.severity === 'I')
-  const exitCode = errors.length > 0 ? 2 : warnings.length > 0 ? 1 : 0
+  // Loading, running, sorting and deduping live in lib/run-checks.mjs so that
+  // `truss status` can compute health from exactly the same run — it used to
+  // read a cached, undated .truss/out/doctor.json instead, which on a fresh
+  // clone reported "unknown" forever and otherwise could contradict a doctor
+  // run from a minute earlier without saying so.
+  const { registry, findings, occurrenceTotal, errors, warnings, infos, exitCode } =
+    await runAllChecks(ctx)
 
   // ── JSON output ─────────────────────────────────────────────────────────
   if (wantJson) {
@@ -368,10 +321,14 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       checks: registry,        // full catalog of all checks (A2), independent of what fired
       findings,                // deduped: each carries occurrences + locations
     }
+    const json = JSON.stringify(report, null, 2)
+    // See the note in the uninitialised branch above: stdout is the contract a
+    // `--json` flag implies, the file is the extra.
+    console.log(json)
     const outDir  = path.join(root, '.truss', 'out')
     const outFile = path.join(outDir, 'doctor.json')
     await fs.mkdir(outDir, { recursive: true })
-    await fs.writeFile(outFile, JSON.stringify(report, null, 2), 'utf8')
+    await fs.writeFile(outFile, json, 'utf8')
     console.error('Report written to .truss/out/doctor.json')
   }
 

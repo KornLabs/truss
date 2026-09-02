@@ -113,3 +113,115 @@ test('status flags a present-but-unreadable phases.md instead of reporting green
     } finally { await fs.chmod(target, 0o644) }
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
+
+// ── Health is measured, not remembered (TF-001) ─────────────────────────────
+// `status` read .truss/out/doctor.json: gitignored, undated on screen. On a
+// fresh clone the canonical session-start command reported "Health: unknown"
+// forever, and where a report did exist it could contradict a doctor run from a
+// minute earlier with nothing saying so.
+test('status reports health without any doctor.json present', async () => {
+  const root = await makeRoot('truss-status-health-fresh-')
+  try {
+    await runInit(root, ['--name', 'Fresh', '--lang', 'English'])
+    await fs.rm(path.join(root, '.truss', 'out'), { recursive: true, force: true })
+    const out = await captureStatus(root)
+    assert.doesNotMatch(out, /Health:\s+unknown/, 'no cache, but health is still known')
+    assert.match(out, /Health:\s+(All checks passed|\d+ (errors|warnings))/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('status ignores a stale doctor.json and measures the current state', async () => {
+  const root = await makeRoot('truss-status-health-stale-')
+  try {
+    await runInit(root, ['--name', 'Stale', '--lang', 'English'])
+    // A report claiming disaster, from a run that no longer describes anything.
+    await fs.mkdir(path.join(root, '.truss', 'out'), { recursive: true })
+    await fs.writeFile(path.join(root, '.truss', 'out', 'doctor.json'), JSON.stringify({
+      initialized: true, summary: { errors: 99, warnings: 99, infos: 0 }, findings: [],
+    }))
+    const out = await captureStatus(root)
+    assert.doesNotMatch(out, /99/, 'the stale cache must not be believed')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('status sees a finding introduced after the last doctor run', async () => {
+  const root = await makeRoot('truss-status-health-live-')
+  try {
+    await runInit(root, ['--name', 'Live', '--lang', 'English'])
+    const before = await captureStatus(root)
+    assert.match(before, /Health:\s+All checks passed/)
+    // Break something a check will see: remove a required key from current.md.
+    await fs.writeFile(path.join(root, 'state', 'current.md'), '# Current\n\nfocus: only this\n')
+    const after = await captureStatus(root)
+    assert.match(after, /Health:\s+\d+ warnings/)
+    assert.match(after, /truss doctor` for detail/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+// ── Open human todos on the session-start screen (TF-003) ───────────────────
+// HUMAN-TODOS.md was read by nothing: no boot step, no status block, no check.
+// An entry written in one session came back into view only if somebody opened
+// the file, which nothing prompted.
+test('status lists open HT entries and hides the checked-off ones', async () => {
+  const root = await makeRoot('truss-status-ht-')
+  try {
+    await runInit(root, ['--name', 'Todos', '--lang', 'English'])
+    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'),
+      '# Human ToDos\n\n'
+      + '- [ ] HT-001 — grant the deploy key\n'
+      + '- [x] HT-002 — already done, must not show\n'
+      + '- [ ] HT-003 — sign the contract\n')
+    const out = await captureStatus(root)
+    assert.match(out, /ToDo:/)
+    assert.match(out, /HT-001 — grant the deploy key/)
+    assert.match(out, /HT-003 — sign the contract/)
+    assert.doesNotMatch(out, /HT-002/, 'checked-off entries are not open work')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('status stays silent when nothing is on the human`s desk', async () => {
+  const root = await makeRoot('truss-status-ht-empty-')
+  try {
+    await runInit(root, ['--name', 'Quiet', '--lang', 'English'])
+    assert.doesNotMatch(await captureStatus(root), /ToDo:/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('status caps the ToDo block and counts the rest', async () => {
+  const root = await makeRoot('truss-status-ht-many-')
+  try {
+    await runInit(root, ['--name', 'Many', '--lang', 'English'])
+    const lines = Array.from({ length: 8 }, (_, i) =>
+      `- [ ] HT-${String(i + 1).padStart(3, '0')} — thing ${i + 1}`).join('\n')
+    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'), `# Human ToDos\n\n${lines}\n`)
+    const out = await captureStatus(root)
+    assert.match(out, /… and 3 more in HUMAN-TODOS\.md/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('the ToDo block skips fenced examples, like SY-07 does', async () => {
+  const root = await makeRoot('truss-status-ht-fenced-')
+  try {
+    await runInit(root, ['--name', 'Fenced', '--lang', 'English'])
+    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'),
+      '# Human ToDos\n\nWrite entries like this:\n\n```markdown\n- [ ] HT-999 — an example, not work\n```\n\n- [ ] HT-001 — real work\n')
+    const out = await captureStatus(root)
+    assert.match(out, /HT-001 — real work/)
+    assert.doesNotMatch(out, /HT-999/, 'a documented example is not an open todo')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('status keeps its exit code contract — findings do not make it fail', async () => {
+  const root = await makeRoot('truss-status-exit-')
+  const prev = process.exitCode
+  try {
+    await runInit(root, ['--name', 'Exit', '--lang', 'English'])
+    process.exitCode = undefined
+    await fs.writeFile(path.join(root, 'state', 'current.md'), '# Current\n\nfocus: only this\n')
+    await captureStatus(root)
+    assert.ok(!process.exitCode, 'doctor is the gate; status is the briefing')
+  } finally {
+    process.exitCode = prev
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
