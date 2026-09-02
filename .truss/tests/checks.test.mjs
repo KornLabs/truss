@@ -935,3 +935,165 @@ describe('SY-08 ritual drift', () => {
     await fs.rm(root, { recursive: true, force: true })
   })
 })
+
+// ── SY-13 ────────────────────────────────────────────────────────────────────
+// The direction doctor was blind in. SY-06 catches a settled entry that stayed
+// behind; nothing caught a live dependency edge pointing AT one, so a plan could
+// read "blocked by HT-022" for weeks after HT-022 was ticked off — and `truss
+// status` carried that line into the next session's opening while `doctor` said
+// "all checks passed".
+describe('SY-13 dependency edges onto settled entries', () => {
+  const CLOSER = '# Decisions\n\n## D-007 — Pick a queue\n\nDate: 2026-01-01\nCloses: OD-004\nDecision: SQS\nRationale: cheaper\nConsequences: none\n'
+
+  it('flags a blockers: entry naming an OD that a Closes: line already closed', async () => {
+    const current = '# Current\n\nfocus: x\nnext:\n  - ship\nblockers:\n  - waiting on OD-004\n'
+    const f = ids(await sy.run(ctxOf({
+      'state/current.md': file(current),
+      'state/decisions.md': file(CLOSER),
+    })), 'SY-13')
+    assert.equal(f.length, 1)
+    assert.match(f[0].message, /OD-004/)
+    assert.match(f[0].message, /already settled/)
+    assert.equal(f[0].file, 'state/current.md')
+  })
+
+  it('flags the same edge in a next: entry, and reads the inline list form too', async () => {
+    const inlineNext = '# Current\n\nfocus: x\nnext: [land OD-004, unrelated]\nblockers: none\n'
+    const f = ids(await sy.run(ctxOf({
+      'state/current.md': file(inlineNext),
+      'state/decisions.md': file(CLOSER),
+    })), 'SY-13')
+    assert.equal(f.length, 1, 'the inline form must be read like the block form')
+  })
+
+  it('stays silent when the id is still open', async () => {
+    const current = '# Current\n\nfocus: x\nnext:\n  - waiting on OD-009\nblockers: none\n'
+    const f = ids(await sy.run(ctxOf({
+      'state/current.md': file(current),
+      'state/decisions.md': file(CLOSER),
+    })), 'SY-13')
+    assert.equal(f.length, 0)
+  })
+
+  it('does not scan prose — naming a closed id in a rationale is correct writing', async () => {
+    const current = '# Current\n\nfocus: the queue question from OD-004 is settled\nnext:\n  - ship\nblockers: none\n\nOD-004 is mentioned here in the body as well.\n'
+    const f = ids(await sy.run(ctxOf({
+      'state/current.md': file(current),
+      'state/decisions.md': file(CLOSER),
+    })), 'SY-13')
+    assert.equal(f.length, 0, 'only next:/blockers: are dependency edges')
+  })
+
+  it('reads domain frontmatter, and stops at the closing fence', async () => {
+    const domain = '---\nfocus: billing\nnext:\n  - blocked by OD-004\nblockers: none\n---\n\n# Billing\n\n> Scope.\n\nOD-004 in the body is prose.\n'
+    const f = ids(await sy.run(ctxOf({
+      'context/billing.md': file(domain),
+      'state/decisions.md': file(CLOSER),
+    })), 'SY-13')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].file, 'context/billing.md')
+  })
+
+  it('a checked-off HT counts as settled — the reported case', async () => {
+    const root = await makeRoot('truss-sy13-ht-')
+    try {
+      await runInit(root, ['--name', 'Edges', '--lang', 'English'])
+      await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'),
+        '# Human ToDos\n\n- [x] HT-022 — grant the deploy key\n- [ ] HT-023 — still open\n')
+      await fs.writeFile(path.join(root, 'state', 'current.md'),
+        '# Current\n\nfocus: x\nnext:\n  - blocked by HT-022\n  - also waiting on HT-023\nblockers: none\n')
+      const f = ids(await runChecks(root), 'SY-13')
+      assert.equal(f.length, 1, 'only the checked-off one')
+      assert.match(f[0].message, /HT-022/)
+      assert.match(f[0].message, /checked off/)
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+
+  it('an ARCHIVED decision is not settled — archiving keeps it binding', async () => {
+    const root = await makeRoot('truss-sy13-archive-')
+    try {
+      await runInit(root, ['--name', 'Archived', '--lang', 'English'])
+      await fs.mkdir(path.join(root, 'archive', 'decisions'), { recursive: true })
+      await fs.writeFile(path.join(root, 'archive', 'decisions', 'D-002.md'),
+        '## D-002 — Old but binding\n\nDate: 2026-01-01\nDecision: keep\nRationale: r\nConsequences: c\n')
+      await fs.writeFile(path.join(root, 'state', 'current.md'),
+        '# Current\n\nfocus: x\nnext:\n  - implement what D-002 requires\nblockers: none\n')
+      assert.equal(ids(await runChecks(root), 'SY-13').length, 0)
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+
+  it('a fresh workspace is silent', async () => {
+    const root = await makeRoot('truss-sy13-clean-')
+    try {
+      await runInit(root, ['--name', 'Clean', '--lang', 'English'])
+      assert.equal(ids(await runChecks(root), 'SY-13').length, 0)
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+})
+
+// ── ST-02 names the escape it used to hide ──────────────────────────────────
+// knownPaths is derived upward only (a row registers its parents, never its
+// children), so a new directory could be cleared only one table row per file —
+// the file inventory the §2 preamble rules out. The way around it existed and
+// was spelled three different ways, none of them written down.
+describe('ST-02 fix text names the summary-row escape', () => {
+  it('a file inside an unlisted directory is told how to make the directory a summary row', async () => {
+    const root = await makeRoot('truss-st02-summary-')
+    try {
+      await runInit(root, ['--name', 'Scripts', '--lang', 'English'])
+      await fs.mkdir(path.join(root, 'scripts'), { recursive: true })
+      await fs.writeFile(path.join(root, 'scripts', 'secrets.sh'), '#!/bin/sh\necho hi\n')
+      const f = ids(await runChecks(root), 'ST-02').find(x => (x.file || '').startsWith('scripts/secrets'))
+      assert.ok(f, 'precondition: the file is reported')
+      assert.match(f.fix, /summary row/)
+      assert.match(f.fix, /scripts\//)
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+})
+
+// ── CX-01 says what it counted ──────────────────────────────────────────────
+// The metric reads a fixed file list, so splitting a boot file lowers the number
+// without lowering what a session loads. Naming the counted files does not fix
+// the list; it stops the number from being read as more than it is.
+describe('CX-01 names the files it counted', () => {
+  it('the message lists every counted file, not only the heaviest three', async () => {
+    const big = (n) => '# Big\n\n' + 'word '.repeat(n)
+    const f = ids(await cx.run(ctxOf({
+      'AGENTS.md': file(big(9000)),
+      'state/current.md': file(big(2000)),
+      'VISION.md': file(big(2000)),
+      'state/profile.md': file(big(500)),
+    })), 'CX-01')
+    assert.equal(f.length, 1, 'precondition: over the warn band')
+    assert.match(f[0].message, /Counted: /)
+    for (const rel of ['AGENTS.md', 'state/current.md', 'VISION.md', 'state/profile.md']) {
+      assert.ok(f[0].message.includes(rel), `counted list must name ${rel}`)
+    }
+  })
+})
+
+// SY-13 must not read documented examples as real edges. The `Closes:` scan in
+// checks/rf.mjs deliberately does not skip fences, because there the set only
+// SUPPRESSES a warning; here it PRODUCES one, so a code block could invent a
+// finding out of nothing.
+describe('SY-13 ignores fenced and commented-out examples', () => {
+  it('a Closes: line inside a code block does not settle anything', async () => {
+    const doc = '# Decisions\n\nHow to close a question:\n\n```markdown\nCloses: OD-004\n```\n'
+    const current = '# Current\n\nfocus: x\nnext:\n  - waiting on OD-004\nblockers: none\n'
+    const f = ids(await sy.run(ctxOf({
+      'state/current.md': file(current),
+      'state/decisions.md': file(doc),
+    })), 'SY-13')
+    assert.equal(f.length, 0)
+  })
+
+  it('a next: block inside a code block is not a dependency edge', async () => {
+    const closer = '# Decisions\n\n## D-007 — X\n\nDate: 2026-01-01\nCloses: OD-004\nDecision: d\nRationale: r\nConsequences: c\n'
+    const current = '# Current\n\nfocus: x\nblockers: none\n\nExample of the format:\n\n```yaml\nnext:\n  - waiting on OD-004\n```\n'
+    const f = ids(await sy.run(ctxOf({
+      'state/current.md': file(current),
+      'state/decisions.md': file(closer),
+    })), 'SY-13')
+    assert.equal(f.length, 0)
+  })
+})

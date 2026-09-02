@@ -80,6 +80,12 @@ export async function run(ctx) {
       .slice(0, 3)
       .map(c => `${c.file} (≈${toTokens(c.words)})`)
       .join(', ')
+    // What the number is made of, in full. CONTEXT_FILES is a fixed list, so a
+    // workspace that splits a boot file lowers this measurement without lowering
+    // what a session actually loads — and nothing on screen said which files were
+    // in scope, which made that gap silent. Naming them does not fix the list; it
+    // stops the number from being read as more than it is.
+    const countedList = counted.map(c => c.file).join(', ')
 
     const verdict = ackVerdict(ctx.contextAck?.acks?.['CX-01'], tokens, hardSeverity)
 
@@ -89,7 +95,7 @@ export async function run(ctx) {
       findings.push({
         id: 'CX-01', severity: 'I',
         file: 'AGENTS.md',
-        message: `mandatory Truss boot metadata ≈ ${tokens} tokens — above the ${threshold} threshold but within the reviewed baseline of ≈${verdict.baseline} (acked ${verdict.date}). Warns again above ≈${verdict.ceiling}. Heaviest: ${heaviest}`,
+        message: `mandatory Truss boot metadata ≈ ${tokens} tokens — above the ${threshold} threshold but within the reviewed baseline of ≈${verdict.baseline} (acked ${verdict.date}). Warns again above ≈${verdict.ceiling}. Heaviest: ${heaviest}. Counted: ${countedList}`,
         fix: `Nothing to do — this size was reviewed and judged lean. Re-review with the \`cleanup\` prompt (.truss/docs/rituals/cleanup.md) and re-run \`truss ack context\` after the next real trim, or \`truss ack context --clear\` to drop the baseline and get the full warning back.`,
       })
     } else {
@@ -99,7 +105,7 @@ export async function run(ctx) {
       findings.push({
         id: 'CX-01', severity: hardSeverity,
         file: 'AGENTS.md',
-        message: `mandatory Truss boot metadata ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold.${staleAck} Task-selected domain/source context is not counted. Heaviest: ${heaviest}`,
+        message: `mandatory Truss boot metadata ≈ ${tokens} tokens (${totalWords} words × ${TOKENS_PER_WORD}) — over the ${threshold} threshold.${staleAck} Task-selected domain/source context is not counted. Heaviest: ${heaviest}. Counted: ${countedList}`,
         // The cleanup procedure itself is canonical in .truss/docs/rituals/cleanup.md
         // (protection list included) — this only names it and the way out.
         fix: `Run the \`cleanup\` prompt (.truss/docs/rituals/cleanup.md): it inventories the always-loaded files, classifies every block as keep / route / archive / drop-duplicate, and protects the §1 load order, the §2 structure table, the generated blocks and every D-NNN. If the review concludes this size is genuinely earned, record it with \`truss ack context\` — the finding then reports as info until the context grows past the reviewed baseline.`,

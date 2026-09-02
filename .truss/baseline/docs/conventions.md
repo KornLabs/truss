@@ -263,6 +263,38 @@ systemic agent weaknesses with a local fix (`L-NNN`): a finding is feedback
 Workspaces initialised with `--findings off` have no findings channel; do not
 create the file there.
 
+**Quoting IDs from another workspace.** Two Truss workspaces share the grammar
+and therefore the ID space: a report that arrives from another instance carries
+`TF-007`, `D-042`, `HT-022` that mean nothing here. Written plainly they are read
+as references into *this* register and `RF-02` warns about every one of them.
+Wrap a foreign ID in inline code — `` `TF-007` `` — which `RF-02` does not
+follow. Never add one to a local register to silence the warning; that spends a
+number of your own on someone else's entry, and the numbers are never reused.
+
+## The §2 structure table
+
+Two ways to give a directory a routing home, and the second one is the one that
+gets missed.
+
+**A row per path** is the default: one line naming the file or directory, its
+owner, and what belongs in it.
+
+**A summary row** says "this directory has a home, and its contents are not
+table-managed individually". `doctor` then checks the directory itself and stays
+quiet about everything inside it. Mark one by writing the words `summary row`
+into the row's Purpose cell, or `(on demand)` after the path:
+
+```markdown
+| scripts/ | A | build and maintenance scripts — summary row, contents not table-managed |
+| notes/ (on demand) | A | working notes |
+```
+
+Reach for a summary row whenever listing the contents would turn the table into
+a file inventory — which its own preamble rules out; that is what `state/map.md`
+is for. Without it, `ST-02` reports every new file inside the directory
+separately, because a row registers its parent directories but never its
+children.
+
 ## Profile
 
 `state/profile.md` is boot context, read every session — a config sheet, not a
@@ -312,6 +344,10 @@ blockers: none
 
 [Content begins here. Omit ## Tasks when there are no local tasks.]
 ```
+
+The three written forms of a list field are equivalent — a YAML block (above),
+a comma list (`next: alpha, beta`) and the inline list (`next: [alpha, beta]`).
+Prefer the block when an entry may itself contain a comma.
 
 **The frontmatter is the domain's state, and it is what makes the file a domain.**
 A `context/**.md` file whose frontmatter carries a non-empty `focus:` *is* a
