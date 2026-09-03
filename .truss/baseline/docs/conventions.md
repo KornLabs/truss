@@ -310,7 +310,9 @@ Write one line in the file the finding is about:
 ```
 
 `doctor` then stops printing that finding for that file and reports how many it
-silenced, so suppressions stay visible without being noisy.
+silenced, so suppressions stay visible without being noisy. Writing the syntax
+down is safe: a marker inside a code fence, an indented block, a blockquote or
+inline code is being shown, not meant, and silences nothing.
 
 Three limits, on purpose:
 
@@ -321,6 +323,11 @@ Three limits, on purpose:
   state this is meant to prevent.
 - **It reaches exactly one file and one check.** Silencing `ST-05` here leaves the
   file that really is too big still reported.
+- **It answers one finding, not a class.** Some checks fire once per entry in a
+  single file — `SY-10` does, for every open decision. If more than one finding of
+  that check is open on the file, the marker applies to *none* of them and
+  `doctor` says so: the reason you wrote about one entry is not true of the
+  others, and a blanket would also silence entries added later.
 
 The reason belongs next to the thing it justifies, which is why this is a line in
 the file rather than an entry in a central ignore list. `.trussignore` is a

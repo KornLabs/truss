@@ -153,7 +153,11 @@ function renderHtmlReport({ root, version, timestamp, gate, summary, registry, f
 <body>
 <div class="wrap">
   <h1>truss doctor${gate ? ' --gate' : ''}</h1>
-  <div class="sub">${escapeHtml(projectName)} · truss ${escapeHtml(version)} · ${escapeHtml(ts)}</div>
+  <div class="sub">${escapeHtml(projectName)} · truss ${escapeHtml(version)} · ${escapeHtml(ts)}${
+    summary.suppressed > 0
+      ? ` · ${summary.suppressed} info finding${summary.suppressed !== 1 ? 's' : ''} silenced by a marker in the file it is about`
+      : ''
+  }</div>
 
   <div class="banner ${status.cls}">${status.text}</div>
 
@@ -304,7 +308,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   // read a cached, undated .truss/out/doctor.json instead, which on a fresh
   // clone reported "unknown" forever and otherwise could contradict a doctor
   // run from a minute earlier without saying so.
-  const { registry, findings, occurrenceTotal, suppressed, errors, warnings, infos, exitCode } =
+  const { registry, findings, occurrenceTotal, suppressed, unapplied, errors, warnings, infos, exitCode } =
     await runAllChecks(ctx)
 
   // ── JSON output ─────────────────────────────────────────────────────────
@@ -336,7 +340,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   if (wantHtml) {
     const html = renderHtmlReport({
       root, version: getVersion(), timestamp: new Date().toISOString(), gate,
-      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length },
+      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, suppressed: suppressed.length },
       registry, findings,
     })
     const outDir  = path.join(root, '.truss', 'out')
@@ -417,6 +421,12 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   if (suppressed.length > 0) {
     const byId = [...new Set(suppressed.map(f => f.id))].sort().join(', ')
     console.log(`  ${suppressed.length} info finding${suppressed.length !== 1 ? 's' : ''} silenced by a marker in the file it is about (${byId}).\n`)
+  }
+  for (const u of unapplied) {
+    console.log(
+      `  ${col('I', 'note')}     the ${u.id} marker in ${u.file} did not apply: ${u.matches} ${u.id} findings are open on that file, ` +
+      `and one reason cannot answer them all. Resolve the others, or remove the marker.\n`
+    )
   }
   if (errors.length > 0) console.log('  Run with --fix-prompt for a copyable remediation prompt.\n')
 
