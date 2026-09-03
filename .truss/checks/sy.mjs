@@ -683,6 +683,13 @@ function checkEntryGrammar(cls, file, findings) {
 // Scope is every line that names an ID of the class, not just well-formed ones —
 // the point is to catch the entry that got written as prose. Quoted lines and
 // comment openers are documentation about the form, not entries in it.
+//
+// An entry may carry an INDENTED BODY — for HT that is its steps and two labels
+// (docs/conventions.md). That body is written for the human, so a step naming
+// another entry ("…, unlike HT-012") must not be read as a malformed entry of
+// its own: the author would then face a warning with no legal way to clear it.
+// Only a line at column 0 opens or closes an entry; blank lines do neither, so
+// the paragraph breaks inside a body keep it one body.
 function checkListGrammar(cls, file, fenced, findings) {
   const { lines, relPath } = file
   const mentions = new RegExp(`\\b${cls.id}-\\d{3}\\b`)
@@ -692,10 +699,14 @@ function checkListGrammar(cls, file, fenced, findings) {
   const box = /\[\s*[ xX]\s*\]/.test(cls.formText) ? `${CHECKBOX_ANY}\\s+` : ''
   const grammar = new RegExp(`^[-*]\\s+${box}${cls.id}-\\d{3}\\s+—\\s+\\S`)
 
+  let inBody = false
   for (let i = 0; i < lines.length; i++) {
     if (fenced.has(i)) continue
-    if (!mentions.test(lines[i])) continue
+    if (!lines[i].trim()) continue
     const t = lines[i].trimStart()
+    if (t.length === lines[i].length) inBody = grammar.test(t)
+    else if (inBody) continue
+    if (!mentions.test(lines[i])) continue
     if (t.startsWith('>') || t.startsWith('<!--')) continue
     if (grammar.test(t)) continue
     findings.push({

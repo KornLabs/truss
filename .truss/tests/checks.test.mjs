@@ -165,6 +165,19 @@ describe('SY-03 entry grammar', () => {
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(bad) })), 'SY-03').length, 1)
     assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(good) })), 'SY-03').length, 0)
   })
+  it('reads an HT entry body as body, not as more entries', async () => {
+    // An entry carries indented steps and labels (docs/conventions.md), and a
+    // step may well name another entry. Reading those lines as entries would
+    // raise a warning whose only "fix" is deleting the instruction.
+    const body = '# Human ToDos\n\n- [ ] HT-001 — **rotate the key**\n\n'
+      + '  1. do it before HT-002 goes out\n\n'
+      + '  **Background:** HT-002 waits on this\n'
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(body) })), 'SY-03').length, 0)
+    // An indented mention belonging to no entry is still prose in the entry
+    // file — the malformed entry the check exists for.
+    const stray = '# Human ToDos\n\n  HT-001 — written as prose, indented\n'
+    assert.equal(ids(await sy.run(ctxOf({ 'HUMAN-TODOS.md': file(stray) })), 'SY-03').length, 1)
+  })
   it('flags an OD entry missing Opened and an unnumbered entry, passes a complete one', async () => {
     const good        = `# Open Decisions\n\n## OD-001 — Should we X?\n\nOpened: 2026-06-01\nOptions:\n- A: do X — ships this week +fast / –rough edges\n- B: skip X (recommended) — wait for the rewrite +clean / –slower\nTrade-offs: x\nLeaning: B\n`
     const missingF    = `# Open Decisions\n\n## OD-001 — Should we X?\n\nLeaning: a\n`
