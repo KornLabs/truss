@@ -132,7 +132,12 @@ export async function fileLineAges(repoDir, relPath) {
     // opens each entry, and `author-time <epoch>` follows within it.
     let line = null
     for (const raw of stdout.split('\n')) {
-      const header = raw.match(/^[0-9a-f]{7,40}\s+\d+\s+(\d+)(?:\s+\d+)?$/)
+      // `\^?`: git marks a BOUNDARY commit by prefixing its sha with a caret.
+      // Without this the header simply would not match and those lines would
+      // quietly have no age — a partial failure that looks like success from the
+      // inside (`L-011`), and it is the shallow-clone/limited-range case, not an
+      // exotic one. Content lines are TAB-prefixed, so they can never match here.
+      const header = raw.match(/^\^?[0-9a-f]{7,40}\s+\d+\s+(\d+)(?:\s+\d+)?$/)
       if (header) { line = Number(header[1]); continue }
       const at = raw.match(/^author-time (\d+)$/)
       if (at && line != null) { ages.set(line, Number(at[1]) * 1000); line = null }
