@@ -108,8 +108,14 @@ export async function run(ctx) {
   const newlyCounted = counted
     .filter(c => !CONTEXT_FILES.includes(c.file))
     .map(c => c.file)
-  const crossedOnlyByNewFiles =
-    boot.ok && newlyCounted.length > 0 && toTokens(priorWords) < WARN_TOKENS
+  // Never at the error band. `ackVerdict` refuses to downgrade an E for the same
+  // reason and it holds here too: at 30k the size is unambiguous ballast, and a
+  // workspace whose §1 alone adds 12k of boot context has a problem our release
+  // note did not cause. The promise being kept is "we do not turn a green
+  // instance red", not "we hide whatever the new measurement finds".
+  const crossedOnlyByNewFiles = (tokens) =>
+    boot.ok && newlyCounted.length > 0 &&
+    tokens < ERROR_TOKENS && toTokens(priorWords) < WARN_TOKENS
 
   if (tokens >= WARN_TOKENS) {
     const hardSeverity = tokens >= ERROR_TOKENS ? 'E' : 'W'
@@ -128,7 +134,7 @@ export async function run(ctx) {
 
     const verdict = ackVerdict(ctx.contextAck?.acks?.['CX-01'], tokens, hardSeverity)
 
-    if (crossedOnlyByNewFiles && !verdict.downgraded) {
+    if (crossedOnlyByNewFiles(tokens) && !verdict.downgraded) {
       findings.push({
         id: 'CX-01', severity: 'I',
         file: 'AGENTS.md',

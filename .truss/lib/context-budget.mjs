@@ -32,27 +32,26 @@ export const TOKENS_PER_WORD = 1.5
 export const WARN_TOKENS  = 18000
 export const ERROR_TOKENS = 30000
 
-// Always-loaded boot context (AGENTS.md §1 load order, by file identity).
-// open-decisions.md is only *conditionally* loaded per §1, but a static check
-// cannot know the task, so it is counted unconditionally (conservative). The one
-// task-selected domain file and source/tool context are intentionally NOT
-// counted — they are unknowable statically. This metric must not be presented as
-// total task context. The phase block itself is already inside AGENTS.md.
+// The shipped §1 load order — the FALLBACK and the reference set, no longer the
+// measurement itself: `bootFilesFrom()` below reads the real list out of
+// AGENTS.md §1 (D-095). A fixed list measured six fixed paths, so a workspace
+// that split a boot file in two lowered the number without lowering what a
+// session loads — the most effective way to quiet CX-01 was the only one that
+// improved nothing. This list keeps two jobs: what a workspace is measured
+// against when its §1 cannot be read, and the "what the old measurement saw"
+// reference that keeps a previously green instance from turning red on the
+// release that changes this.
 //
-// state/decisions-index.md, NOT state/decisions.md (D-075): now that the index
-// exists, §1 loads the full decision log only before a decision is made or
-// proposed — a task-dependent step this metric cannot and must not assume. A
-// workspace that has never run `truss render` has no index file, so nothing is
-// counted in its place; ST-10 is what reports that state.
-// This is the FALLBACK and the reference set, no longer the measurement itself:
-// `bootFilesFrom()` below reads the real list out of AGENTS.md §1. A fixed list
-// measured a fixed six paths, so a workspace that split a boot file into two
-// lowered the number without lowering what a session loads — splitting became
-// the most effective way to quiet CX-01 and the only one that improved nothing
-// (D-095, from an external report that documented exactly that). This list stays
-// for two jobs: it is what a workspace measures against when its §1 cannot be
-// read, and it is the "what the old measurement saw" reference that keeps a
-// previously green instance from turning red on the release that changes this.
+// Why these six are the right default. open-decisions.md is only *conditionally*
+// loaded per §1, but a static check cannot know the task, so it is counted
+// unconditionally (conservative). The task-selected domain file and source/tool
+// context are deliberately absent — unknowable statically; this metric must
+// never be presented as total task context. The phase block is already inside
+// AGENTS.md. And state/decisions-index.md, NOT state/decisions.md (D-075): with
+// the index in place, §1 loads the full decision log only before a decision is
+// made or proposed, which is task-dependent. A workspace that never ran `truss
+// render` has no index file and nothing is counted in its place — ST-10 reports
+// that state.
 export const CONTEXT_FILES = [
   'AGENTS.md',
   'state/current.md',
@@ -89,7 +88,10 @@ export function bootFilesFrom(lines) {
   const off = (reason) => ({ files: [...CONTEXT_FILES], ok: false, reason })
   if (!Array.isArray(lines) || lines.length === 0) return off('no-agents-md')
 
-  const start = lines.findIndex((l) => /^##\s+1\s/.test(l))
+  // `(\s|$)` and not just `\s`: a heading written as a bare `## 1` is a plausible
+  // choice, and refusing it would leave that workspace with a permanent CX-02 it
+  // could only clear by renaming its heading — the unclearable-finding trap.
+  const start = lines.findIndex((l) => /^##\s+1(\s|$)/.test(l.trimEnd()))
   if (start === -1) return off('no-section-1')
   let end = lines.length
   for (let i = start + 1; i < lines.length; i++) {

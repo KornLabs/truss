@@ -106,6 +106,13 @@ test('bootFilesFrom ignores placeholders and prose in backticks', () => {
   assert.deepEqual(r.files, ['AGENTS.md', 'state/current.md', 'VISION.md']);
 });
 
+test('bootFilesFrom accepts a bare `## 1` heading', () => {
+  const r = bootFilesFrom(splitLines(
+    '## 1\n\n1. This file.\n2. `state/current.md`\n3. `VISION.md`\n\n## 2\n'));
+  assert.equal(r.ok, true, r.reason ?? '');
+  assert.deepEqual(r.files, ['AGENTS.md', 'state/current.md', 'VISION.md']);
+});
+
 test('bootFilesFrom refuses rather than under-counting', () => {
   for (const [label, lines] of [
     ['no §1', splitLines('# A\n\n## 2 Structure\n\n| Path |\n')],
