@@ -194,6 +194,13 @@ puts two formats in one stream — pick one per run if you are piping.
 **Exit codes** (useful in CI): `0` clean · `1` warnings only · `2` at least one
 error.
 
+**Silenced findings.** An info finding you have deliberately answered can be
+switched off for one file by writing the reason into that file:
+`<!-- truss: st-05 ok — reference table; splitting it would break the format -->`.
+The report then ends with a line counting what it silenced, so the decision stays
+visible. Info only, and the reason is required — the full rule is in your
+workspace's `docs/conventions.md`.
+
 ---
 
 ## `render`
