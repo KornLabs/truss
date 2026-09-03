@@ -28,7 +28,7 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── engine-manifest.mjs # hash + verify the engine's own files (writes and checks MANIFEST.sha256)
 │   ├── defaults.mjs     # default preference rows + behaviour text
 │   └── commands/        # init, status, map, phase, skills, upgrade handlers
-├── checks/              # one module per check family (st, bl, rf, sy, ph, cx, hy)
+├── checks/              # one module per check family (st, bl, rf, sy, ph, cx)
 ├── docs/                # product documentation (concepts, cli, architecture)
 ├── baseline/            # the pristine workspace skeleton `init` scaffolds from
 ├── phase-profiles/      # ready-made phase lists to copy over state/phases.md (not installed)
