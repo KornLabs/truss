@@ -21,7 +21,7 @@
 // every clone, and it is scoped to a path, so silencing ST-05 on one file leaves
 // the file that really is too big still reported.
 //
-// THREE LIMITS, each load-bearing:
+// FOUR LIMITS, each load-bearing:
 //   • INFO ONLY. A warning or an error is by definition something to act on, and
 //     `doctor` exits non-zero at W. Info is the severity whose whole failure mode
 //     is being ignored, which is what this addresses. Widening later is easy;
@@ -45,6 +45,22 @@
 /** `<!-- truss: <id> ok — <reason> -->`, anywhere on the line. */
 const MARKER = /<!--\s*truss:\s*([a-z]{2,}-\d{2,})\s+ok\s*[—–-]\s*(\S.*?)\s*-->/i
 
+/**
+ * Is `index` inside a paired inline-code span on this line? Backticks pair left
+ * to right; an unpaired trailing backtick opens nothing, which is why this walks
+ * the line instead of using a regex over it.
+ */
+function insideCodeSpan(line, index) {
+  let open = -1
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] !== '`') continue
+    if (open === -1) { open = i; continue }
+    if (index > open && index < i) return true
+    open = -1
+  }
+  return false
+}
+
 /** Severities a marker may silence. See "INFO ONLY" above before widening. */
 export const SUPPRESSIBLE = new Set(['I'])
 
@@ -66,9 +82,12 @@ export function suppressionsIn(lines) {
 
   for (const raw of lines) {
     const line = raw.trimEnd()
-    const fence = line.match(/^ {0,3}(`{3,}|~{3,})/)
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/)
     if (fenceChar) {
-      if (fence && fence[1][0] === fenceChar && fence[1].length >= fenceLen) {
+      // A CLOSING fence carries no info string. Without that rule a ```js line
+      // inside a ```-block ends it, and the fence state inverts for the rest of
+      // the file — every later marker judged upside down.
+      if (fence && fence[1][0] === fenceChar && fence[1].length >= fenceLen && !fence[2].trim()) {
         fenceChar = null; fenceLen = 0
       }
       continue
@@ -81,9 +100,15 @@ export function suppressionsIn(lines) {
     if (/^ {0,3}>/.test(line)) continue
 
     // Inline code — `<!-- truss: … -->` written mid-sentence is prose about the
-    // syntax, not an instance of it.
-    const m = line.replace(/`[^`]*`/g, '').match(MARKER)
-    if (m) out.set(m[1].toUpperCase(), m[2])
+    // syntax, not an instance of it. Test the marker's POSITION against the code
+    // spans; do not rewrite the line first. Rewriting stripped backticks from
+    // inside the marker too, and a reason naming a path or an id in backticks is
+    // this project's house style — `<!-- truss: sy-10 ok — blocked by
+    // \`state/decisions/D-094.md\` -->` lost its reason and stopped applying, with
+    // no diagnostic at all. Silently discarding a real marker is the failure this
+    // check is least able to explain to whoever wrote it.
+    const m = line.match(MARKER)
+    if (m && !insideCodeSpan(line, m.index)) out.set(m[1].toUpperCase(), m[2])
   }
   return out
 }
