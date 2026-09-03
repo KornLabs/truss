@@ -41,7 +41,7 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { CONTEXT_FILES, TOKENS_PER_WORD, WARN_TOKENS, ERROR_TOKENS, wordCount, toTokens, phaseReadTargets, bootFilesFrom } from '../lib/context-budget.mjs'
+import { CONTEXT_FILES, TOKENS_PER_WORD, WARN_TOKENS, ERROR_TOKENS, toTokens, measureBootContext } from '../lib/context-budget.mjs'
 import { ackVerdict } from '../lib/context-ack.mjs'
 
 export const meta = [
@@ -55,28 +55,18 @@ export const meta = [
  */
 export async function run(ctx) {
   const findings = []
-  const counted = [] // { file, words }
-  const seen = new Set()
 
-  const add = (rel, content) => {
-    if (content == null || seen.has(rel)) return
-    seen.add(rel)
-    counted.push({ file: rel, words: wordCount(content) })
-  }
+  // One measurement function, shared with `truss ack context` — see its header
+  // for why the two must not compute this separately.
+  const { counted, words: totalWords, tokens, boot, priorSet } = await measureBootContext(
+    ctx,
+    async (rel) => {
+      // A phase `read:` target may point at an on-demand file the workspace scan
+      // never loaded.
+      try { return await fs.readFile(path.join(ctx.root, rel), 'utf8') } catch { return null }
+    },
+  )
 
-  // 1) Always-loaded files — read out of AGENTS.md §1, not out of a constant
-  //    (D-095/OD-018). A verbatim §1 yields exactly CONTEXT_FILES, so nothing
-  //    moves for a standard workspace; one that split a boot file now gets both
-  //    halves counted, which is the whole point.
-  const boot = bootFilesFrom(ctx.files.get('AGENTS.md')?.lines ?? [])
-  // §1 may only ADD to the shipped set, never subtract from it. Deriving the list
-  // closed one way to game the metric (split a boot file, measure less) and would
-  // otherwise open a cheaper one: drop the backticks around three paths in §1 and
-  // the parser stops recognising them — `ok` stays true, no CX-02, and the number
-  // silently halves. The same thing happens by accident whenever a workspace
-  // writes those paths as links or plain prose. Taking the union means a reworded
-  // §1 can never lower the measurement, only a genuinely smaller boot can.
-  const bootFiles = [...new Set([...CONTEXT_FILES, ...boot.files])]
   if (!boot.ok) {
     findings.push({
       id: 'CX-02', severity: 'I',
@@ -85,22 +75,6 @@ export async function run(ctx) {
       fix: `Nothing breaks; the budget is simply measured against the default set. To have it follow this workspace, keep §1 as a heading that starts with '## 1 ' and name each boot file in backticks (e.g. \`state/current.md\`).`,
     })
   }
-  for (const rel of bootFiles) {
-    const f = ctx.files.get(rel)
-    if (f) add(rel, f.content)
-  }
-
-  // 2) Current phase `read:` targets (load-order step 6, deterministic part).
-  for (const rel of phaseReadTargets(ctx.phases)) {
-    if (seen.has(rel)) continue
-    const f = ctx.files.get(rel)
-    if (f) { add(rel, f.content); continue }
-    // read: may point at an on-demand domain file that isn't table-managed.
-    try { add(rel, await fs.readFile(path.join(ctx.root, rel), 'utf8')) } catch { /* missing — ignore */ }
-  }
-
-  const totalWords = counted.reduce((s, c) => s + c.words, 0)
-  const tokens = toTokens(totalWords)
 
   // What the OLD measurement would have said. `release-maturity.md` promises that
   // a change which would turn a green instance red runs at info first, and D-081
@@ -114,7 +88,6 @@ export async function run(ctx) {
   // out made every read target look newly counted, so a workspace whose weight
   // sat in a phase-read file had its warning — and its ERROR — downgraded to
   // info, permanently, which is the exact opposite of the promise.
-  const priorSet = new Set([...CONTEXT_FILES, ...phaseReadTargets(ctx.phases)])
   const priorWords = counted
     .filter(c => priorSet.has(c.file))
     .reduce((s, c) => s + c.words, 0)

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { CONTEXT_FILES, TOKENS_PER_WORD, wordCount, toTokens, phaseReadTargets, bootFilesFrom } from '../lib/context-budget.mjs';
+import { CONTEXT_FILES, TOKENS_PER_WORD, wordCount, toTokens, phaseReadTargets, bootFilesFrom, measureBootContext } from '../lib/context-budget.mjs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -124,4 +124,42 @@ test('bootFilesFrom refuses rather than under-counting', () => {
     assert.ok(r.reason, `${label} must name why`);
     assert.deepEqual(r.files, CONTEXT_FILES, `${label} falls back to the shipped set`);
   }
+});
+
+
+// ── one measurement, two callers ────────────────────────────────────────────
+// CX-01 and `truss ack context` computed the boot sum separately. That was
+// harmless until §1 began contributing files: from then on `ack` could reply
+// "already under the threshold, nothing to acknowledge" about a warning CX-01 was
+// still printing — an unclearable finding, which is the one thing context-ack
+// exists to prevent. A comment in bin/truss.mjs asserted the two shared a code
+// path; this test is what makes that true rather than claimed.
+test('measureBootContext is what both CX-01 and ack see, §1 extras included', async () => {
+  const big = (n) => '# B\n\n' + 'word '.repeat(n);
+  const mk = (text) => ({ content: text, lines: splitLines(text) });
+  const agents = '# A\n\n## 1 Load order\n\n1. This file.\n'
+    + '2. `state/current.md`\n3. `VISION.md`\n4. `state/split.md`\n\n## 2 Structure\n';
+  const ctx = {
+    files: new Map(Object.entries({
+      'AGENTS.md': mk(agents),
+      'state/current.md': mk(big(100)),
+      'VISION.md': mk(big(100)),
+      'state/split.md': mk(big(4000)),      // named by §1 only
+      'context/arch.md': mk(big(2000)),     // reached through the phase read:
+    })),
+    phases: { frontmatter: { current: 'build' }, defs: new Map([['build', { read: 'context/arch.md' }]]) },
+  };
+
+  const m = await measureBootContext(ctx);
+  const files = m.counted.map((c) => c.file);
+  assert.ok(files.includes('state/split.md'), 'a file only §1 names is counted');
+  assert.ok(files.includes('context/arch.md'), 'so is the phase read: target');
+  // The number a caller acts on is the sum of exactly what it reports counting —
+  // the property that broke when two callers summed different sets.
+  assert.equal(m.words, m.counted.reduce((s, c) => s + c.words, 0));
+  assert.equal(m.tokens, toTokens(m.words));
+  // priorSet is "what the pre-§1 measurement counted": shipped files plus read:
+  // targets, never the §1 extras.
+  assert.ok(m.priorSet.has('context/arch.md'), 'a read: target was always counted');
+  assert.ok(!m.priorSet.has('state/split.md'), 'a §1-only file is what is new');
 });

@@ -310,11 +310,14 @@ Write one line in the file the finding is about:
 ```
 
 `doctor` then stops printing that finding for that file and reports how many it
-silenced, so suppressions stay visible without being noisy. Writing the syntax
-down is safe: a marker inside a code fence, an indented block, a blockquote or
-inline code is being shown, not meant, and silences nothing.
+silenced, so suppressions stay visible without being noisy.
 
-Three limits, on purpose:
+Put the marker at the start of a line. Writing the syntax down is safe: a marker
+inside a code fence, an indented block, a blockquote or inline code is being
+shown, not meant, and silences nothing — which is also why an indented marker
+does not count.
+
+Four limits, on purpose:
 
 - **Info findings only.** A warning or an error is something to act on — `doctor`
   already exits non-zero at a warning.

@@ -157,6 +157,10 @@ function renderHtmlReport({ root, version, timestamp, gate, summary, registry, f
     summary.suppressed > 0
       ? ` · ${summary.suppressed} info finding${summary.suppressed !== 1 ? 's' : ''} silenced by a marker in the file it is about`
       : ''
+  }${
+    summary.unapplied > 0
+      ? ` · ${summary.unapplied} marker${summary.unapplied !== 1 ? 's' : ''} silenced nothing (several findings of that check are open on the file)`
+      : ''
   }</div>
 
   <div class="banner ${status.cls}">${status.text}</div>
@@ -320,7 +324,10 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       root,
       version: getVersion(),
       gate,
-      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, occurrences: occurrenceTotal, suppressed: suppressed.length },
+      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, occurrences: occurrenceTotal, suppressed: suppressed.length, unapplied: unapplied.length },
+      // A marker that silenced nothing is exactly what a tooling consumer needs to
+      // see: it looks like a decision in the file and has no effect.
+      unappliedMarkers: unapplied,
       scan: ctx.ignore,        // { sources: [...], excluded: n } — what the ignore layer dropped
       checks: registry,        // full catalog of all checks (A2), independent of what fired
       findings,                // deduped: each carries occurrences + locations
@@ -340,7 +347,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   if (wantHtml) {
     const html = renderHtmlReport({
       root, version: getVersion(), timestamp: new Date().toISOString(), gate,
-      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, suppressed: suppressed.length },
+      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, suppressed: suppressed.length, unapplied: unapplied.length },
       registry, findings,
     })
     const outDir  = path.join(root, '.truss', 'out')
@@ -465,24 +472,16 @@ async function runAck(args) {
     return
   }
 
-  // Measure with the SAME code path the check uses, so the recorded baseline and
-  // the number CX-01 judges can never be computed differently.
-  const { CONTEXT_FILES, wordCount, toTokens, phaseReadTargets, WARN_TOKENS, ERROR_TOKENS } = await import('../lib/context-budget.mjs')
+  // The SAME function CX-01 measures with — not a second implementation of the
+  // same idea. The two were separate until §1 started contributing files, at
+  // which point `ack` could answer "already under the threshold" about a warning
+  // CX-01 was still printing: a finding that cannot be cleared, which is the one
+  // outcome this whole mechanism exists to prevent.
+  const { measureBootContext, WARN_TOKENS, ERROR_TOKENS } = await import('../lib/context-budget.mjs')
   const ctx = await loadWorkspace(root)
-
-  let words = 0
-  const seen = new Set()
-  const addRel = async (rel) => {
-    if (seen.has(rel)) return
-    seen.add(rel)
-    const f = ctx.files.get(rel)
-    if (f) { words += wordCount(f.content); return }
-    try { words += wordCount(await fs.readFile(path.join(root, rel), 'utf8')) } catch { /* missing — ignore */ }
-  }
-  for (const rel of CONTEXT_FILES) await addRel(rel)
-  for (const rel of phaseReadTargets(ctx.phases)) await addRel(rel)
-
-  const tokens = toTokens(words)
+  const { tokens } = await measureBootContext(ctx, async (rel) => {
+    try { return await fs.readFile(path.join(root, rel), 'utf8') } catch { return null }
+  })
 
   if (tokens < WARN_TOKENS) {
     console.log(`truss ack: boot context ≈ ${tokens} tokens — already under the ${WARN_TOKENS} warn threshold, nothing to acknowledge.`)
