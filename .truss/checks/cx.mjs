@@ -69,6 +69,14 @@ export async function run(ctx) {
   //    moves for a standard workspace; one that split a boot file now gets both
   //    halves counted, which is the whole point.
   const boot = bootFilesFrom(ctx.files.get('AGENTS.md')?.lines ?? [])
+  // §1 may only ADD to the shipped set, never subtract from it. Deriving the list
+  // closed one way to game the metric (split a boot file, measure less) and would
+  // otherwise open a cheaper one: drop the backticks around three paths in §1 and
+  // the parser stops recognising them — `ok` stays true, no CX-02, and the number
+  // silently halves. The same thing happens by accident whenever a workspace
+  // writes those paths as links or plain prose. Taking the union means a reworded
+  // §1 can never lower the measurement, only a genuinely smaller boot can.
+  const bootFiles = [...new Set([...CONTEXT_FILES, ...boot.files])]
   if (!boot.ok) {
     findings.push({
       id: 'CX-02', severity: 'I',
@@ -77,7 +85,7 @@ export async function run(ctx) {
       fix: `Nothing breaks; the budget is simply measured against the default set. To have it follow this workspace, keep §1 as a heading that starts with '## 1 ' and name each boot file in backticks (e.g. \`state/current.md\`).`,
     })
   }
-  for (const rel of boot.files) {
+  for (const rel of bootFiles) {
     const f = ctx.files.get(rel)
     if (f) add(rel, f.content)
   }
@@ -94,19 +102,24 @@ export async function run(ctx) {
   const totalWords = counted.reduce((s, c) => s + c.words, 0)
   const tokens = toTokens(totalWords)
 
-  // What the OLD, fixed-list measurement would have said. `release-maturity.md`
-  // promises that a change which would turn a green instance red runs at info
-  // first, and D-081 requires that promise be kept on workspace evidence rather
-  // than on a release number — this is that evidence: an instance crossing the
-  // threshold ONLY because §1 names files the six-file list never saw was green
-  // a moment ago through no fault of its own. It reports as info and says which
-  // files are new. Once the previously-counted set alone crosses, it is a real
-  // warning again.
+  // What the OLD measurement would have said. `release-maturity.md` promises that
+  // a change which would turn a green instance red runs at info first, and D-081
+  // requires that promise be kept on workspace evidence rather than on a release
+  // number — this is that evidence: an instance crossing the threshold ONLY
+  // because §1 names files the shipped list never saw was green a moment ago
+  // through no fault of ours.
+  //
+  // The prior set is the shipped files PLUS the phase `read:` targets, because
+  // the old code counted those too (step 2 below has always run). Leaving them
+  // out made every read target look newly counted, so a workspace whose weight
+  // sat in a phase-read file had its warning — and its ERROR — downgraded to
+  // info, permanently, which is the exact opposite of the promise.
+  const priorSet = new Set([...CONTEXT_FILES, ...phaseReadTargets(ctx.phases)])
   const priorWords = counted
-    .filter(c => CONTEXT_FILES.includes(c.file))
+    .filter(c => priorSet.has(c.file))
     .reduce((s, c) => s + c.words, 0)
   const newlyCounted = counted
-    .filter(c => !CONTEXT_FILES.includes(c.file))
+    .filter(c => !priorSet.has(c.file))
     .map(c => c.file)
   // Never at the error band. `ackVerdict` refuses to downgrade an E for the same
   // reason and it holds here too: at 30k the size is unambiguous ballast, and a
@@ -138,7 +151,7 @@ export async function run(ctx) {
       findings.push({
         id: 'CX-01', severity: 'I',
         file: 'AGENTS.md',
-        message: `mandatory Truss boot metadata ≈ ${tokens} tokens — over the ${threshold} threshold, but only because §1 also names ${newlyCounted.join(', ')}, which earlier releases did not count (≈${toTokens(priorWords)} without them). Reported as info this once. Heaviest: ${heaviest}. Counted: ${countedList}`,
+        message: `mandatory Truss boot metadata ≈ ${tokens} tokens — over the ${threshold} threshold, but only because §1 also names ${newlyCounted.join(', ')}, which earlier releases did not count (≈${toTokens(priorWords)} without them). Info, not a warning, because our change is what moved it. Heaviest: ${heaviest}. Counted: ${countedList}`,
         fix: `Read the newly counted files and decide whether they belong in every session's boot. If they do, record the size with \`truss ack context\`; if they do not, route them out of §1. Either way this becomes a full warning once the long-counted files alone exceed ${WARN_TOKENS}.`,
       })
     } else if (verdict.downgraded) {

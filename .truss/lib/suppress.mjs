@@ -29,10 +29,18 @@
 //   • A REASON IS REQUIRED. A marker without one is not honoured. A suppression
 //     nobody explained becomes an unexplained exception to the next reader —
 //     exactly the state this is meant to prevent.
-//   • FENCED EXAMPLES DO NOT COUNT. This very file's syntax gets documented in
-//     code blocks; a marker shown as an example must not silence anything. Note
-//     that lib/md.mjs `ignoredLines` cannot be reused here: it skips HTML
-//     comments too, and the marker IS an HTML comment.
+//   • IT ANSWERS ONE FINDING, NOT A CLASS. A check like SY-10 fires once per
+//     entry in a single file; a (path, id) marker would blanket every one of
+//     them, including entries written later that nobody reasoned about — and the
+//     recorded reason would be untrue of the ones it silenced in passing. So a
+//     marker applies only when exactly ONE finding of that id is open on that
+//     file. Otherwise it applies to nothing and `doctor` says so.
+//   • DOCUMENTED EXAMPLES DO NOT COUNT. This syntax gets written down, and a
+//     marker shown as an example must not silence anything. That means all four
+//     ways markdown quotes a line: fenced blocks (of any fence char and length,
+//     so a ````-wrapped example of a ```-block still counts as quoted), indented
+//     code blocks, blockquotes, and inline code. lib/md.mjs `ignoredLines`
+//     cannot be reused: it also skips HTML comments, and the marker IS one.
 
 /** `<!-- truss: <id> ok — <reason> -->`, anywhere on the line. */
 const MARKER = /<!--\s*truss:\s*([a-z]{2,}-\d{2,})\s+ok\s*[—–-]\s*(\S.*?)\s*-->/i
@@ -48,11 +56,33 @@ export const SUPPRESSIBLE = new Set(['I'])
 export function suppressionsIn(lines) {
   const out = new Map()
   if (!Array.isArray(lines)) return out
-  let fence = false
-  for (const line of lines) {
-    if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue }
-    if (fence) continue
-    const m = line.match(MARKER)
+
+  // Open fence, as CommonMark defines it: a run of >= 3 backticks or tildes.
+  // It closes only on the SAME character and at least the same length, which is
+  // what lets a ````-fenced example contain a ```-fenced one without the inner
+  // pair ending the outer block.
+  let fenceChar = null
+  let fenceLen = 0
+
+  for (const raw of lines) {
+    const line = raw.trimEnd()
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})/)
+    if (fenceChar) {
+      if (fence && fence[1][0] === fenceChar && fence[1].length >= fenceLen) {
+        fenceChar = null; fenceLen = 0
+      }
+      continue
+    }
+    if (fence) { fenceChar = fence[1][0]; fenceLen = fence[1].length; continue }
+
+    // Indented code block (4 spaces or a tab) and blockquote: both are ways of
+    // showing a line rather than meaning it.
+    if (/^(?: {4}|\t)/.test(line)) continue
+    if (/^ {0,3}>/.test(line)) continue
+
+    // Inline code — `<!-- truss: … -->` written mid-sentence is prose about the
+    // syntax, not an instance of it.
+    const m = line.replace(/`[^`]*`/g, '').match(MARKER)
     if (m) out.set(m[1].toUpperCase(), m[2])
   }
   return out
@@ -66,23 +96,51 @@ export function suppressionsIn(lines) {
  * files the workspace never loaded (disk-only paths) are never suppressed,
  * because there are no lines to have carried a marker.
  *
+ * A marker answers ONE finding. When several findings of the same id are open on
+ * the same file it applies to none of them and is reported as unapplied: the
+ * reason somebody wrote about one entry cannot stand in for the others, and
+ * silencing them all would hide entries added after the marker.
+ *
  * @param {Array<object>} findings
  * @param {{files: Map<string, {lines?: string[]}>}} ctx
- * @returns {{kept: Array<object>, suppressed: Array<object & {suppressedBy: string}>}}
+ * @returns {{kept: Array<object>, suppressed: Array<object & {suppressedBy: string}>,
+ *            unapplied: Array<{file: string, id: string, reason: string, matches: number}>}}
  */
 export function applySuppressions(findings, ctx) {
+  const cache = new Map()
+  const markersFor = (file) => {
+    if (!cache.has(file)) cache.set(file, suppressionsIn(ctx?.files?.get(file)?.lines))
+    return cache.get(file)
+  }
+
+  // How many findings each marker could match, before deciding anything.
+  const matchCount = new Map()
+  const keyOf = (f) => `${f.file}\u0000${String(f.id).toUpperCase()}`
+  for (const f of findings) {
+    if (!SUPPRESSIBLE.has(f.severity) || !f.file) continue
+    if (!markersFor(f.file).has(String(f.id).toUpperCase())) continue
+    matchCount.set(keyOf(f), (matchCount.get(keyOf(f)) ?? 0) + 1)
+  }
+
   const kept = []
   const suppressed = []
-  const cache = new Map()
+  const unapplied = []
+  const reported = new Set()
 
   for (const f of findings) {
     if (!SUPPRESSIBLE.has(f.severity) || !f.file) { kept.push(f); continue }
-    if (!cache.has(f.file)) {
-      cache.set(f.file, suppressionsIn(ctx?.files?.get(f.file)?.lines))
+    const id = String(f.id).toUpperCase()
+    const reason = markersFor(f.file).get(id)
+    if (!reason) { kept.push(f); continue }
+    if (matchCount.get(keyOf(f)) === 1) {
+      suppressed.push({ ...f, suppressedBy: reason })
+      continue
     }
-    const reason = cache.get(f.file).get(String(f.id).toUpperCase())
-    if (reason) suppressed.push({ ...f, suppressedBy: reason })
-    else kept.push(f)
+    kept.push(f)
+    if (!reported.has(keyOf(f))) {
+      reported.add(keyOf(f))
+      unapplied.push({ file: f.file, id, reason, matches: matchCount.get(keyOf(f)) })
+    }
   }
-  return { kept, suppressed }
+  return { kept, suppressed, unapplied }
 }

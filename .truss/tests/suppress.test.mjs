@@ -36,14 +36,29 @@ test('a marker without a reason does not count', () => {
   }
 })
 
-test('a marker inside a fenced block is documentation, not a decision', () => {
-  const found = suppressionsIn([
-    'Write it like this:',
-    '```markdown',
-    '<!-- truss: st-05 ok — why it is fine -->',
-    '```',
-  ])
-  assert.equal(found.size, 0)
+// A review of the first cut broke this limit four ways. Markdown has more than
+// one way to quote a line, and a scanner that knows only the plain ``` fence lets
+// a file silence its own real finding by documenting the syntax.
+test('a marker being shown rather than meant does not count — all four forms', () => {
+  const cases = {
+    'plain fence': ['```markdown', '<!-- truss: st-05 ok — example -->', '```'],
+    // ````-wrapping is how you show a ```-fenced block; the inner pair must not
+    // close the outer one.
+    'nested fence': ['````markdown', '```', '<!-- truss: st-05 ok — example -->', '```', '````'],
+    'tilde fence': ['~~~', '<!-- truss: st-05 ok — example -->', '~~~'],
+    'indented code': ['Like so:', '', '    <!-- truss: st-05 ok — example -->'],
+    'blockquote': ['> Write:', '> <!-- truss: st-05 ok — example -->'],
+    'inline code': ['Write `<!-- truss: st-05 ok — example -->` at the top.'],
+    'unclosed fence': ['```', '<!-- truss: st-05 ok — example -->'],
+  }
+  for (const [label, lines] of Object.entries(cases)) {
+    assert.equal(suppressionsIn(lines).size, 0, `${label} must not silence anything`)
+  }
+  // …and a real marker beside all that still works.
+  assert.equal(
+    suppressionsIn(['```', 'x', '```', '<!-- truss: st-05 ok — the real one -->']).get('ST-05'),
+    'the real one',
+  )
 })
 
 test('the marker silences that finding on that file', () => {
@@ -162,4 +177,30 @@ test('a marker on one of two identically-worded findings frees only that file', 
     assert.equal(rest[0].occurrences, 1, 'and it is reported for itself, not for both')
     assert.ok(rest[0].file.includes(kept), `the surviving finding is about ${kept}`)
   } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+// A marker answers one finding, not a class. SY-10 fires once per entry in a
+// single file, so a (path, id) marker would blanket every entry in it — including
+// ones written after the marker, which nobody reasoned about, and for which the
+// recorded reason is simply untrue.
+test('a marker does not apply when several findings of that id are open on the file', () => {
+  const ctx = ctxWith({ 'state/open-decisions.md': '<!-- truss: sy-10 ok — OD-001 waits for Q4 -->\n' })
+  const three = ['OD-001', 'OD-002', 'OD-003'].map(od =>
+    finding({ id: 'SY-10', file: 'state/open-decisions.md', message: `${od} has been open a long time` }))
+
+  const { kept, suppressed, unapplied } = applySuppressions(three, ctx)
+  assert.equal(suppressed.length, 0, 'one reason cannot answer three questions')
+  assert.equal(kept.length, 3)
+  assert.equal(unapplied.length, 1)
+  assert.equal(unapplied[0].matches, 3)
+  assert.equal(unapplied[0].id, 'SY-10')
+})
+
+test('the same marker applies once the file is down to a single finding', () => {
+  const ctx = ctxWith({ 'state/open-decisions.md': '<!-- truss: sy-10 ok — OD-001 waits for Q4 -->\n' })
+  const one = [finding({ id: 'SY-10', file: 'state/open-decisions.md', message: 'OD-001 has been open a long time' })]
+  const { kept, suppressed, unapplied } = applySuppressions(one, ctx)
+  assert.equal(suppressed.length, 1)
+  assert.equal(kept.length, 0)
+  assert.equal(unapplied.length, 0)
 })

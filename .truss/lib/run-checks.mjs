@@ -81,7 +81,7 @@ export async function runAllChecks(ctx) {
   // afterwards would either drop every occurrence because the representative's
   // file happened to carry a marker, or keep them all because it did not. Per
   // occurrence, each finding is still attributed to the file it is about.
-  const { kept, suppressed } = applySuppressions(allFindings, ctx)
+  const { kept, suppressed, unapplied } = applySuppressions(allFindings, ctx)
   allFindings.length = 0
   allFindings.push(...kept)
 
@@ -103,6 +103,10 @@ export async function runAllChecks(ctx) {
     // Silenced, not gone: the caller reports the count, so a workspace can never
     // quietly accumulate suppressions nobody remembers making.
     suppressed,
+    // Markers that matched several findings and therefore silenced none. A
+    // marker that does nothing has to say so, or it is just a line somebody
+    // wrote once and now believes in.
+    unapplied,
     errors, warnings, infos,
     exitCode: errors.length > 0 ? 2 : warnings.length > 0 ? 1 : 0,
   }

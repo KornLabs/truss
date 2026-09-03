@@ -1134,6 +1134,50 @@ describe('CX-01 measures the load order this workspace declares', () => {
     assert.equal(f[0].severity, 'E')
   })
 
+  // Review finding: `counted` holds the boot files AND the phase read: targets, so
+  // treating "not in CONTEXT_FILES" as "newly counted" made every read target look
+  // new — and a workspace whose weight sat in one had its warning, and its error,
+  // downgraded to info forever. The old code counted read targets all along.
+  it('does not treat a phase read: target as newly counted', async () => {
+    const phases = { frontmatter: { current: 'build' }, defs: new Map([['build', { read: 'context/architecture.md' }]]) }
+    const f = ids(await cx.run(ctxOf({
+      // Three named paths, so §1 really is derived — with fewer the parser
+      // refuses and falls back, and this test would pass without testing anything.
+      'AGENTS.md': file(SECTION_1('state/current.md', 'VISION.md', 'state/profile.md')),
+      'state/current.md': file(big(10)),
+      'context/architecture.md': file(big(14000)),
+    }, { phases })), 'CX-01')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].severity, 'W', 'a read target was always counted, so nothing about it is new')
+  })
+
+  // Review finding: deriving the list closed one gaming vector and would have
+  // opened a cheaper one — a §1 that simply omits a boot file (dropped backticks,
+  // a link, plain prose) would stop counting it, with `ok` still true, so no
+  // fallback and no notice. §1 may only add to the shipped set.
+  it('a §1 that omits a shipped boot file cannot lower the number', async () => {
+    const files = {
+      'state/current.md': file(big(6000)),
+      'VISION.md': file(big(6000)),
+      'state/profile.md': file(big(4000)),   // heavy, and left out of §1 below
+    }
+    // Both §1 bodies are the same length, so only the file SET can differ.
+    const full = ids(await cx.run(ctxOf({
+      'AGENTS.md': file(SECTION_1('state/current.md', 'VISION.md', 'state/profile.md')),
+      ...files,
+    })), 'CX-01')
+    const omits = ids(await cx.run(ctxOf({
+      'AGENTS.md': file(SECTION_1('state/current.md', 'VISION.md', 'state/risks.md')),
+      ...files,
+    })), 'CX-01')
+    assert.equal(full.length, 1, 'precondition: over the band')
+    assert.equal(omits.length, 1, 'omitting profile.md from §1 must not make it green')
+    const countedIn = (f) => f[0].message.match(/Counted: (.*)$/)[1].split(', ').sort()
+    assert.ok(countedIn(omits).includes('state/profile.md'),
+      'a shipped boot file stays counted even when §1 stops naming it')
+    assert.deepEqual(countedIn(omits), countedIn(full))
+  })
+
   it('is a real warning again once the long-counted files alone exceed the band', async () => {
     const f = ids(await cx.run(ctxOf({
       'AGENTS.md': file(SECTION_1('VISION.md', 'state/extra.md')),
