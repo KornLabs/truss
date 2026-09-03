@@ -8,6 +8,7 @@ import { branchReport, recentCommits, fileLineAges } from '../git.mjs'
 import { decisionFilesFrom } from '../decisions-index.mjs'
 import { runAllChecks } from '../run-checks.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE, ignoredLines } from '../md.mjs'
+import { classById, fileForClass } from '../schema.mjs'
 
 const RECENT_COMMITS_MAX = 5
 // Same 60-char cutoff other status-adjacent messages use (checks/sy.mjs,
@@ -231,13 +232,22 @@ const HT_TEXT_MAX = 60
  * @returns {string[]}
  */
 async function humanTodoLines(ctx, root, now) {
-  const ht = ctx.files.get('HUMAN-TODOS.md')
-  if (!ht) return []
+  const cls = classById(ctx.schema?.classes, 'HT')
+  const ht = fileForClass(ctx, cls)
+  if (!cls || !ht) return []
 
   // `- [ ] HT-NNN — …`; the checkbox fragments are shared with lib/md.mjs so
-  // this cannot disagree with SY-07 about what "done" looks like (see D-046).
-  const anyRe  = new RegExp(`^\\s*[-*]\\s+${CHECKBOX_ANY}\\s+(.*)$`)
-  const doneRe = new RegExp(`^\\s*[-*]\\s+${CHECKBOX_DONE}\\s`)
+  // this cannot disagree with SY-07 about what "done" looks like (see D-046),
+  // and the ID comes from the class so renaming it in the schema keeps this
+  // pointed at the entries instead of switching the block off.
+  //
+  // WHY THE ID IS PART OF THE MATCH. An entry carries an indented body — steps
+  // and two labels (docs/conventions.md) — and a step may well be a checkbox.
+  // Matching any `- [ ]` line in the file would list every sub-step of one
+  // entry as its own open todo, which is the block's whole point inverted: the
+  // human's queue would grow with the detail written into it.
+  const anyRe  = new RegExp(`^\\s*[-*]\\s+${CHECKBOX_ANY}\\s+(${cls.id}-\\d{3}\\b.*)$`)
+  const doneRe = new RegExp(`^\\s*[-*]\\s+${CHECKBOX_DONE}\\s+${cls.id}-\\d{3}\\b`)
 
   // Fenced and commented-out lines are examples, not work — the same rule SY-07
   // applies to the same file. Without it a documented `- [ ] HT-NNN — …` inside a
@@ -256,7 +266,7 @@ async function humanTodoLines(ctx, root, now) {
   // Only reached when something is actually open, because blame costs ~70 ms and
   // most workspaces have nothing waiting. An empty map (no git, no checkout,
   // untracked file) simply means no ages are printed — never an error.
-  const ages = await fileLineAges(root, 'HUMAN-TODOS.md')
+  const ages = await fileLineAges(root, ht.relPath)
   const idleDays = (entry) => {
     const at = ages.get(entry.line)
     return at == null ? null : Math.max(0, Math.floor((now - at) / 86_400_000))
@@ -277,7 +287,12 @@ async function humanTodoLines(ctx, root, now) {
   const out = []
   for (const [n, entry] of ordered.slice(0, HT_SHOWN_MAX).entries()) {
     const label = n === 0 ? '  ToDo:   ' : '          '
-    const short = entry.text.length > HT_TEXT_MAX ? entry.text.slice(0, HT_TEXT_MAX - 3) + '…' : entry.text
+    // The entry title is written bold so the file reads as a task with a body
+    // below it; the terminal has no bold here, so the markers would be four
+    // stray asterisks on the session-start screen. Stripped before the cut, so
+    // the 60 characters are 60 the human actually sees.
+    const text = entry.text.replace(/\*\*/g, '')
+    const short = text.length > HT_TEXT_MAX ? text.slice(0, HT_TEXT_MAX - 3) + '…' : text
     const days = idleDays(entry)
     // `idle`, not an age: blame reports the last commit that TOUCHED the line,
     // so re-wording an entry restarts its clock. The OD block one section below
@@ -286,7 +301,7 @@ async function humanTodoLines(ctx, root, now) {
     out.push(`${label} ${short}${days == null ? '' : `  (idle ${days}d)`}`)
   }
   if (open.length > HT_SHOWN_MAX) {
-    out.push(`           … and ${open.length - HT_SHOWN_MAX} more in HUMAN-TODOS.md`)
+    out.push(`           … and ${open.length - HT_SHOWN_MAX} more in ${ht.relPath}`)
   }
   return out
 }

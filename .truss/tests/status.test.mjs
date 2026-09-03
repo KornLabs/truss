@@ -271,6 +271,28 @@ test('the ToDo block skips fenced examples, like SY-07 does', async () => {
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
 
+// An entry carries an indented body — numbered steps and two labels
+// (docs/conventions.md). A step written as a checkbox is detail INSIDE one todo;
+// listing it would grow the human's queue with the very detail that makes the
+// entry executable, which is this block's point inverted.
+test('the ToDo block lists the entry, not the checkboxes in its body', async () => {
+  const root = await makeRoot('truss-status-ht-body-')
+  try {
+    await runInit(root, ['--name', 'Body', '--lang', 'English'])
+    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'),
+      '# Human ToDos\n\n'
+      + '- [ ] HT-001 — **rotate the deploy key**\n\n'
+      + '  1. open the console\n'
+      + '  - [ ] a step someone wrote as a checkbox\n\n'
+      + '  **Done when:** the new key is live\n')
+    const out = await captureStatus(root)
+    // Bold in the file, plain on the screen — the markers are not content.
+    assert.match(out, /HT-001 — rotate the deploy key/)
+    assert.doesNotMatch(out, /\*\*/)
+    assert.doesNotMatch(out, /a step someone wrote as a checkbox/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
 test('status keeps its exit code contract — findings do not make it fail', async () => {
   const root = await makeRoot('truss-status-exit-')
   const prev = process.exitCode

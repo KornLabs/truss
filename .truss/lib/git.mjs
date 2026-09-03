@@ -99,12 +99,14 @@ export async function repoBranchList(repoDir) {
 /**
  * How long each line of `relPath` has been sitting unchanged, from `git blame`.
  *
- * WHY THIS AND NOT A DATE FIELD. HUMAN-TODOS.md entries are one line by design
- * (`- [ ] HT-NNN — …`), and nothing measured how long one had been waiting: an
- * external report found a median of ≥38 days with no check able to see it. The
- * obvious fix — add an `Opened:` field to the class — makes the lightest entry
- * class heavier and moves the file grammar for a number git already knows. So
- * this derives it instead, in ONE `git blame` call for the whole file.
+ * WHY THIS AND NOT A DATE FIELD. A HUMAN-TODOS.md entry is anchored by one
+ * parsed line (`- [ ] HT-NNN — …`), and nothing measured how long one had been
+ * waiting: an external report found a median of ≥38 days with no check able to
+ * see it. The obvious fix — add an `Opened:` field to the class — makes the
+ * lightest entry class heavier and moves the file grammar for a number git
+ * already knows. So this derives it instead, in ONE `git blame` call for the
+ * whole file; the caller blames the entry line, so rewriting a step in the
+ * indented body below it does not reset the number.
  *
  * WHAT IT ACTUALLY MEASURES — and the reason callers must not call it "age":
  * blame reports the last commit that TOUCHED a line, not the one that added it.

@@ -120,8 +120,15 @@ doctor flags a `Challenged-by:` whose OD no longer exists (SY-11).
 
 ### HT-NNN — Human todo
 
-```
-- [ ] HT-NNN — [what the human needs to do] — [context or deadline if relevant]
+```markdown
+- [ ] HT-NNN — **[what the human is to do]**
+
+  1. [step — the exact command, path, address, or wording]
+  2. […]
+
+  **Done when:** [the observable result that ends it]
+
+  **Background:** [D-NNN · file — context only, never something a step needs]
 ```
 
 Qualifier — before writing an HT, ask: could an agent do this itself, with the
@@ -135,14 +142,20 @@ human should know" are not qualifiers, and neither is a task you could do but
 would rather hand over. A question that needs the human's judgment is an
 `OD-NNN` briefing, not an HT — an HT is an action with a doer.
 
-Keep it one line, two at most; details live in the owning domain file or OD entry —
-link, don't inline. Every HT must be executable stand-alone: either the line itself
-carries everything the human needs, or it names the exact place where the
-instructions live (file/section, OD-/D-id) — "update X" without saying where and
-how is not an entry. Check off with `[x]` when done; never delete an open entry.
-Checked-off entries are working memory, not history: once a `[x]` entry is clearly
-settled (rule of thumb: the next session no longer needs it), move its line verbatim
-to `archive/human-todos.md` (create on demand). IDs stay sequential and are never
+**Executable from the entry alone.** The human must not have to open a decision,
+a domain file, or a chat log to act — `see D-042` where the instruction belongs is
+not an entry. Copy the two facts a step needs into the step; references go on
+`Background:`, which is context, never a missing piece. Write the steps out: each
+names the exact command, path, address, or wording, and `Done when:` names the
+result that lets the human tick the box. One step a single line states in full
+stays a single line; from two steps up, number them. Length is not the limit here —
+a step the human has to reconstruct is. Only the entry line is parsed; the indented
+body is for the human — steps, the two labels, nothing else.
+
+Check off with `[x]` when done; never delete an open entry. Checked-off entries are
+working memory, not history: once a `[x]` entry is clearly settled (rule of thumb:
+the next session no longer needs it), move it — entry line and body — verbatim to
+`archive/human-todos.md` (create on demand). IDs stay sequential and are never
 reused — the counter continues across archived entries. doctor nudges when done
 entries pile up (SY-07).
 
