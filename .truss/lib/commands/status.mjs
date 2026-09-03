@@ -4,7 +4,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
 import { listDomains } from '../domains.mjs'
-import { branchReport, recentCommits } from '../git.mjs'
+import { branchReport, recentCommits, fileLineAges } from '../git.mjs'
 import { decisionFilesFrom } from '../decisions-index.mjs'
 import { runAllChecks } from '../run-checks.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE, ignoredLines } from '../md.mjs'
@@ -165,7 +165,7 @@ export async function runStatus(root, argv) {
   // session that wrote it had ended. No age is shown because the class carries no
   // date field; making it visible is what the median-38-day-old entry needed, not
   // a number.
-  for (const l of humanTodoLines(ctx)) console.log(l)
+  for (const l of await humanTodoLines(ctx, root, now)) console.log(l)
 
   // Open decisions — questions parked on the human's desk. status is the canonical
   // session-start command (§4), so this is the one place that guarantees a waiting
@@ -230,7 +230,7 @@ const HT_TEXT_MAX = 60
  * are not shown. Silent when nothing is open.
  * @returns {string[]}
  */
-function humanTodoLines(ctx) {
+async function humanTodoLines(ctx, root, now) {
   const ht = ctx.files.get('HUMAN-TODOS.md')
   if (!ht) return []
 
@@ -248,15 +248,42 @@ function humanTodoLines(ctx) {
     if (fenced.has(i)) continue
     if (doneRe.test(line)) continue
     const m = line.match(anyRe)
-    if (m && m[1].trim()) open.push(m[1].trim())
+    if (m && m[1].trim()) open.push({ text: m[1].trim(), line: i + 1 })
   }
   if (open.length === 0) return []
 
+  // How long each entry has sat untouched, from one `git blame` over the file.
+  // Only reached when something is actually open, because blame costs ~70 ms and
+  // most workspaces have nothing waiting. An empty map (no git, no checkout,
+  // untracked file) simply means no ages are printed — never an error.
+  const ages = await fileLineAges(root, 'HUMAN-TODOS.md')
+  const idleDays = (entry) => {
+    const at = ages.get(entry.line)
+    return at == null ? null : Math.max(0, Math.floor((now - at) / 86_400_000))
+  }
+
+  // Longest-idle first. The block is a nudge, and the entry nobody has touched
+  // in six weeks is the one it exists for — so it must never be the one the
+  // HT_SHOWN_MAX cut drops. Entries without an age keep file order behind the
+  // dated ones rather than sorting as if they were fresh.
+  const ordered = [...open].sort((a, b) => {
+    const da = idleDays(a), db = idleDays(b)
+    if (da == null && db == null) return a.line - b.line
+    if (da == null) return 1
+    if (db == null) return -1
+    return db - da || a.line - b.line
+  })
+
   const out = []
-  for (const [n, text] of open.slice(0, HT_SHOWN_MAX).entries()) {
+  for (const [n, entry] of ordered.slice(0, HT_SHOWN_MAX).entries()) {
     const label = n === 0 ? '  ToDo:   ' : '          '
-    const short = text.length > HT_TEXT_MAX ? text.slice(0, HT_TEXT_MAX - 3) + '…' : text
-    out.push(`${label} ${short}`)
+    const short = entry.text.length > HT_TEXT_MAX ? entry.text.slice(0, HT_TEXT_MAX - 3) + '…' : entry.text
+    const days = idleDays(entry)
+    // `idle`, not an age: blame reports the last commit that TOUCHED the line,
+    // so re-wording an entry restarts its clock. The OD block one section below
+    // prints a real age from `Opened:` — two identical-looking numbers meaning
+    // different things is exactly the silent wrongness worth one extra word.
+    out.push(`${label} ${short}${days == null ? '' : `  (idle ${days}d)`}`)
   }
   if (open.length > HT_SHOWN_MAX) {
     out.push(`           … and ${open.length - HT_SHOWN_MAX} more in HUMAN-TODOS.md`)

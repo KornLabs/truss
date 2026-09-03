@@ -12,6 +12,7 @@
 // decides what to print and what exit code to use.
 
 import { SEV_ORDER, dedupeFindings } from './severity.mjs'
+import { applySuppressions } from './suppress.mjs'
 
 /**
  * The check families, in catalog order. Adding a family means adding it here —
@@ -71,6 +72,13 @@ export async function runAllChecks(ctx) {
   }))
   allFindings.push(...results.flat())
 
+  // A file may silence one info finding about itself, with a reason written in
+  // it (lib/suppress.mjs). Applied here, in the one place every family's
+  // findings pass through, so no check has to know the mechanism exists.
+  const { kept, suppressed } = applySuppressions(allFindings, ctx)
+  allFindings.length = 0
+  allFindings.push(...kept)
+
   allFindings.sort((a, b) =>
     ((SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9)) ||
     (a.file || '').localeCompare(b.file || '') ||
@@ -86,6 +94,9 @@ export async function runAllChecks(ctx) {
     registry,
     findings,
     occurrenceTotal: allFindings.length,
+    // Silenced, not gone: the caller reports the count, so a workspace can never
+    // quietly accumulate suppressions nobody remembers making.
+    suppressed,
     errors, warnings, infos,
     exitCode: errors.length > 0 ? 2 : warnings.length > 0 ? 1 : 0,
   }

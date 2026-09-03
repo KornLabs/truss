@@ -304,7 +304,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   // read a cached, undated .truss/out/doctor.json instead, which on a fresh
   // clone reported "unknown" forever and otherwise could contradict a doctor
   // run from a minute earlier without saying so.
-  const { registry, findings, occurrenceTotal, errors, warnings, infos, exitCode } =
+  const { registry, findings, occurrenceTotal, suppressed, errors, warnings, infos, exitCode } =
     await runAllChecks(ctx)
 
   // ── JSON output ─────────────────────────────────────────────────────────
@@ -316,7 +316,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       root,
       version: getVersion(),
       gate,
-      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, occurrences: occurrenceTotal },
+      summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, occurrences: occurrenceTotal, suppressed: suppressed.length },
       scan: ctx.ignore,        // { sources: [...], excluded: n } — what the ignore layer dropped
       checks: registry,        // full catalog of all checks (A2), independent of what fired
       findings,                // deduped: each carries occurrences + locations
@@ -411,6 +411,13 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       ? `  ${findings.length} finding${findings.length !== 1 ? 's' : ''}${occNote} (${parts.join(', ')})\n`
       : '  0 findings\n'
   )
+  // Silenced findings are counted on screen, never dropped in silence: a marker
+  // is a decision somebody made once, and the next reader has to be able to see
+  // that decisions are in force without going looking for them.
+  if (suppressed.length > 0) {
+    const byId = [...new Set(suppressed.map(f => f.id))].sort().join(', ')
+    console.log(`  ${suppressed.length} info finding${suppressed.length !== 1 ? 's' : ''} silenced by a marker in the file it is about (${byId}).\n`)
+  }
   if (errors.length > 0) console.log('  Run with --fix-prompt for a copyable remediation prompt.\n')
 
   process.exit(exitCode)

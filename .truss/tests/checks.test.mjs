@@ -1052,9 +1052,9 @@ describe('ST-02 fix text names the summary-row escape', () => {
 })
 
 // ── CX-01 says what it counted ──────────────────────────────────────────────
-// The metric reads a fixed file list, so splitting a boot file lowers the number
-// without lowering what a session loads. Naming the counted files does not fix
-// the list; it stops the number from being read as more than it is.
+// Half of the answer to a metric that could be gamed: the message names every
+// file it summed, so the basis is on screen. The other half is that the basis
+// now comes out of §1 — see the block below.
 describe('CX-01 names the files it counted', () => {
   it('the message lists every counted file, not only the heaviest three', async () => {
     const big = (n) => '# Big\n\n' + 'word '.repeat(n)
@@ -1069,6 +1069,66 @@ describe('CX-01 names the files it counted', () => {
     for (const rel of ['AGENTS.md', 'state/current.md', 'VISION.md', 'state/profile.md']) {
       assert.ok(f[0].message.includes(rel), `counted list must name ${rel}`)
     }
+  })
+})
+
+// ── CX-01/CX-02: the boot list comes out of §1 (D-095/OD-018) ───────────────
+// A fixed six-file list made splitting a boot file the most effective way to
+// quiet CX-01 and the only one that improved nothing. Deriving the list closes
+// that, and brings two risks worth pinning: a §1 the parser cannot read must say
+// so instead of silently measuring less, and our change must not turn a green
+// instance red (`release-maturity.md`, D-081).
+describe('CX-01 measures the load order this workspace declares', () => {
+  const big = (n) => '# Big\n\n' + 'word '.repeat(n)
+  const SECTION_1 = (...paths) =>
+    '# A\n\n## 1 Load order\n\n1. This file — fully.\n'
+    + paths.map((p, i) => `${i + 2}. \`${p}\` — loaded.\n`).join('')
+    + '\n## 2 Structure\n'
+
+  it('counts a boot file that §1 names but the shipped list never knew', async () => {
+    const f = await cx.run(ctxOf({
+      'AGENTS.md': file(SECTION_1('state/current.md', 'state/current.tasks.md')),
+      'state/current.md': file(big(6000)),
+      'state/current.tasks.md': file(big(6000)),
+    }))
+    const cx01 = ids(f, 'CX-01')
+    assert.equal(cx01.length, 1, 'the split halves are summed, so the budget is crossed')
+    assert.ok(cx01[0].message.includes('state/current.tasks.md'))
+    assert.equal(ids(f, 'CX-02').length, 0, 'a readable §1 raises no fallback notice')
+  })
+
+  it('falls back loudly when §1 cannot be read', async () => {
+    const f = await cx.run(ctxOf({
+      'AGENTS.md': file('# A\n\nno load order here\n'),
+      'VISION.md': file(big(13000)),
+    }))
+    const cx02 = ids(f, 'CX-02')
+    assert.equal(cx02.length, 1)
+    assert.equal(cx02[0].severity, 'I')
+    assert.match(cx02[0].message, /shipped list/)
+    assert.equal(ids(f, 'CX-01').length, 1, 'the budget is still measured, just against the default set')
+  })
+
+  it('reports info, not a warning, when only the newly counted files cross the band', async () => {
+    // Long-counted files stay under 18k on their own; the file §1 adds tips it over.
+    const f = ids(await cx.run(ctxOf({
+      'AGENTS.md': file(SECTION_1('VISION.md', 'state/extra.md')),
+      'VISION.md': file(big(9000)),        // ≈13.5k on its own
+      'state/extra.md': file(big(4000)),   // ≈6k more
+    })), 'CX-01')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].severity, 'I', 'our change must not turn a green instance red')
+    assert.ok(f[0].message.includes('state/extra.md'), 'and it must say which file is new')
+  })
+
+  it('is a real warning again once the long-counted files alone exceed the band', async () => {
+    const f = ids(await cx.run(ctxOf({
+      'AGENTS.md': file(SECTION_1('VISION.md', 'state/extra.md')),
+      'VISION.md': file(big(13000)),
+      'state/extra.md': file(big(1000)),
+    })), 'CX-01')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].severity, 'W')
   })
 })
 
