@@ -120,3 +120,46 @@ test('a marker survives the whole doctor pipeline, and the run still reports it'
     assert.equal(after.exitCode, before.exitCode, 'silencing an info never changes the exit code')
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
+
+// Pins the ordering claim in run-checks.mjs rather than trusting it: two files of
+// the SAME length produce the same ST-05 message, so dedupe folds them into one
+// row whose `file` is the first of the two. Suppressing after that fold would
+// take both or neither. Suppressing per occurrence takes exactly the one that
+// asked.
+test('a marker on one of two identically-worded findings frees only that file', async () => {
+  const root = await makeRoot('truss-suppress-dedupe-')
+  try {
+    await runInit(root, ['--name', 'Dedupe', '--lang', 'English'])
+    // Both files must stay EXACTLY the same length: ST-05's message carries the
+    // line count, and if adding the marker changed it the two messages would stop
+    // matching, the fold would not happen, and this test would prove nothing
+    // about ordering. So the marker REPLACES a line rather than being added.
+    const body = Array(500).fill('a line of prose').join('\n') + '\n'
+    const withPlaceholder = '# X\n\nplaceholder\n' + body
+    const withMarker = '# X\n\n<!-- truss: st-05 ok — deliberately long -->\n' + body
+    assert.equal(withPlaceholder.split('\n').length, withMarker.split('\n').length)
+
+    await fs.mkdir(path.join(root, 'context'), { recursive: true })
+    await fs.writeFile(path.join(root, 'context', 'a.md'), withPlaceholder)
+    await fs.writeFile(path.join(root, 'context', 'b.md'), withPlaceholder)
+
+    const before = await runAllChecks(await loadWorkspace(root))
+    const folded = before.findings.filter(f => f.id === 'ST-05')
+    assert.equal(folded.length, 1, 'precondition: the two identical messages fold into one row')
+    assert.equal(folded[0].occurrences, 2, 'precondition: both files are behind that one row')
+
+    // Mark the file that is NOT the fold representative. Suppressing after the
+    // fold would look at the representative's path and miss this entirely.
+    const repIsA = folded[0].file.includes('/a.md')
+    const marked = repIsA ? 'b.md' : 'a.md'
+    const kept = repIsA ? 'a.md' : 'b.md'
+    await fs.writeFile(path.join(root, 'context', marked), withMarker)
+
+    const after = await runAllChecks(await loadWorkspace(root))
+    const rest = after.findings.filter(f => f.id === 'ST-05')
+    assert.equal(after.suppressed.length, 1, `only ${marked} is silenced`)
+    assert.equal(rest.length, 1, `${kept} is still reported`)
+    assert.equal(rest[0].occurrences, 1, 'and it is reported for itself, not for both')
+    assert.ok(rest[0].file.includes(kept), `the surviving finding is about ${kept}`)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
