@@ -437,6 +437,29 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   }
   if (errors.length > 0) console.log('  Run with --fix-prompt for a copyable remediation prompt.\n')
 
+  // Parallel sessions (D-101) — the second place this block fires, and the
+  // reason it fires twice: AGENTS.md §4 puts `doctor` immediately before the
+  // "done" report, which is the point at which a session is most likely to
+  // commit and least likely to still be following a rule it read at the start.
+  //
+  // No git here, on purpose. `status` owns the git-shaped half (foreign
+  // uncommitted paths, HEAD movement); this end only compares the core state
+  // files by hash and counts live sessions, so nothing in the doctor path
+  // learns to run git. Reached only in the human-readable mode — the --json,
+  // --html and --fix-prompt branches all exit above, so machine output is never
+  // polluted. It reports; it never changes `exitCode`, so `doctor --gate`
+  // cannot start failing because a colleague is present.
+  try {
+    const { observe, presenceLines } = await import('../lib/presence.mjs')
+    const obs = await observe(root, { head: null, dirty: [] })
+    const lines = presenceLines(obs, { gitAvailable: false })
+    if (lines.length > 0) {
+      console.log(`  ${col('W', 'parallel')}  ${lines[0]}`)
+      for (const l of lines.slice(1)) console.log(`            ${l}`)
+      console.log('')
+    }
+  } catch { /* never let the presence layer take doctor down */ }
+
   process.exit(exitCode)
 }
 

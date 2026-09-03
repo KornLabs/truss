@@ -4,7 +4,8 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
 import { listDomains } from '../domains.mjs'
-import { branchReport, recentCommits, fileLineAges } from '../git.mjs'
+import { branchReport, recentCommits, fileLineAges, gitChangedPaths } from '../git.mjs'
+import { observe, presenceLines, indexLockAge } from '../presence.mjs'
 import { decisionFilesFrom } from '../decisions-index.mjs'
 import { runAllChecks } from '../run-checks.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE, ignoredLines } from '../md.mjs'
@@ -135,6 +136,16 @@ export async function runStatus(root, argv) {
     }
     console.log(`  Branch:  ${line}`)
   }
+
+  // Parallel sessions — who else is working in this tree, and what moved since
+  // this session last looked (D-101). Like the branch line above, the live git
+  // read belongs HERE, in the command layer, so the doctor checks stay pure.
+  //
+  // Reports only; it never gates and never changes the exit code. Deliberately
+  // silent for a single session in a quiet tree: a line that shows up on every
+  // run stops being read, and then it is worse than no line at all.
+  const parallel = await parallelLines(root, useColorGlobal)
+  for (const l of parallel) console.log(l)
 
   // Domain register — generated, never stored. AGENTS.md §1 step 6 tells an
   // agent to open "the one domain file your task belongs to", and until now
@@ -362,4 +373,39 @@ function openDecisionLines(ctx, now, useColor) {
 async function pathExists(absPath) {
   try { await fs.access(absPath); return true }
   catch { return false }
+}
+
+/**
+ * The `Parallel:` block — presence and journal, rendered for `truss status`.
+ *
+ * Everything git-shaped stays in this command layer (same reason as the branch
+ * line): the check engine is hermetic and must not learn to run git.
+ *
+ * Never throws and never changes the exit code. Returns [] when there is
+ * nothing to say, which is the normal case for a single session.
+ *
+ * @returns {Promise<string[]>} lines to print
+ */
+async function parallelLines(root, useColor) {
+  try {
+    // The workspace repo — the tree whose index and HEAD the sessions share.
+    const changed = await gitChangedPaths(root)
+    const head = await recentCommits(root, 1)
+    const obs = await observe(root, {
+      head: head.ok ? (head.commits[0]?.sha ?? null) : null,
+      dirty: changed.ok ? changed.paths : [],
+    })
+    const lines = presenceLines(obs, {
+      lockAgeMs: await indexLockAge(root),
+      gitAvailable: changed.ok,
+    })
+    if (lines.length === 0) return []
+
+    const yel = useColor ? '\x1b[33m' : '', rst = useColor ? '\x1b[0m' : ''
+    return lines.map((l, i) =>
+      i === 0 ? `  ${yel}Parallel:${rst} ${l}` : `           ${l}`)
+  } catch {
+    // A presence layer that can break `truss status` would be worse than none.
+    return []
+  }
 }
