@@ -1,0 +1,122 @@
+// tests/suppress.test.mjs — silencing one info finding on one file (TF-008/D-096).
+//
+// The mechanism's value is entirely in its limits: it must silence the finding
+// somebody deliberately answered, and nothing else. Each test below pins one
+// limit, because a suppression that reaches further than intended is worse than
+// the noise it replaces — it hides a real finding while looking like housekeeping.
+
+import test from 'node:test'
+import assert from 'node:assert/strict'
+
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { suppressionsIn, applySuppressions, SUPPRESSIBLE } from '../lib/suppress.mjs'
+import { loadWorkspace } from '../lib/workspace.mjs'
+import { runAllChecks } from '../lib/run-checks.mjs'
+import { runInit } from '../lib/commands/init.mjs'
+import { makeRoot } from './helpers.mjs'
+
+const ctxWith = (files) => ({
+  files: new Map(Object.entries(files).map(([rel, text]) => [rel, { lines: text.split('\n') }])),
+})
+const finding = (over) => ({ id: 'ST-05', severity: 'I', file: 'context/grammar.md', message: 'too long', ...over })
+
+test('a marker names the check and carries a reason', () => {
+  const found = suppressionsIn([
+    '# Grammar',
+    '<!-- truss: st-05 ok — grammar table; splitting it would break the format -->',
+  ])
+  assert.equal(found.get('ST-05'), 'grammar table; splitting it would break the format')
+})
+
+test('a marker without a reason does not count', () => {
+  // An unexplained suppression is the state this mechanism exists to prevent.
+  for (const line of ['<!-- truss: st-05 ok -->', '<!-- truss: st-05 ok — -->']) {
+    assert.equal(suppressionsIn([line]).size, 0, line)
+  }
+})
+
+test('a marker inside a fenced block is documentation, not a decision', () => {
+  const found = suppressionsIn([
+    'Write it like this:',
+    '```markdown',
+    '<!-- truss: st-05 ok — why it is fine -->',
+    '```',
+  ])
+  assert.equal(found.size, 0)
+})
+
+test('the marker silences that finding on that file', () => {
+  const ctx = ctxWith({
+    'context/grammar.md': '<!-- truss: st-05 ok — the table is the format -->\n# Grammar\n',
+  })
+  const { kept, suppressed } = applySuppressions([finding()], ctx)
+  assert.equal(kept.length, 0)
+  assert.equal(suppressed.length, 1)
+  assert.equal(suppressed[0].suppressedBy, 'the table is the format')
+})
+
+test('it does not reach past its own file', () => {
+  // The path is the scope — that is the whole difference to acking a check
+  // globally, which would also silence the file that really is too big.
+  const ctx = ctxWith({
+    'context/grammar.md': '<!-- truss: st-05 ok — the table is the format -->\n',
+    'context/other.md': '# Other\n',
+  })
+  const { kept } = applySuppressions([finding({ file: 'context/other.md' })], ctx)
+  assert.equal(kept.length, 1, 'a different file keeps its finding')
+})
+
+test('it does not reach past its own check id', () => {
+  const ctx = ctxWith({ 'context/grammar.md': '<!-- truss: st-05 ok — reason -->\n' })
+  const { kept } = applySuppressions([finding({ id: 'SY-07' })], ctx)
+  assert.equal(kept.length, 1)
+})
+
+test('warnings and errors are never suppressible', () => {
+  // `doctor` exits non-zero at W: a warning is by definition something to act on.
+  assert.deepEqual([...SUPPRESSIBLE], ['I'])
+  const ctx = ctxWith({ 'context/grammar.md': '<!-- truss: st-05 ok — reason -->\n' })
+  for (const severity of ['W', 'E']) {
+    const { kept, suppressed } = applySuppressions([finding({ severity })], ctx)
+    assert.equal(kept.length, 1, `${severity} must survive a marker`)
+    assert.equal(suppressed.length, 0)
+  }
+})
+
+test('a finding about a file the workspace never loaded is untouched', () => {
+  const { kept } = applySuppressions([finding({ file: 'not/loaded.md' })], ctxWith({}))
+  assert.equal(kept.length, 1)
+})
+
+
+// End to end, through the funnel every family's findings pass: the point of
+// wiring this into run-checks rather than into each check is that no check has
+// to know the mechanism exists.
+test('a marker survives the whole doctor pipeline, and the run still reports it', async () => {
+  const root = await makeRoot('truss-suppress-e2e-')
+  try {
+    await runInit(root, ['--name', 'Suppress', '--lang', 'English'])
+    const long = '# Long\n\n' + Array(500).fill('a line of prose').join('\n') + '\n'
+    await fs.mkdir(path.join(root, 'context'), { recursive: true })
+    await fs.writeFile(path.join(root, 'context', 'grammar.md'), long)
+
+    const before = await runAllChecks(await loadWorkspace(root))
+    assert.ok(
+      before.findings.some(f => f.id === 'ST-05' && f.file?.startsWith('context/grammar.md')),
+      'precondition: the long file is reported',
+    )
+    assert.equal(before.suppressed.length, 0)
+
+    await fs.writeFile(path.join(root, 'context', 'grammar.md'),
+      '<!-- truss: st-05 ok — reference table, splitting it would break the format -->\n' + long)
+
+    const after = await runAllChecks(await loadWorkspace(root))
+    assert.ok(
+      !after.findings.some(f => f.id === 'ST-05' && f.file?.startsWith('context/grammar.md')),
+      'the answered finding stops printing',
+    )
+    assert.equal(after.suppressed.length, 1, 'and the run still counts it')
+    assert.equal(after.exitCode, before.exitCode, 'silencing an info never changes the exit code')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})

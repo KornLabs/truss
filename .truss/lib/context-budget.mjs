@@ -44,6 +44,15 @@ export const ERROR_TOKENS = 30000
 // proposed — a task-dependent step this metric cannot and must not assume. A
 // workspace that has never run `truss render` has no index file, so nothing is
 // counted in its place; ST-10 is what reports that state.
+// This is the FALLBACK and the reference set, no longer the measurement itself:
+// `bootFilesFrom()` below reads the real list out of AGENTS.md §1. A fixed list
+// measured a fixed six paths, so a workspace that split a boot file into two
+// lowered the number without lowering what a session loads — splitting became
+// the most effective way to quiet CX-01 and the only one that improved nothing
+// (D-095, from an external report that documented exactly that). This list stays
+// for two jobs: it is what a workspace measures against when its §1 cannot be
+// read, and it is the "what the old measurement saw" reference that keeps a
+// previously green instance from turning red on the release that changes this.
 export const CONTEXT_FILES = [
   'AGENTS.md',
   'state/current.md',
@@ -52,6 +61,62 @@ export const CONTEXT_FILES = [
   'state/open-decisions.md',
   'state/profile.md',
 ]
+
+/** A §1 mention that is a shape, not a file: templates, globs, placeholders. */
+const PLACEHOLDER_PATH = /NNN|[<>*?]|\.\.\./
+
+/**
+ * The boot files AGENTS.md §1 actually names, in load order.
+ *
+ * Anchored on the SECTION NUMBER (`## 1 …`), the same way parseStructureTable
+ * finds §2 — the heading text is translatable, the number is the contract. Every
+ * inline-code span in the section that looks like a workspace path counts;
+ * placeholders (`state/decisions/D-NNN.md`, `<domain>.md`) do not, because they
+ * name a shape rather than a file. AGENTS.md is added unconditionally: step 1
+ * says "this file" and never spells the name.
+ *
+ * `ok:false` means "do not use this" — the caller falls back to CONTEXT_FILES
+ * and says so. The bar is deliberately crude (a §1 that yields almost nothing is
+ * a §1 this parser did not understand, whatever the reason): the failure that
+ * matters is the silent one, where a reworded §1 quietly shrinks the metric that
+ * backs the "constant boot" promise. Better to measure the shipped list loudly
+ * than a derived list wrongly.
+ *
+ * @param {string[]} lines AGENTS.md, split
+ * @returns {{files: string[], ok: boolean, reason: string|null}}
+ */
+export function bootFilesFrom(lines) {
+  const off = (reason) => ({ files: [...CONTEXT_FILES], ok: false, reason })
+  if (!Array.isArray(lines) || lines.length === 0) return off('no-agents-md')
+
+  const start = lines.findIndex((l) => /^##\s+1\s/.test(l))
+  if (start === -1) return off('no-section-1')
+  let end = lines.length
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^##\s/.test(lines[i])) { end = i; break }
+  }
+
+  const files = ['AGENTS.md']
+  const seen = new Set(files)
+  for (let i = start + 1; i < end; i++) {
+    for (const m of lines[i].matchAll(/`([^`]+)`/g)) {
+      const token = m[1].trim()
+      if (!token || PLACEHOLDER_PATH.test(token)) continue
+      // A path, not prose in backticks: a markdown file, or something under a
+      // directory. Trailing-slash directories name a place, not a loaded file.
+      if (!/\.md$/.test(token) && !token.includes('/')) continue
+      if (token.endsWith('/')) continue
+      if (seen.has(token)) continue
+      seen.add(token)
+      files.push(token)
+    }
+  }
+
+  // Three is "§1 named the file itself plus at least two others" — below that
+  // the section did not parse as a load order at all.
+  if (files.length < 3) return off('too-few-paths')
+  return { files, ok: true, reason: null }
+}
 
 export const wordCount = (content) => (content.trim().match(/\S+/g) || []).length
 export const toTokens  = (words) => Math.round(words * TOKENS_PER_WORD)

@@ -295,6 +295,38 @@ is for. Without it, `ST-02` reports every new file inside the directory
 separately, because a row registers its parent directories but never its
 children.
 
+## Silencing a finding you have answered
+
+Some info findings are correct in general and wrong for one file. `ST-05` says a
+file over 450 lines should be split; a reference table or an archived document is
+one where splitting would be the wrong move. A finding you intend to ignore
+forever costs more than no finding at all — it lowers the attention every other
+finding gets.
+
+Write one line in the file the finding is about:
+
+```markdown
+<!-- truss: st-05 ok — reference table; splitting it would break the format -->
+```
+
+`doctor` then stops printing that finding for that file and reports how many it
+silenced, so suppressions stay visible without being noisy.
+
+Three limits, on purpose:
+
+- **Info findings only.** A warning or an error is something to act on — `doctor`
+  already exits non-zero at a warning.
+- **The reason is required.** A marker without one is ignored. A silenced finding
+  nobody explained is an unexplained exception to the next reader, which is the
+  state this is meant to prevent.
+- **It reaches exactly one file and one check.** Silencing `ST-05` here leaves the
+  file that really is too big still reported.
+
+The reason belongs next to the thing it justifies, which is why this is a line in
+the file rather than an entry in a central ignore list. `.trussignore` is a
+different tool: it removes a path from the map and from *every* check, for
+foreign or bulk data that was never workspace content.
+
 ## Profile
 
 `state/profile.md` is boot context, read every session — a config sheet, not a

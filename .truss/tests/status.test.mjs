@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import test from 'node:test'
+import { execFileSync } from 'node:child_process'
 
 import { runInit } from '../lib/commands/init.mjs'
 import { runStatus } from '../lib/commands/status.mjs'
@@ -184,6 +185,65 @@ test('status stays silent when nothing is on the human`s desk', async () => {
   try {
     await runInit(root, ['--name', 'Quiet', '--lang', 'English'])
     assert.doesNotMatch(await captureStatus(root), /ToDo:/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+// The number beside an HT entry is DERIVED, not a field: adding `Opened:` to the
+// class would move the file grammar for something git already knows. It is
+// labelled `idle` because blame reports the last commit that TOUCHED the line —
+// re-word an entry and its clock restarts — while the OD block right below it
+// prints a real age from `Opened:`.
+test('status shows how long an HT entry has sat untouched, longest first', async () => {
+  const root = await makeRoot('truss-status-ht-idle-')
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' })
+  // helpers.mjs disables git reads suite-wide so the checks stay hermetic; this
+  // test is specifically about the one status block that reads git.
+  const priorNoGit = process.env.TRUSS_NO_GIT
+  delete process.env.TRUSS_NO_GIT
+  try {
+    await runInit(root, ['--name', 'Idle', '--lang', 'English'])
+    git('init', '-q')
+    git('config', 'user.email', 't@example.com')
+    git('config', 'user.name', 'T')
+
+    const iso = (daysAgo) =>
+      new Date(Date.now() - daysAgo * 86_400_000).toISOString()
+
+    // Two commits, two author dates: the old entry must outrank the fresh one.
+    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'),
+      '# Human ToDos\n\n- [ ] HT-001 — the forgotten one\n')
+    git('add', 'HUMAN-TODOS.md')
+    git('commit', '-q', '--date', iso(40), '-m', 'ht: first')
+
+    await fs.appendFile(path.join(root, 'HUMAN-TODOS.md'),
+      '- [ ] HT-002 — written just now\n')
+    git('add', 'HUMAN-TODOS.md')
+    git('commit', '-q', '--date', iso(1), '-m', 'ht: second')
+
+    const out = await captureStatus(root)
+    assert.match(out, /HT-001 — the forgotten one {2}\(idle 40d\)/)
+    assert.match(out, /HT-002 — written just now {2}\(idle 1d\)/)
+    assert.ok(
+      out.indexOf('HT-001') < out.indexOf('HT-002'),
+      'the entry nobody has touched must not be the one the cap drops',
+    )
+  } finally {
+    if (priorNoGit !== undefined) process.env.TRUSS_NO_GIT = priorNoGit
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+// No git, no ages — and above all no crash and no block missing. A workspace
+// that is not a checkout is a supported configuration, not a degraded one.
+test('the ToDo block works without a git checkout, just without idle times', async () => {
+  const root = await makeRoot('truss-status-ht-nogit-')
+  try {
+    await runInit(root, ['--name', 'No git', '--lang', 'English'])
+    await fs.writeFile(path.join(root, 'HUMAN-TODOS.md'),
+      '# Human ToDos\n\n- [ ] HT-001 — still listed\n')
+    const out = await captureStatus(root)
+    assert.match(out, /HT-001 — still listed/)
+    assert.doesNotMatch(out, /idle/)
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
 
