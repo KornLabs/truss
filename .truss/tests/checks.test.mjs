@@ -1051,6 +1051,21 @@ describe('ST-02 fix text names the summary-row escape', () => {
   })
 })
 
+// A git system file is not unmanaged workspace content. `.gitattributes` was the
+// one missing from that list, so every adopter whose repo has one — and most do —
+// carried a permanent ST-02 they could only clear by inventing a table row for it.
+describe('ST-02 treats .gitattributes like the other git system files', () => {
+  it('does not report it as an unmanaged path', async () => {
+    const root = await makeRoot('truss-st02-gitattributes-')
+    try {
+      await runInit(root, ['--name', 'Attrs', '--lang', 'English'])
+      await fs.writeFile(path.join(root, '.gitattributes'), '* text=auto\n')
+      const st02 = (await st.run(await loadWorkspace(root))).filter(f => f.id === 'ST-02')
+      assert.equal(st02.length, 0, JSON.stringify(st02))
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+})
+
 // ── CX-01 says what it counted ──────────────────────────────────────────────
 // Half of the answer to a metric that could be gamed: the message names every
 // file it summed, so the basis is on screen. The other half is that the basis

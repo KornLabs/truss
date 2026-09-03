@@ -61,6 +61,10 @@ const DISK_EXCLUDE = new Set([
   'state/decisions.md',
   'LICENSE',
   '.gitignore',
+  // Same class as .gitignore: a git system file, not workspace content. Its
+  // absence here made every adopter whose repo has one — most of them — carry a
+  // permanent ST-02, including anyone who ran `init` inside the Truss repo.
+  '.gitattributes',
   '.trussignore',
   '.prettierrc',
   '.env.example',
@@ -169,6 +173,7 @@ export async function run(ctx) {
   knownPaths.add('.github/');       // parent dir of copilot stub
   knownPaths.add('LICENSE');
   knownPaths.add('.gitignore');
+  knownPaths.add('.gitattributes');
   knownPaths.add('.trussignore');
   knownPaths.add('.prettierrc');
   knownPaths.add('.env.example');
