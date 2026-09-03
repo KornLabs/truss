@@ -1121,6 +1121,19 @@ describe('CX-01 measures the load order this workspace declares', () => {
     assert.ok(f[0].message.includes('state/extra.md'), 'and it must say which file is new')
   })
 
+  it('never softens an error-band measurement, however new the files are', async () => {
+    // The promise is "our change does not turn a green instance red", not "we
+    // hide what the new measurement finds". `ackVerdict` refuses to downgrade an
+    // E for the same reason.
+    const f = ids(await cx.run(ctxOf({
+      'AGENTS.md': file(SECTION_1('VISION.md', 'state/extra.md')),
+      'VISION.md': file(big(9000)),
+      'state/extra.md': file(big(13000)),
+    })), 'CX-01')
+    assert.equal(f.length, 1)
+    assert.equal(f[0].severity, 'E')
+  })
+
   it('is a real warning again once the long-counted files alone exceed the band', async () => {
     const f = ids(await cx.run(ctxOf({
       'AGENTS.md': file(SECTION_1('VISION.md', 'state/extra.md')),
