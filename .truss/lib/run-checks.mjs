@@ -75,6 +75,12 @@ export async function runAllChecks(ctx) {
   // A file may silence one info finding about itself, with a reason written in
   // it (lib/suppress.mjs). Applied here, in the one place every family's
   // findings pass through, so no check has to know the mechanism exists.
+  //
+  // BEFORE dedupe, deliberately. Dedupe collapses N occurrences into one
+  // representative that carries only the FIRST location, so suppressing
+  // afterwards would either drop every occurrence because the representative's
+  // file happened to carry a marker, or keep them all because it did not. Per
+  // occurrence, each finding is still attributed to the file it is about.
   const { kept, suppressed } = applySuppressions(allFindings, ctx)
   allFindings.length = 0
   allFindings.push(...kept)
