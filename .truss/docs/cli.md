@@ -158,6 +158,24 @@ commits, subject truncated to one line each. It replaced the hand-maintained
 information, current and without upkeep. Outside a git repository the block is
 simply absent, and the exit code is unaffected.
 
+When more than one agent session is working in the same tree, a **Parallel**
+block reports what the current session cannot see for itself (D-101): how many
+sessions are live, which paths were already uncommitted when this one began,
+what moved since its own last `truss` run, and whether a `.git/index.lock` is
+present. It is **visibility, not coordination** — nothing is locked, claimed or
+queued, and the exit code never changes, so `doctor --gate` cannot start failing
+because a colleague is present. Silent whenever there is nothing to say, which
+is the normal case for a single session in a quiet tree.
+
+It needs no cleanup command. Each session's record lives under
+`.truss/out/presence/` (gitignored), and **reading is the cleanup**: a record
+whose process is gone is removed by the next read, by whichever session reads
+first. A session that is merely hung keeps its record — it is still present, and
+dropping it would under-report. On Windows the process ancestry is not
+available, so no session count is printed rather than a wrong one; the rest of
+the block still works. `TRUSS_NO_PRESENCE=1` turns the whole layer off, the way
+`TRUSS_NO_GIT=1` turns off git.
+
 `status` closes with an **Open** block whenever `state/open-decisions.md` holds
 entries: each `OD-NNN` with its title, its age in days, and — when a decision
 carries a `Challenged-by:` marker — which decision it contests. Silent when
@@ -193,6 +211,13 @@ puts two formats in one stream — pick one per run if you are piping.
 
 **Exit codes** (useful in CI): `0` clean · `1` warnings only · `2` at least one
 error.
+
+The human-readable report ends with the same **Parallel** block `status` prints
+(D-101), reduced: it counts live sessions and compares the core state files by
+hash, and runs **no git at all** — `doctor` stays purely file-based, git lives in
+`status` alone. It reports and never changes the exit code. `--json`, `--html`
+and `--fix-prompt` return before it, so machine-readable output is never touched
+by it.
 
 **Silenced findings.** An info finding you have deliberately answered can be
 switched off for one file by writing the reason into that file:

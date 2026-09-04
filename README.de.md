@@ -29,7 +29,7 @@ Viele Tools geben Agenten ein Gedächtnis. Truss optimiert zwei Dinge: Das Gedä
 
 1. **Boot.** Der Agent liest eine Datei, `AGENTS.md`: was das Projekt ist, in welcher Phase es sich befindet, welche wenigen State-Dateien zu laden sind und wo alles Weitere liegt. Dieses Pflicht-Boot-Set umfasst etwa 3,2k geschätzte Tokens.
 2. **Arbeit.** Er zieht nur die Dateien heran, die die Aufgabe braucht. Eine generierte Map sagt ihm, wo er nachschauen muss — er weiß es bereits, statt zu suchen.
-3. **Festhalten.** Sobald ein Stück Arbeit fertig ist, hält er kurz fest, was sich geändert hat: Fokus und nächste Schritte in `state/current.md`, Entscheidungen in `state/decisions.md`, Änderungen an Vision und Idee in `VISION.md`.
+3. **Festhalten.** Sobald ein Stück Arbeit fertig ist, hält er kurz fest, was sich geändert hat: Fokus und nächste Schritte in `state/current.md`, Entscheidungen in `state/decisions/`, Änderungen an Vision und Idee in `VISION.md`.
 
 Die nächste Session setzt exakt dort an. Truss baut auf der offenen [AGENTS.md](https://agents.md)-Konvention auf; Claude Code, Cowork, Codex, Gemini CLI, Copilot und Cursor booten alle aus derselben Datei.
 
@@ -42,8 +42,10 @@ Das Herz der Boot-Datei ist ihre Load-Order. Das ist der echte §1, den ein Agen
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
 4. `state/profile.md` — project language, tools, style.
-5. `state/decisions.md` — before making or proposing any decision;
-   `state/open-decisions.md` (if present) when the task touches an open question.
+5. `state/decisions-index.md` — always: every decision's title and status.
+   Then the bodies your task touches (`state/decisions/D-NNN.md`), and all of
+   them before making or proposing any decision. `state/open-decisions.md`
+   when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to.
 
 Load the smallest context that can answer the task. Stop as soon as it is
@@ -52,7 +54,7 @@ unambiguous.
 
 ## Was Truss dir bringt
 
-**Ein Projekt, das sich erinnert:** `VISION.md` ist der Anker — Problem, Idee, Prinzipien, Constraints —, von jedem Agenten einmal pro Session gelesen. Rolle und Ziel des Projekts hängen damit nie von deinem Prompt ab. Drumherum halten State-Dateien den aktuellen Fokus, jede Entscheidung samt Begründung, offene Fragen und die Phase, in der du bist — jede in ihrer eigenen Datei mit definierter Form. `state/decisions.md` wird supersedet, nie gelöscht: Du kannst nachvollziehen, warum das Projekt so ist, wie es ist.
+**Ein Projekt, das sich erinnert:** `VISION.md` ist der Anker — Problem, Idee, Prinzipien, Constraints —, von jedem Agenten einmal pro Session gelesen. Rolle und Ziel des Projekts hängen damit nie von deinem Prompt ab. Drumherum halten State-Dateien den aktuellen Fokus, jede Entscheidung samt Begründung, offene Fragen und die Phase, in der du bist — jede in ihrer eigenen Datei mit definierter Form. Eine Entscheidung wird supersedet, nie gelöscht: Du kannst nachvollziehen, warum das Projekt so ist, wie es ist.
 
 **Ein Agent, der weiß, wo alles liegt:** Die Routing-Tabelle der Boot-Datei und eine generierte `state/map.md` (mit Token-Schätzung pro Datei) sagen dem Agenten, welche Datei was enthält. Er öffnet, was die Aufgabe braucht, und sonst nichts — statt das Repo in jeder Session neu zu scannen.
 
