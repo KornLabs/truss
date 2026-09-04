@@ -12,14 +12,6 @@ repeated here** — it is the class table in [schema.md](schema.md), and that ta
 is what `doctor` reads. Add a class there and it is checked; change a field there
 and SY-03 follows. This file says how to *use* the classes well.
 
-**An ID from someone else's workspace goes in inline code.** Two Truss
-workspaces share the grammar and therefore the ID namespace: quoting another
-instance's `D-014` reads as a reference to *your* D-014, and RF-02 warns about
-a definition you were never meant to write. Backticks make it a quotation — the
-parser skips inline code — so write `` `D-014` `` and name whose it is where the
-sentence does not already say. This is the one case where an ID with no
-definition is correct rather than a gap to fill.
-
 ## Entry grammars
 
 The templates below are the written form of the classes in
