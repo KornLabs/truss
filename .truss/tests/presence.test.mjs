@@ -1,4 +1,4 @@
-// .truss/tests/presence.test.mjs — parallel-session visibility (D-095).
+// .truss/tests/presence.test.mjs — parallel-session visibility (D-101).
 //
 // What is locked here is the set of properties the mechanism was built for, and
 // every one of them is a way it could rot instead:
@@ -12,7 +12,7 @@
 //   5. Silence when there is nothing to say. A line on every run is noise, and
 //      noise is how a finding stops being read.
 
-import { describe, it } from 'node:test'
+import { describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -53,9 +53,26 @@ describe('liveness predicate', () => {
     assert.equal(alive(DEAD_PID), false)
   })
 
-  it('treats EPERM as ALIVE — pid 1 exists but cannot be signalled', () => {
+  it('treats EPERM as ALIVE — a process it may not signal is still a process', () => {
     // The whole point: a naive try/catch would call this dead and silently drop
-    // every session belonging to another user.
+    // every session belonging to another user. Under-reporting is the dangerous
+    // direction, so this branch is asserted directly rather than through a pid
+    // that happens to be unsignallable — no such pid exists on every platform
+    // (Windows has no pid 1), and a test that only runs on the author's machine
+    // is the exact failure L-015 records.
+    mock.method(process, 'kill', () => {
+      throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' })
+    })
+    try {
+      assert.equal(alive(process.pid), true)
+    } finally {
+      mock.restoreAll()
+    }
+  })
+
+  it('treats a real unsignallable process as alive (POSIX only — pid 1 is init)', { skip: process.platform === 'win32' ? 'no pid 1 on Windows' : false }, () => {
+    // Guards the assumption the mock above encodes: that the kernel really does
+    // answer EPERM here, not something else.
     assert.equal(alive(1), true)
   })
 
