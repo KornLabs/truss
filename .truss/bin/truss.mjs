@@ -252,7 +252,8 @@ Init flags:
 Doctor flags:
   --gate        also run PH-04 phase-exit checks
   --html        write report as HTML to .truss/out/doctor.html
-  --json        write report as JSON to .truss/out/doctor.json
+  --json        print the report as JSON on stdout (and write it to
+                .truss/out/doctor.json)
   --fix-prompt  output a copyable remediation prompt for all findings
 
 Exit codes: 0 = clean · 1 = warnings only · 2 = errors present
