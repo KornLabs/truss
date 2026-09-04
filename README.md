@@ -90,7 +90,7 @@ Run these commands:
 # In an empty or existing project directory:
 
 # 1. Drop the engine in — just the .truss/ folder, nothing else.
-git clone --depth 1 --branch v1.0.0-rc.2 https://github.com/KornLabs/truss.git /tmp/truss
+git clone --depth 1 --branch v1.0.0-rc.3 https://github.com/KornLabs/truss.git /tmp/truss
 cp -R /tmp/truss/.truss ./.truss && rm -rf /tmp/truss
 
 # 2. Scaffold a fresh workspace next to the engine.
@@ -109,7 +109,7 @@ node .truss/bin/truss.mjs doctor
 # In an empty or existing project directory:
 
 # 1. Drop the engine in.
-git clone --depth 1 --branch v1.0.0-rc.2 https://github.com/KornLabs/truss.git $env:TEMP\truss
+git clone --depth 1 --branch v1.0.0-rc.3 https://github.com/KornLabs/truss.git $env:TEMP\truss
 Copy-Item -Recurse $env:TEMP\truss\.truss .\.truss
 Remove-Item -Recurse -Force $env:TEMP\truss
 
@@ -240,7 +240,7 @@ Issues and pull requests are welcome. Keep the **zero-dependency** rule intact, 
 
 ## Status
 
-`1.0.0-rc.2` — alpha, and the version number is the honest part.
+`1.0.0-rc.3` — alpha, and the version number is the honest part.
 
 What is verified: the engine has a test suite that runs green in CI on every push, and Truss is in daily use on exactly one project — its own development. That is real usage, and it is a single data point.
 
