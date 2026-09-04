@@ -12,6 +12,39 @@ if (_maj < 20) {
   )
   process.exit(1)
 }
+
+// ── exitFlushed: process.exit() does not flush stdout ────────────────────────
+// On a TTY stdout is synchronous, so exiting straight after printing is safe.
+// On a POSIX **pipe** it is not: writes are queued and handed to the OS by
+// libuv, and process.exit() drops whatever is still queued. Output longer than
+// what the pipe accepted is cut mid-byte, with no error anywhere and a zero exit
+// code — the reader gets a truncated document and no way to know.
+//
+// Measured, not deduced. `doctor --json` on a workspace with a 182 KB report,
+// read by a consumer that had not started reading yet: 181526 bytes were still
+// queued when exit was called, and 50454 of them never arrived. In CI it hit the
+// small end of the same effect — a 9562-byte report cut at 8157 ("Unterminated
+// string in JSON at position 8157", macOS/Node 20, run 33825489580). Linux has a
+// larger pipe and hid it; the bug was never macOS's.
+//
+// The trade-off, stated plainly: against a consumer that never reads, this
+// blocks where the old code exited. That is what every well-behaved Unix tool
+// does on a full pipe, and it is the safe direction — silently losing 50 KB is
+// not. A timeout here would only make the truncation rarer, never correct.
+// Against a normal consumer nothing changes: same bytes, same exit code,
+// verified byte-for-byte against the on-disk report.
+//
+// So every command that ends by calling exit goes through here — that is the
+// class, and `tests/stdout-flush.test.mjs` keeps it that way. The Node version
+// guard above is the one exception: it must stay CJS-safe, runs before anything
+// else, and writes ~100 bytes to stderr.
+async function exitFlushed(code) {
+  for (const s of [process.stdout, process.stderr]) {
+    if (s.writableLength > 0) await new Promise((done) => s.write('', done))
+  }
+  process.exit(code)
+}
+
 //
 // M2: doctor (ST/BL/RF checks) + --fix-prompt + --json + exit codes
 // M3: render, set, --gate, PH checks
@@ -255,7 +288,7 @@ async function runDoctor(flags) {
     ctx = await loadWorkspace(root)
   } catch (err) {
     console.error(`truss doctor: failed to load workspace — ${err.message}`)
-    process.exit(2)
+    await exitFlushed(2)
   }
 
   ctx.gate = gate  // PH-04 reads this
@@ -282,7 +315,7 @@ async function runDoctor(flags) {
       await fs.mkdir(outDir, { recursive: true })
       await fs.writeFile(outFile, json, 'utf8')
       console.error('Report written to .truss/out/doctor.json')
-      process.exit(0)
+      await exitFlushed(0)
     }
     if (wantHtml) {
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>truss doctor</title>
@@ -296,15 +329,15 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       await fs.mkdir(outDir, { recursive: true })
       await fs.writeFile(outFile, html, 'utf8')
       console.error('Report written to .truss/out/doctor.html')
-      process.exit(0)
+      await exitFlushed(0)
     }
     if (wantFixPrompt) {
       console.log('This folder is not a Truss workspace yet. Run `truss init` to get started.')
-      process.exit(0)
+      await exitFlushed(0)
     }
     // Human-readable default
     console.log(`\n${msg}\n`)
-    process.exit(0)
+    await exitFlushed(0)
   }
 
   // Loading, running, sorting and deduping live in lib/run-checks.mjs so that
@@ -378,11 +411,11 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       }
       console.log(lines.join('\n'))
     }
-    process.exit(exitCode)
+    await exitFlushed(exitCode)
   }
 
   // JSON/HTML report modes are non-interactive: exit once the file(s) are written.
-  if (wantJson || wantHtml) process.exit(exitCode)
+  if (wantJson || wantHtml) await exitFlushed(exitCode)
 
   // ── Human-readable output ────────────────────────────────────────────────
   const now = new Date().toISOString().replace('T', ' ').slice(0, 16)
@@ -460,7 +493,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
     }
   } catch { /* never let the presence layer take doctor down */ }
 
-  process.exit(exitCode)
+  await exitFlushed(exitCode)
 }
 
 // ── render ────────────────────────────────────────────────────────────────────
@@ -475,7 +508,7 @@ async function runAck(args) {
   const target = args[0]
   if (target !== 'context') {
     console.error(`truss ack: unknown target '${target ?? ''}'. Usage: truss ack context [--note "…"] [--clear]`)
-    process.exit(1)
+    await exitFlushed(1)
   }
 
   const { writeContextAck, clearContextAck, ACK_HEADROOM, ACK_REL_PATH } = await import('../lib/context-ack.mjs')
@@ -490,7 +523,7 @@ async function runAck(args) {
       // Never report a failed delete as "nothing to clear": the baseline would
       // still be silencing the warning while the human believes it is gone.
       console.error(`truss ack: could not remove ${ACK_REL_PATH} — the baseline is STILL in effect. Delete the file manually.`)
-      process.exit(2)
+      await exitFlushed(2)
     }
     return
   }
@@ -512,7 +545,7 @@ async function runAck(args) {
   }
   if (tokens >= ERROR_TOKENS) {
     console.error(`truss ack: boot context ≈ ${tokens} tokens is at or above the ${ERROR_TOKENS} error band — an ack does not silence an error. Trim it first (\`cleanup\` prompt).`)
-    process.exit(1)
+    await exitFlushed(1)
   }
 
   const noteIdx = args.indexOf('--note')
@@ -535,7 +568,7 @@ async function runRender() {
     ctx = await loadWorkspace(root)
   } catch (err) {
     console.error(`truss render: failed to load workspace — ${err.message}`)
-    process.exit(2)
+    await exitFlushed(2)
   }
 
   await renderPhaseInto(ctx)
@@ -551,7 +584,7 @@ async function renderDecisionsIndex() {
     result = await writeIndex(root)
   } catch (err) {
     console.error(`truss render: failed to write ${INDEX_REL} — ${err.message}`)
-    process.exit(2)
+    await exitFlushed(2)
   }
   if (result === null) {
     console.log(`truss render: no decision log (${DECISIONS_DIR}/ or ${SOURCE_REL}) — index not written.`)
@@ -583,13 +616,13 @@ async function renderPhaseInto(ctx) {
     if (phasesPresent) {
       console.error('truss render: state/phases.md exists but could not be read — the phase block was left unchanged.')
       console.error('  Make it a readable UTF-8 file, or remove it to run this workspace without a phase model.')
-      process.exit(2)
+      await exitFlushed(2)
     }
     try {
       await writeBlock(agentsMdPath, 'phase', renderNoPhasesBlock())
     } catch (err) {
       console.error(`truss render: failed to write block — ${err.message}`)
-      process.exit(2)
+      await exitFlushed(2)
     }
     console.log('truss render: no state/phases.md — phase block set to the no-phases notice.')
     console.log('  Add state/phases.md (e.g. from .truss/phase-profiles/) and re-run to enable phases.')
@@ -602,7 +635,7 @@ async function renderPhaseInto(ctx) {
   if (!currentId || !defs.has(currentId)) {
     const known = [...defs.keys()].join(', ')
     console.error(`truss render: current phase '${currentId}' not found in phases.md (defined: ${known})`)
-    process.exit(2)
+    await exitFlushed(2)
   }
 
   const phaseDef = defs.get(currentId)
@@ -615,7 +648,7 @@ async function renderPhaseInto(ctx) {
     console.log(`truss render: phase block updated (${currentId}, ${position}/${total})`)
   } catch (err) {
     console.error(`truss render: failed to write block — ${err.message}`)
-    process.exit(2)
+    await exitFlushed(2)
   }
 }
 
@@ -624,14 +657,14 @@ async function runSet(keyArg, valueArg) {
   if (!keyArg || !valueArg) {
     console.error('Usage: truss set <key> <value>')
     console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
-    process.exit(1)
+    await exitFlushed(1)
   }
 
   // Validate key
   if (!CATALOG_KEYS.has(keyArg)) {
     console.error(`truss set: unknown key '${keyArg}'`)
     console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
-    process.exit(1)
+    await exitFlushed(1)
   }
 
   // Validate value
@@ -639,14 +672,14 @@ async function runSet(keyArg, valueArg) {
   if (isFree) {
     if (!isValidFreeValue(valueArg)) {
       console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}' (expected 'off' or a short word)`)
-      process.exit(1)
+      await exitFlushed(1)
     }
   } else {
     const validValues = CATALOG_KEYS.get(keyArg)
     if (!validValues.has(valueArg)) {
       console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}'`)
       console.error(`Valid values: ${[...validValues].join(', ')}`)
-      process.exit(1)
+      await exitFlushed(1)
     }
   }
 
@@ -667,7 +700,7 @@ async function runSet(keyArg, valueArg) {
     if (!behaviorText) {
       console.error(`truss set: no behavior template found for '${keyArg}/${valueArg}'`)
       console.error(`Expected at: .truss/prefs/${keyArg}/${valueArg}.md`)
-      process.exit(2)
+      await exitFlushed(2)
     }
   }
 
@@ -677,7 +710,7 @@ async function runSet(keyArg, valueArg) {
     ctx = await loadWorkspace(root)
   } catch (err) {
     console.error(`truss set: failed to load workspace — ${err.message}`)
-    process.exit(2)
+    await exitFlushed(2)
   }
 
   const prefsBlock = ctx.blocks?.get('preferences')
@@ -717,7 +750,7 @@ async function runSet(keyArg, valueArg) {
     }
   } catch (err) {
     console.error(`truss set: failed to write block — ${err.message}`)
-    process.exit(2)
+    await exitFlushed(2)
   }
 }
 
@@ -751,17 +784,17 @@ const HANDLERS = {
 const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
-  showHelp(); process.exit(0)
+  showHelp(); await exitFlushed(0)
 }
 
 if (['--version', '-v', 'version'].includes(command)) {
-  console.log(`truss ${getVersion()}`); process.exit(0)
+  console.log(`truss ${getVersion()}`); await exitFlushed(0)
 }
 
 const handler = HANDLERS[command]
 if (!handler) {
   console.error(`truss: unknown command '${command}'. Run 'node .truss/bin/truss.mjs help'.`)
-  process.exit(1)
+  await exitFlushed(1)
 }
 
 // Argument gate (D-060). Every command validates its own flags here, from the
@@ -771,17 +804,17 @@ if (!handler) {
 const meta = COMMAND_BY_NAME.get(command)
 if (meta) {
   const verdict = inspectArgs(meta, args)
-  if (verdict.help) { showCommandHelp(meta); process.exit(0) }
+  if (verdict.help) { showCommandHelp(meta); await exitFlushed(0) }
   if (verdict.unknown) {
     console.error(`truss ${command}: unknown argument '${verdict.unknown}'.`)
     console.error(`Run 'node .truss/bin/truss.mjs ${command} --help'.`)
-    process.exit(1)
+    await exitFlushed(1)
   }
 }
 
 if (THROWS_TO_EXIT_2.has(command)) {
   try { await handler(args) }
-  catch (err) { console.error(err.message); process.exit(2) }
+  catch (err) { console.error(err.message); await exitFlushed(2) }
 } else {
   await handler(args)
 }
