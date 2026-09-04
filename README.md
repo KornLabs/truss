@@ -27,7 +27,7 @@ Many tools give agents a memory. Truss optimizes two: the memory has structure, 
 
 1. **Boot.** The agent reads one file, `AGENTS.md`: what the project is, which phase it is in, which few state files to load, and where everything else lives. This mandatory boot set is about 3.2k estimated tokens.
 2. **Work.** It pulls in only the files the task needs. A generated map tells it where everything lives, so it knows where to look instead of searching.
-3. **Record.** As each piece of work finishes, it briefly notes what changed: focus and next steps in `state/current.md`, decisions in `state/decisions.md`, changes to the vision or the idea in `VISION.md`.
+3. **Record.** As each piece of work finishes, it briefly notes what changed: focus and next steps in `state/current.md`, decisions in `state/decisions/`, changes to the vision or the idea in `VISION.md`.
 
 The next session picks up exactly there. Truss builds on the open [AGENTS.md](https://agents.md) convention; Claude Code, Cowork, Codex, Gemini CLI, Copilot, and Cursor all boot from the same file.
 
@@ -40,8 +40,10 @@ The heart of the boot file is its load order. This is the actual §1 an agent se
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
 4. `state/profile.md` — project language, tools, style.
-5. `state/decisions.md` — before making or proposing any decision;
-   `state/open-decisions.md` (if present) when the task touches an open question.
+5. `state/decisions-index.md` — always: every decision's title and status.
+   Then the bodies your task touches (`state/decisions/D-NNN.md`), and all of
+   them before making or proposing any decision. `state/open-decisions.md`
+   when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to.
 
 Load the smallest context that can answer the task. Stop as soon as it is
@@ -50,7 +52,7 @@ unambiguous.
 
 ## What Truss gives you
 
-**A project that remembers:** `VISION.md` anchors it — problem, idea, principles, constraints — read once by every agent, every session, so the project's role and goal never depend on your prompt. Around it, state files hold the current focus, every decision with its reasoning, open questions, and the phase you are in, each in its own file with a defined shape. `state/decisions.md` gets superseded, never deleted: you can trace why the project is the way it is.
+**A project that remembers:** `VISION.md` anchors it — problem, idea, principles, constraints — read once by every agent, every session, so the project's role and goal never depend on your prompt. Around it, state files hold the current focus, every decision with its reasoning, open questions, and the phase you are in, each in its own file with a defined shape. A decision gets superseded, never deleted: you can trace why the project is the way it is.
 
 **An agent that knows where things are:** The boot file's routing table and a generated `state/map.md` (with a token estimate per file) tell the agent which file holds what. It opens what the task needs and nothing else, instead of re-scanning the repo every session.
 
