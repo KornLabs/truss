@@ -57,20 +57,46 @@ Truss needs none of this. Nothing runs until a skill is installed and invoked.
 
 ## Known gaps
 
-Eleven references do not resolve. Both causes are upstream, and neither is invented shut:
+A skill ships **its own directory**. Anything it references outside that directory is
+an upstream-monorepo path and cannot resolve in a standalone install. That is the one
+rule behind both classes below, and it is why nothing is copied in to close a gap:
+reconstructing a layout upstream does not have would pull a chain of further sibling
+links behind it.
 
-- `composio-skill-creator` — `references/{api_docs,finance,mnda,policies,schema}.md`
+**Inside a skill's own directory — 9 targets, 11 occurrences, 4 skills.** This is the
+class the 2026-08-07 import broke; it stood at 167 before the repair.
+
+- `composio-skill-creator` (6) — `references/{api_docs,finance,mnda,policies,schema}.md`
   and `scripts/rotate_pdf.py` exist nowhere in the upstream repository.
-- `marketing-ads`, `-attribution`, `-copywriting`, `-marketing-loops`, `-marketing-plan`
-  each name one `references/*.md` that upstream keeps in a **sibling skill's** folder.
-  Those links resolve only in upstream's monorepo, never in a standalone install; the
-  file is not copied in, because that would invent a layout upstream does not have.
-- `ecc-api-patterns` is no longer findable upstream and stays in its 2026-08-07 state.
-  It has no references, so it has no dead link.
-- `ecc-architecture-decision-records` links three ADR filenames (`0001-use-nextjs.md` …)
-  inside an example register it prints as documentation. Illustrative, not shipped files.
-- 16 of `slop-diagrams`' script references are guarded by its own "maintainer-checkout
-  mode" and are reported as not applicable in an installed skill.
+- `marketing-attribution`, `-copywriting`, `-marketing-loops` (1 each) — one
+  `references/*.md` that upstream keeps in a sibling skill's folder.
+
+**Outside the skill's directory — 41 targets, 59 occurrences, 14 skills.**
+
+- Eleven `marketing-*` skills link `../../tools/REGISTRY.md` and
+  `../../tools/integrations/*.md` (43 occurrences). Upstream keeps a `tools/` tree at
+  its repository root, with 95 integration notes and 64 executable SaaS CLI wrappers.
+  Not imported: the wrappers need third-party API keys, which is what Truss exists
+  without, and the notes alone would leave `REGISTRY.md`'s own 64 links dead.
+- `marketing-ads` (6) and `marketing-offers` (1) link `../../ad-creative/SKILL.md`
+  and the like — repository-root paths where upstream keeps no such directory either
+  (its skills live under `skills/`). Broken upstream, not by this import.
+- `slop-hallmark` (2) links `../../docs/recipes.md` and `../../docs/study-examples.md`.
+- `superpowers-subagent-driven-development` (1) links
+  `../requesting-code-review/code-reviewer.md` — one of the five upstream superpowers
+  skills this baseline does not carry.
+
+**Not counted, with the reason.** `assets/design-tokens.json` (five `uiux-*` skills)
+and one example export path are files the skill writes into the *user's* project; its
+own text says so. `.agents/product-marketing.md`, which every `marketing-*` skill reads
+if the user's project has it. Three ADR filenames inside an example register that
+`ecc-architecture-decision-records` prints as documentation. And 16 of `slop-diagrams`'
+script references, guarded by its own "maintainer-checkout mode" and reported as not
+applicable in an installed skill.
+
+One more real consequence of leaving binaries out: `composio-artifacts-builder`'s
+`scripts/init-artifact.sh` expects `shadcn-components.tar.gz` next to it and stops with
+an error without it. The archive is binary, so the install path cannot carry it.
 
 ## Update policy
 
