@@ -533,3 +533,22 @@ SOFTWARE.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.```
+
+
+---
+
+## yetone/kill-ai-slop — Apache-2.0 (`slop-scan`)
+
+Imported 2026-09-10 from <https://github.com/yetone/kill-ai-slop>, commit `96d1ca5`.
+Nothing in this skill is modified: `SKILL.md` carries the source header, everything
+under `references/` and `scripts/` is byte-identical to upstream. Apache-2.0 §4(b)
+therefore has nothing to state.
+
+Upstream ships no `NOTICE` file, and its `LICENSE` leaves the appendix line as the
+unfilled template — `Copyright [yyyy] [name of copyright owner]`. There is no
+copyright line to reproduce, so none is invented here.
+
+The licence text is the standard Apache License 2.0, character-identical to the copy
+already in this file under **ComposioHQ/awesome-claude-skills** above (upstream's own
+file differs from it in one line wrap and nothing else). That copy is the one shipped
+with this baseline for both sources.

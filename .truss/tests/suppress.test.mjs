@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { suppressionsIn, applySuppressions, SUPPRESSIBLE } from '../lib/suppress.mjs'
+import { suppressionsIn, applySuppressions, SUPPRESSIBLE, carrierFor } from '../lib/suppress.mjs'
 import { loadWorkspace } from '../lib/workspace.mjs'
 import { runAllChecks } from '../lib/run-checks.mjs'
 import { runInit } from '../lib/commands/init.mjs'
@@ -203,4 +203,54 @@ test('the same marker applies once the file is down to a single finding', () => 
   assert.equal(suppressed.length, 1)
   assert.equal(kept.length, 0)
   assert.equal(unapplied.length, 0)
+})
+
+// ── A finding on a DIRECTORY (TF-003) ────────────────────────────────────────
+// SY-09 reports on `state/decisions/`, not on a body, because the cost belongs to
+// the log as a whole. A directory carries no lines, so the one info finding this
+// workspace could never answer was the one whose own comment says a log may
+// legitimately sit above the line. The carrier is the directory's README.md.
+
+test('carrierFor sends a directory finding to that directory README, and leaves files alone', () => {
+  assert.equal(carrierFor('state/decisions/'), 'state/decisions/README.md')
+  assert.equal(carrierFor('context/grammar.md'), 'context/grammar.md')
+})
+
+test('a marker in a directory README answers the finding about that directory', () => {
+  const ctx = ctxWith({
+    'state/decisions/README.md': '# Decisions\n\n<!-- truss: sy-09 ok — every entry still constrains an open choice -->\n',
+  })
+  const one = [finding({ id: 'SY-09', file: 'state/decisions/', message: 'reading all of it costs too much' })]
+  const { kept, suppressed } = applySuppressions(one, ctx)
+  assert.equal(suppressed.length, 1)
+  assert.equal(suppressed[0].suppressedBy, 'every entry still constrains an open choice')
+  assert.equal(kept.length, 0)
+})
+
+test('the scope stays the directory — the README does not answer for its own files', () => {
+  // The marker is about `state/decisions/`. A finding on a body inside it, or on
+  // the README as a file, is a different path and must survive.
+  const ctx = ctxWith({
+    'state/decisions/README.md': '<!-- truss: st-05 ok — the range pointer is meant to be one file -->\n',
+  })
+  const elsewhere = [
+    finding({ id: 'ST-05', file: 'state/decisions/D-001.md' }),
+    finding({ id: 'ST-05', file: 'state/decisions/' }),
+  ]
+  const { kept, suppressed } = applySuppressions(elsewhere, ctx)
+  assert.equal(kept.length, 1, 'the body keeps its finding')
+  assert.ok(kept[0].file.endsWith('D-001.md'))
+  assert.equal(suppressed.length, 1, 'the directory finding is the one the README answers')
+})
+
+test('a marker in some other file of the directory does not reach the directory finding', () => {
+  // Otherwise any of 25 bodies could silence a finding about all of them, and the
+  // next reader would have to hunt for which one did it.
+  const ctx = ctxWith({
+    'state/decisions/D-001.md': '<!-- truss: sy-09 ok — I decided this is fine -->\n',
+  })
+  const one = [finding({ id: 'SY-09', file: 'state/decisions/', message: 'reading all of it costs too much' })]
+  const { kept, suppressed } = applySuppressions(one, ctx)
+  assert.equal(suppressed.length, 0)
+  assert.equal(kept.length, 1)
 })

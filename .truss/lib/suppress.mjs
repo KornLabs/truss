@@ -65,6 +65,28 @@ function insideCodeSpan(line, index) {
 export const SUPPRESSIBLE = new Set(['I'])
 
 /**
+ * Which file carries the marker that answers a finding on `file`.
+ *
+ * Usually the file itself — the path is the scope. The exception is a finding
+ * whose path ends in `/`, which names a DIRECTORY: SY-09 reports on
+ * `state/decisions/` as a whole because the cost belongs to the log, and its own
+ * comment explains why pointing at one body would be wrong (the reader would land
+ * in a file where nothing is defective). A directory has no lines, so that finding
+ * was the one shape this mechanism could not reach — and SY-09 is exactly the
+ * check whose comment grants that a log whose entries all still carry weight may
+ * legitimately sit above the line. An unanswerable info finding is the state
+ * TF-008 and lib/context-ack.mjs both argue against.
+ *
+ * The carrier is the directory's own `README.md`: a file that exists to say what
+ * the directory is, sitting IN the directory the finding is about, so D-096's
+ * rule still holds — the justification is read by whoever opens the thing it
+ * justifies (L-008, L-010). The scope stays the finding's path, so a marker in
+ * `state/decisions/README.md` answers findings about that directory and nothing
+ * else; it is not a marker on the README as a file.
+ */
+export const carrierFor = (file) => (String(file).endsWith('/') ? `${file}README.md` : file)
+
+/**
  * The check ids silenced in one file, with the reason given for each.
  * @param {string[]} lines
  * @returns {Map<string, string>} upper-case check id → reason
@@ -117,9 +139,11 @@ export function suppressionsIn(lines) {
  * Split findings into the ones that still count and the ones a marker silences.
  *
  * A finding is only ever silenced by a marker in the file it points AT — the
- * path is the scope, so a marker cannot reach past its own file. Findings about
- * files the workspace never loaded (disk-only paths) are never suppressed,
- * because there are no lines to have carried a marker.
+ * path is the scope, so a marker cannot reach past its own file. A finding on a
+ * directory (`state/decisions/`) is answered in that directory's `README.md`;
+ * see carrierFor. Findings about files the workspace never loaded (disk-only
+ * paths) are never suppressed, because there are no lines to have carried a
+ * marker.
  *
  * A marker answers ONE finding. When several findings of the same id are open on
  * the same file it applies to none of them and is reported as unapplied: the
@@ -134,7 +158,7 @@ export function suppressionsIn(lines) {
 export function applySuppressions(findings, ctx) {
   const cache = new Map()
   const markersFor = (file) => {
-    if (!cache.has(file)) cache.set(file, suppressionsIn(ctx?.files?.get(file)?.lines))
+    if (!cache.has(file)) cache.set(file, suppressionsIn(ctx?.files?.get(carrierFor(file))?.lines))
     return cache.get(file)
   }
 

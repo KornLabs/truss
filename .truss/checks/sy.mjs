@@ -481,7 +481,7 @@ function checkDecisionsSize(ctx, files, findings) {
     // the reader to a file where nothing is wrong.
     file: split ? `${DECISIONS_DIR}/` : files[0].relPath, line: split ? undefined : 1,
     message: `reading all of ${where} costs ≈ ${tokens} tokens; with the ${boot}-token boot that is ${boot + tokens}, over the ${WARN_TOKENS} budget a session making a decision has`,
-    fix: `Review for entries that no longer need to be read (docs/conventions.md): a superseded entry shrinks to heading + supersede note; an entry whose consequence is carried by a check, a test, a convention or the file structure moves to archive/decisions/ whole, with a pointer. Never delete an entry. The \`cleanup\` ritual (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context.`,
+    fix: `Review for entries that no longer need to be read (docs/conventions.md): a superseded entry shrinks to heading + supersede note; an entry whose consequence is carried by a check, a test, a convention or the file structure moves to archive/decisions/ whole, with a pointer. Never delete an entry. The \`cleanup\` ritual (.truss/docs/rituals/cleanup.md) runs this as a proposal-first pass over the whole boot context. If that review finds every remaining entry still load-bearing, say so in ${DECISIONS_DIR}/README.md with a \`<!-- truss: sy-09 ok — reason -->\` marker (docs/conventions.md) instead of leaving a finding you mean to ignore.`,
   })
 }
 
