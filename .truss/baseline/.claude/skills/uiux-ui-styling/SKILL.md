@@ -1,4 +1,3 @@
-<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill, MIT License, imported 2026-08-07 -->
 ---
 name: ui-styling
 description: Create beautiful, accessible user interfaces with shadcn/ui components (built on Radix UI + Tailwind), Tailwind CSS utility-first styling, and canvas-based visual designs. Use when building user interfaces, implementing design systems, creating responsive layouts, adding accessible components (dialogs, dropdowns, forms, tables), customizing themes and colors, implementing dark mode, generating visual designs and posters, or establishing consistent styling patterns across applications.
@@ -8,6 +7,7 @@ metadata:
   author: claudekit
   version: "1.0.0"
 ---
+<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # UI Styling Skill
 
@@ -53,6 +53,10 @@ Use when:
 - Sophisticated visual communication
 - Minimal text, maximum visual impact
 - Systematic patterns and refined aesthetics
+
+## Script Paths
+
+Script paths in this skill and its `references/` are relative to the directory that contains this SKILL.md, not to the project: `scripts/<file>` is this skill's own `scripts/` folder, and `../<skill>/scripts/<file>` is a sibling sub-skill installed alongside it. Build the full path from that directory (Claude Code reports it as the skill's base directory when the skill loads) and keep the working directory at the project root — the scripts read and write project files such as `docs/brand-guidelines.md`, `assets/design-tokens.json` or `src/` relative to it.
 
 ## Quick Start
 

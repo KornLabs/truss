@@ -1,10 +1,10 @@
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 ---
 name: fastapi-patterns
 description: FastAPI best practices covering project structure, Pydantic v2 schemas, dependency injection, async handlers, authentication, authorization, transactional service layers, and testing with httpx and pytest.
 metadata:
   origin: ECC
 ---
+<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 
 # FastAPI Patterns
 

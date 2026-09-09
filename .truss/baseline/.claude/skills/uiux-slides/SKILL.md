@@ -1,4 +1,3 @@
-<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill, MIT License, imported 2026-08-07 -->
 ---
 name: slides
 description: Create strategic HTML presentations with Chart.js, design tokens, responsive layouts, copywriting formulas, and contextual slide strategies.
@@ -7,6 +6,7 @@ metadata:
   author: claudekit
   version: "1.0.0"
 ---
+<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Slides
 
@@ -24,6 +24,10 @@ Strategic HTML presentation design with data visualization.
 | Subcommand | Description | Reference |
 |------------|-------------|-----------|
 | `create` | Create strategic presentation slides | `references/create.md` |
+
+## Script Paths
+
+Script paths in this skill and its `references/` are relative to the directory that contains this SKILL.md, not to the project: `scripts/<file>` is this skill's own `scripts/` folder, and `../<skill>/scripts/<file>` is a sibling sub-skill installed alongside it. Build the full path from that directory (Claude Code reports it as the skill's base directory when the skill loads) and keep the working directory at the project root — the scripts read and write project files such as `docs/brand-guidelines.md`, `assets/design-tokens.json` or `src/` relative to it.
 
 ## References (Knowledge Base)
 

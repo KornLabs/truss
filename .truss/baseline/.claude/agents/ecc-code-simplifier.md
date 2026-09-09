@@ -1,10 +1,10 @@
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 ---
 name: code-simplifier
 description: Simplifies and refines code for clarity, consistency, and maintainability while preserving behavior. Focus on recently modified code unless instructed otherwise.
 model: sonnet
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
+<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 
 ## Prompt Defense Baseline
 
