@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 import { applyTree } from '../lib/scaffold.mjs'
-import { buildExcludes, discoverGroups } from '../lib/skill-groups.mjs'
+import { buildExcludes, discoverGroups, droppedSelectedGroups, readSelectedGroups, SKILL_SELECTION_REL } from '../lib/skill-groups.mjs'
 import { runSkills } from '../lib/commands/skills.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { makeRoot, exists } from './helpers.mjs'
@@ -180,5 +180,51 @@ describe('skills command', () => {
     assert.equal(result.preserved.length, 2)
     assert.equal(await exists(root, '.claude/skills/context7-context7-cli'), true)
     assert.equal(await fs.readFile(customAgent, 'utf8'), '# Custom agent\n')
+  })
+})
+
+// ── A selection naming a group the baseline no longer has ────────────────────
+// readSelectedGroups drops such a name on purpose: a renamed group must not turn
+// an upgrade into an error. But dropping it silently leaves the adopter with old
+// skills "kept as yours" and no hint where their successor went — observed after
+// D-102 folded a `misc` singleton into the `slop` group. The report reads this.
+describe('droppedSelectedGroups', () => {
+  const groupsWith = (...names) => new Map(names.map(n => [n, { skills: [], agents: [] }]))
+
+  async function withSelection(json, fn) {
+    const root = await makeRoot('truss-stale-groups-')
+    try {
+      await fs.mkdir(path.join(root, '.claude'), { recursive: true })
+      await fs.writeFile(path.join(root, SKILL_SELECTION_REL), json)
+      await fn(root)
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
+  }
+
+  it('names the groups that are gone, and only those', async () => {
+    await withSelection('{"groups":["misc","slop","gone-too"]}\n', async (root) => {
+      const groups = groupsWith('slop', 'marketing')
+      assert.deepEqual(await droppedSelectedGroups(root, groups), ['misc', 'gone-too'])
+      // The reader used for the actual install must still silently keep the rest.
+      assert.deepEqual([...await readSelectedGroups(root, groups)], ['slop'])
+    })
+  })
+
+  it('says nothing when every selected group still exists', async () => {
+    await withSelection('{"groups":["slop"]}\n', async (root) => {
+      assert.deepEqual(await droppedSelectedGroups(root, groupsWith('slop')), [])
+    })
+  })
+
+  it('reports nothing rather than throwing on a missing or unreadable selection', async () => {
+    // This runs inside `upgrade`, whose job is to finish. A selection file that
+    // is absent (all groups enabled) or corrupt must not abort the report — the
+    // strict reader already raises for the corrupt case where it matters.
+    const root = await makeRoot('truss-stale-groups-none-')
+    try {
+      assert.deepEqual(await droppedSelectedGroups(root, groupsWith('slop')), [])
+      await fs.mkdir(path.join(root, '.claude'), { recursive: true })
+      await fs.writeFile(path.join(root, SKILL_SELECTION_REL), 'not json at all')
+      assert.deepEqual(await droppedSelectedGroups(root, groupsWith('slop')), [])
+    } finally { await fs.rm(root, { recursive: true, force: true }) }
   })
 })

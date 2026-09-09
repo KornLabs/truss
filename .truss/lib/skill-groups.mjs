@@ -120,6 +120,38 @@ export async function readSelectedGroups(root, groups) {
   return new Set(parsed.groups.filter(group => groups.has(group)))
 }
 
+/**
+ * Group names this workspace selected that the given baseline no longer has.
+ *
+ * `readSelectedGroups` drops them silently, and that is right: a group that was
+ * renamed must not turn an upgrade into an error, and an unknown name is not a
+ * defect in the workspace. But silence leaves the adopter in a dead end — the
+ * selection still names a group nobody ships, so `upgrade` installs nothing for
+ * it and never says why. Observed with D-102, which folded a singleton skill out
+ * of `misc` into the `slop` group: the upgrade report listed the old skill as
+ * "kept as yours" and said nothing about the selection that had gone stale.
+ *
+ * Reporting only — nothing is rewritten. The selection file belongs to the user.
+ *
+ * @returns {Promise<string[]>} the stale names, in the order the file lists them
+ */
+export async function droppedSelectedGroups(root, groups) {
+  let raw
+  try {
+    raw = await fs.readFile(path.join(root, SKILL_SELECTION_REL), 'utf8')
+  } catch {
+    return []
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return []
+  }
+  if (!parsed || !Array.isArray(parsed.groups)) return []
+  return parsed.groups.filter(group => typeof group === 'string' && !groups.has(group))
+}
+
 /** Persist an opt-in selection; an all-groups selection removes the override. */
 export async function writeSelectedGroups(root, groups, selected) {
   const configPath = path.join(root, SKILL_SELECTION_REL)

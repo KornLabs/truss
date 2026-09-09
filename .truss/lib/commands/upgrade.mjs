@@ -59,7 +59,7 @@ import { promisify } from 'node:util'
 import { parseBlocks } from '../md.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
 import { isGitCheckout } from '../git.mjs'
-import { buildExcludes, discoverGroups, readSelectedGroups } from '../skill-groups.mjs'
+import { buildExcludes, discoverGroups, droppedSelectedGroups, readSelectedGroups } from '../skill-groups.mjs'
 import { verifyEngine } from '../engine-manifest.mjs'
 
 const execFileP = promisify(execFile)
@@ -470,6 +470,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
     const theirsDir = path.join(newEngine, 'baseline')
     const groups = await discoverGroups(theirsDir)
     const selected = await readSelectedGroups(target, groups)
+    const staleGroups = await droppedSelectedGroups(target, groups)
     const plan = await planBaseline(
       target,
       path.join(oldEngine, 'baseline'),
@@ -477,7 +478,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       { exclude: buildExcludes(groups, selected) },
     )
     printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence,
-      legacyDecisionLog: await hasLegacyDecisionLog(target) })
+      staleGroups, groups, legacyDecisionLog: await hasLegacyDecisionLog(target) })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
   }
 
@@ -559,6 +560,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   const theirsDir = path.join(oldEngine, 'baseline')
   const groups = await discoverGroups(theirsDir)
   const selected = await readSelectedGroups(target, groups)
+  const staleGroups = await droppedSelectedGroups(target, groups)
   const plan = await planBaseline(
     target,
     baseDir,
@@ -568,8 +570,8 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   await applyPlan(target, plan, baseDir, theirsDir)
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 
-  const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan, engineDivergence }
-  printReport({ ...result, dryRun: false, legacyDecisionLog: await hasLegacyDecisionLog(target) })
+  const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan, engineDivergence, staleGroups }
+  printReport({ ...result, dryRun: false, staleGroups, groups, legacyDecisionLog: await hasLegacyDecisionLog(target) })
   // A run that still needs a human must not look like a clean one to a script.
   if (plan.some((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))) {
     process.exitCode = EXIT_NEEDS_ATTENTION
@@ -660,7 +662,7 @@ function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
   return lines
 }
 
-function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog }) {
+function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups }) {
   const L = []
   L.push('')
   L.push(dryRun ? `  truss upgrade — dry run: ${from} → ${to}` : `  truss upgrade — ${from} → ${to}`)
@@ -690,6 +692,21 @@ function printReport({ target, from, to, plan, backup, customRestored, gitignore
     for (const p of plan) L.push(`    ${(ACTION_LABEL[p.action] || p.action).padEnd(11)} ${p.rel.padEnd(26)} ${p.note}`)
   }
   L.push('')
+
+  // A selection naming a group this baseline no longer has installs nothing and,
+  // without this, says nothing either — the adopter is left with the old skills
+  // "kept as yours" and no hint that their successor now lives elsewhere. Never
+  // rewritten here: the selection file is the user's.
+  if (staleGroups?.length) {
+    const known = groups ? [...groups.keys()].join(', ') : ''
+    L.push('  Skill selection:')
+    for (const name of staleGroups) {
+      L.push(`    gone        ${name.padEnd(26)} this baseline has no such group — nothing was installed for it`)
+    }
+    if (known) L.push(`    ${''.padEnd(11)} ${''.padEnd(26)} available now: ${known}`)
+    L.push(`    ${''.padEnd(11)} ${''.padEnd(26)} pick one with: node .truss/bin/truss.mjs skills add <group>`)
+    L.push('')
+  }
 
   const attention = plan.filter((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))
 
