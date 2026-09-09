@@ -350,6 +350,18 @@ the file rather than an entry in a central ignore list. `.trussignore` is a
 different tool: it removes a path from the map and from *every* check, for
 foreign or bulk data that was never workspace content.
 
+**A finding about a directory** is answered in that directory's `README.md`.
+`SY-09` reports on `state/decisions/` as a whole, because the cost it measures is
+the whole log's and pointing at one body would send you to a file where nothing is
+wrong — but a directory has no line to carry a marker. So the carrier is the
+`README.md` inside it, and the marker still means what it says: it answers the
+finding about the *directory*, not one about the README as a file, and a marker in
+any other file of that directory reaches nothing. Use it only once you have
+actually done the review `SY-09` asks for and concluded the log is legitimately
+this size — the entries left all still constrain a choice that is open. The
+archive path stays the first answer; this is the honest way to record the case the
+check itself allows for.
+
 ## Profile
 
 `state/profile.md` is boot context, read every session — a config sheet, not a

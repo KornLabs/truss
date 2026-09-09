@@ -3,7 +3,7 @@
 > Imported foreign content, not Truss code. Every file's first line names its source,
 > licence and import date; the licence texts are in `THIRD-PARTY-LICENSES.md`.
 > Re-imported in full on 2026-09-09 — `SKILL.md` **and** its `references/`, assets and
-> scripts, from each upstream's then-current state.
+> scripts, from each upstream's then-current state. `slop-scan` joined on 2026-09-10.
 
 | Prefix | Repo | Licence | Contents |
 |---|---|---|---|
@@ -12,14 +12,14 @@
 | `superpowers-*` | [obra/superpowers](https://github.com/obra/superpowers) | MIT | 9 skills |
 | `ecc-*` | [affaan-m/ECC](https://github.com/affaan-m/ECC) | MIT | 9 skills, 6 agents |
 | `uiux-*` | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT | 7 skills |
-| `slop-*` | five sources, see below | MIT | 6 skills |
+| `slop-*` | six sources, see below | MIT, Apache-2.0 | 7 skills |
 | `context7-*` | [upstash/context7](https://github.com/upstash/context7) | MIT | 4 skills, 1 agent |
 
-**Totals: 86 skills, 7 agents.**
+**Totals: 87 skills, 7 agents.**
 
 ## The `slop-*` group
 
-One topical group instead of five singletons — `lib/skill-groups.mjs` groups by name
+One topical group instead of six singletons — `lib/skill-groups.mjs` groups by name
 prefix, so a lone skill would land in `misc`. Install with `truss skills add slop`.
 
 | Skill | Source | Licence | What it is |
@@ -30,10 +30,17 @@ prefix, so a lone skill would land in `misc`. Install with `truss skills add slo
 | `slop-hallmark` | [Nutlope/hallmark](https://github.com/Nutlope/hallmark) | MIT | landing pages: 21 themes, 21 macrostructures, ~57 slop gates, four verbs |
 | `slop-diagrams` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | MIT | 38 editorial diagram types as self-contained HTML + SVG |
 | `slop-ui` | [miqdadbadjuber/anti-slop](https://github.com/miqdadbadjuber/anti-slop) | MIT | UI, copy, accessibility, mobile and code comments: 38 rules in three hardness tiers |
+| `slop-scan` | [yetone/kill-ai-slop](https://github.com/yetone/kill-ai-slop) | Apache-2.0 | web code: a dependency-free scanner that reports 35 visual and copy tells with file and line |
 
 `slop-ui` carries its five companion skills nested under `skills/antislop-*/SKILL.md`,
 because its core routes to them by exactly those relative paths. Nested `SKILL.md`
 files sit at depth 2 and are not registered as separate skills by the host.
+
+`slop-scan` is the only one of the seven that **measures**: `scripts/scan.mjs` reads the
+project's own files and names each hit with a path and a line, using nothing but the Node
+standard library. Run it first — the other six then argue about findings that exist,
+instead of about a page nobody has read. Its `scripts/rules.ru.mjs` is upstream's example
+of a per-language copy-rule file and the template for adding another.
 
 `slop-prose` and `slop-tells` disagree in one place on purpose: `slop-tells` cuts every
 adverb, `slop-prose` keeps the ones that carry meaning. Pick one per piece of writing;
@@ -52,6 +59,14 @@ Documented upstream behaviour, repeated here so it is not a surprise:
 - `uiux-ui-styling/scripts/shadcn_add.py` runs the shadcn CLI as a subprocess.
 - `superpowers-brainstorming/scripts/` starts a local server and deletes its own
   session directory on stop.
+- `slop-scan` does almost none of it: `scripts/scan.mjs` imports `node:fs`,
+  `node:url` and `node:path` and nothing else, writes no file and opens no socket.
+  It reads and reports; any fix is applied by the agent, under the usual review.
+  Two exceptions, both opt-in and both upstream's design: the optional
+  `--rules=<path>` flag `import()`s that path, so it runs whatever module you point
+  it at, and `scripts/scan.test.mjs` spawns `node` to exercise the scanner.
+  `scripts/rules.ru.mjs` is Cyrillic on purpose — it is the Russian example rule
+  set, which is why a mixed-script scanner flags it.
 
 Truss needs none of this. Nothing runs until a skill is installed and invoked.
 
@@ -64,7 +79,8 @@ reconstructing a layout upstream does not have would pull a chain of further sib
 links behind it.
 
 **Inside a skill's own directory — 9 targets, 11 occurrences, 4 skills.** This is the
-class the 2026-08-07 import broke; it stood at 167 before the repair.
+class the 2026-08-07 import broke; it stood at 167 before the repair. `slop-scan` adds
+none: every path its files name resolves inside its own directory.
 
 - `composio-skill-creator` (6) — `references/{api_docs,finance,mnda,policies,schema}.md`
   and `scripts/rotate_pdf.py` exist nowhere in the upstream repository.
