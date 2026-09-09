@@ -1,8 +1,8 @@
 ---
-name: receiving-code-review
+name: superpowers-receiving-code-review
 description: Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation
 ---
-<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Code Review Reception
 

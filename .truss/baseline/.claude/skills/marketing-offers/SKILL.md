@@ -1,10 +1,10 @@
 ---
-name: offers
+name: marketing-offers
 description: "When the user wants to design, construct, or improve an offer — the thing they actually sell — including value framing, bonus stacking, guarantee design, scarcity/urgency, naming, and payment structure. Also use when the user mentions 'offer,' 'offer design,' 'build an offer,' 'grand slam offer,' 'irresistible offer,' 'value stack,' 'bonus stack,' 'guarantee,' 'risk reversal,' 'money-back guarantee,' 'scarcity,' 'urgency,' 'high-ticket offer,' 'productize a service,' 'naming an offer,' 'payment plan,' 'down-sell,' 'upsell offer,' or 'why isn't my offer converting.' Best for services, agencies, courses, coaching, info products, high-ticket B2B, and direct-response. If you run pure self-serve SaaS, read pricing first — tiers and packaging do more work there. For price level itself (tiers, freemium, value metric), see pricing. For the page that presents the offer, see copywriting. For the launch moment, see launch. For sales collateral, see sales-enablement."
 metadata:
   version: 1.0.1
 ---
-<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Offer Design
 

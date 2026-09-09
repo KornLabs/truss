@@ -1,10 +1,10 @@
 ---
-name: influencer-marketing
+name: marketing-influencer-marketing
 description: "When the user wants to run influencer, creator, or ambassador partnerships to promote their product — finding and vetting partners, structuring deals, briefing creators, disclosure compliance, and measuring ROI. Also use when the user mentions 'influencer marketing,' 'creator partnerships,' 'sponsorships,' 'YouTube sponsorships,' 'podcast sponsorships,' 'brand ambassador,' 'ambassador program,' 'creator program,' 'UGC creators,' 'tech UGC,' 'UGC creator program,' 'creator network,' 'B2B influencers,' 'thought leader ads,' 'gifting,' 'product seeding,' 'whitelisting creator content,' 'how much to pay an influencer,' or 'FTC disclosure.' For affiliate/referral payout mechanics, see referrals. For community-led advocacy, see community-marketing. For turning creator content into paid ads, see ad-creative."
 metadata:
   version: 1.1.0
 ---
-<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Influencer & Creator Marketing
 

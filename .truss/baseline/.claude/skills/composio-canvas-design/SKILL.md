@@ -1,9 +1,9 @@
 ---
-name: canvas-design
+name: composio-canvas-design
 description: Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when the user asks to create a poster, piece of art, design, or other static piece. Create original visual designs, never copying existing artists' work to avoid copyright violations.
 license: Complete terms in LICENSE.txt
 ---
-<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 These are instructions for creating design philosophies - aesthetic movements that are then EXPRESSED VISUALLY. Output only .md files, .pdf files, and .png files.
 

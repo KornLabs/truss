@@ -1,10 +1,10 @@
 ---
-name: community-marketing
+name: marketing-community-marketing
 description: "Build and leverage online communities to drive product growth and brand loyalty. Use when the user wants to create a community strategy, grow a Discord or Slack community, manage a forum or subreddit, build brand advocates, increase word-of-mouth, drive community-led growth, engage users post-signup, or turn customers into evangelists. Trigger phrases: \"build a community,\" \"community strategy,\" \"Discord community,\" \"Slack community,\" \"community-led growth,\" \"brand advocates,\" \"user community,\" \"forum strategy,\" \"community engagement,\" \"grow our community,\" \"ambassador program,\" \"community flywheel.\""
 metadata:
   version: 2.0.1
 ---
-<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Community Marketing
 

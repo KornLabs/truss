@@ -1,10 +1,10 @@
 ---
-name: performance-optimizer
+name: ecc-performance-optimizer
 description: Performance analysis and optimization specialist. Use PROACTIVELY for identifying bottlenecks, optimizing slow code, reducing bundle sizes, and improving runtime performance. Profiling, memory leaks, render optimization, and algorithmic improvements.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
-<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 ## Prompt Defense Baseline
 

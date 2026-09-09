@@ -1,8 +1,8 @@
 ---
-name: executing-plans
+name: superpowers-executing-plans
 description: Use when you have a written implementation plan to execute in a separate session with review checkpoints
 ---
-<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Executing Plans
 

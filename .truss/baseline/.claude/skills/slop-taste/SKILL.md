@@ -1,8 +1,8 @@
 ---
-name: design-taste-frontend
+name: slop-taste
 description: Anti-slop frontend skill for landing pages, portfolios, and redesigns. The agent reads the brief, infers the right design direction, and ships interfaces that do not look templated. Real design systems when applicable, audit-first on redesigns, strict pre-flight check.
 ---
-<!-- Source: Leonxlnx/taste-skill (MIT) - imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: Leonxlnx/taste-skill (MIT) - imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # tasteskill: Anti-Slop Frontend Skill
 

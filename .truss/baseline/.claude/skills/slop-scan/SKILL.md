@@ -1,5 +1,5 @@
 ---
-name: kill-ai-slop
+name: slop-scan
 description: >-
   Find and remove AI slop — the generic, machine-default visual and copy tics of
   vibe-coded products — from a web project. Use when the user asks to "kill AI
@@ -18,7 +18,7 @@ description: >-
   more. Works on HTML/CSS, React/Vue/Svelte/Astro, Tailwind, PHP, and Markdown
   copy.
 ---
-<!-- Source: yetone/kill-ai-slop (Apache-2.0) - imported 2026-09-10 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: yetone/kill-ai-slop (Apache-2.0) - imported 2026-09-10 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Kill AI Slop
 

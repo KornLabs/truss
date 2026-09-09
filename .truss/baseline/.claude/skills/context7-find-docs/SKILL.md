@@ -1,5 +1,5 @@
 ---
-name: find-docs
+name: context7-find-docs
 description: >-
   Retrieves up-to-date documentation, API references, and code examples for any
   developer technology. Use this skill whenever the user asks about a specific
@@ -16,7 +16,7 @@ description: >-
   outdated. Always verify against current docs. Prefer this over web search for
   library documentation and API details.
 ---
-<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Documentation Lookup
 

@@ -1,10 +1,10 @@
 ---
-name: planner
+name: ecc-planner
 description: Expert planning specialist for complex features and refactoring. Use PROACTIVELY when users request feature implementation, architectural changes, or complex refactoring. Automatically activated for planning tasks.
 tools: Read, Grep, Glob
 model: opus
 ---
-<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 ## Prompt Defense Baseline
 

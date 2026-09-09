@@ -6,14 +6,23 @@ source repository, its licence and its import date. This file carries the licenc
 texts those imports oblige us to ship, one section per source. Truss itself is
 licensed separately — see the repository root `LICENSE`.
 
-Every imported `SKILL.md` was modified in exactly one way: the source header line
-was prepended, and the file was moved and renamed into this baseline's flat
-`<prefix>-<name>/` layout. Reference files, assets and scripts are byte-identical
-to their upstream. One file carries a further, named change, and says so in its own header:
+Every imported `SKILL.md` and agent file was modified in exactly two ways, and its
+own header line names both: the source header was prepended, and the file was moved
+and renamed into this baseline's flat `<prefix>-<name>/` layout, with the frontmatter
+`name:` set to that directory (or file) name. The rename is what makes the layout
+work: in Claude Code a project skill is invoked by its **directory** name, while
+`name:` supplies only the label shown in listings — leaving the upstream value there
+made the listing and the command disagree, and for an agent, where `name:` *is* the
+identity, it defeated the prefix entirely. Reference files, assets and scripts are
+byte-identical to their upstream. One file carries a further, named change, and says
+so in its own header:
 
 - `skills/slop-ui/SKILL.md` — the "First-Run Install Wizard" section was removed.
   It instructed the agent to append a pointer block to the project's entry file,
   which in a Truss workspace is `AGENTS.md`, the boot file.
+
+The five skills nested under `skills/slop-ui/skills/` keep their upstream `name:`:
+they are reached by the path their parent names, not as skills of their own.
 
 Apache-2.0 requires that modified files state the change; MIT does not, but the
 baseline is uniform about it.
@@ -540,9 +549,11 @@ SOFTWARE.
 ## yetone/kill-ai-slop — Apache-2.0 (`slop-scan`)
 
 Imported 2026-09-10 from <https://github.com/yetone/kill-ai-slop>, commit `96d1ca5`.
-Nothing in this skill is modified: `SKILL.md` carries the source header, everything
-under `references/` and `scripts/` is byte-identical to upstream. Apache-2.0 §4(b)
-therefore has nothing to state.
+`SKILL.md` carries the source header and its frontmatter `name:` reads `slop-scan`
+instead of `kill-ai-slop` — the two changes every file here carries, both stated in
+that header as Apache-2.0 §4(b) requires. Everything under `references/` and
+`scripts/` is byte-identical to upstream. Upstream's `skill/README.md` is not
+shipped: it tells the agent to fetch and install the skill it is already running in.
 
 Upstream ships no `NOTICE` file, and its `LICENSE` leaves the appendix line as the
 unfilled template — `Copyright [yyyy] [name of copyright owner]`. There is no

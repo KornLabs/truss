@@ -1,9 +1,9 @@
 ---
-name: antislop
+name: slop-ui
 description: "Anti Slop: Rules for AI Coding Agents. The core filter. Load always to stop generic AI slop."
 allowed-tools: Read Write Edit Glob Grep
 ---
-<!-- Source: miqdadbadjuber/anti-slop (MIT) - imported 2026-09-09 - moved and renamed for this baseline; body unchanged - the First-Run Install Wizard section was removed by Truss (it instructed the agent to append a pointer block to the project's entry file, which in a Truss workspace is AGENTS.md); the rest is unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: miqdadbadjuber/anti-slop (MIT) - imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged - the First-Run Install Wizard section was removed by Truss (it instructed the agent to append a pointer block to the project's entry file, which in a Truss workspace is AGENTS.md); the rest is unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 # antislop
 
 > Anti Slop: Rules for AI Coding Agents

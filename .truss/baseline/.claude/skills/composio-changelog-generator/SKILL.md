@@ -1,8 +1,8 @@
 ---
-name: changelog-generator
+name: composio-changelog-generator
 description: Automatically creates user-facing changelogs from git commits by analyzing commit history, categorizing changes, and transforming technical commits into clear, customer-friendly release notes. Turns hours of manual changelog writing into minutes of automated generation.
 ---
-<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Changelog Generator
 
