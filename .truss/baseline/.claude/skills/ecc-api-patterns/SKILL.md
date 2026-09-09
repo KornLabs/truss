@@ -1,10 +1,10 @@
 ---
 name: fastapi-patterns
-description: FastAPI best practices covering project structure, Pydantic v2 schemas, dependency injection, async handlers, authentication, authorization, transactional service layers, and testing with httpx and pytest.
+description: FastAPI best practices covering project structure, Pydantic v2 schemas, dependency injection, async handlers, authentication, authorization, transactional service layers, and testing with httpx and pytest. Use when building or reviewing FastAPI apps — Pydantic schemas, dependencies, async handlers, auth, or tests.
 metadata:
   origin: ECC
 ---
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
+<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 from skills/fastapi-patterns - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # FastAPI Patterns
 

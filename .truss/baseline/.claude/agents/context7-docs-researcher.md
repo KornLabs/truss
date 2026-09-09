@@ -1,9 +1,8 @@
 ---
 name: docs-researcher
 description: Lightweight agent for fetching library documentation without cluttering your main conversation context.
-model: sonnet
 ---
-<!-- Source: upstash/context7, MIT License, imported 2026-08-07 -->
+<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 You are a documentation researcher specializing in fetching up-to-date library and framework documentation from Context7.
 

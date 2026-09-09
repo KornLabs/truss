@@ -4,7 +4,7 @@ description: Designs feature architectures by analyzing existing codebase patter
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
+<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 ## Prompt Defense Baseline
 
