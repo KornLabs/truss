@@ -1,4 +1,3 @@
-<!-- Source: upstash/context7, MIT License, imported 2026-08-07 -->
 ---
 name: find-docs
 description: >-
@@ -17,6 +16,7 @@ description: >-
   outdated. Always verify against current docs. Prefer this over web search for
   library documentation and API details.
 ---
+<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Documentation Lookup
 

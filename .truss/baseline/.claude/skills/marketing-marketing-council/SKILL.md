@@ -1,10 +1,10 @@
-<!-- Source: coreyhaines31/marketingskills, MIT License, imported 2026-08-07 -->
 ---
 name: marketing-council
 description: "When the user wants multiple expert perspectives on a marketing question — a simulated board of advisors staffed by legendary marketers (Seth Godin, David Ogilvy, Eugene Schwartz, April Dunford, Rory Sutherland, Alex Hormozi, Byron Sharp, and more). Also use when the user mentions 'marketing council,' 'board of advisors,' 'advisory board,' 'what would Seth Godin say,' 'what would Ogilvy think,' 'channel Hormozi,' 'get multiple perspectives,' 'debate this,' 'have the council review,' 'marketing mentors,' or asks how a famous marketer would approach their problem. The council gives each advisor's take through their documented frameworks, surfaces where they disagree, and synthesizes a recommendation. For executing the winning direction, hand off to positioning, offers, copywriting, ads, or the relevant skill."
 metadata:
   version: 1.0.0
 ---
+<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Marketing Council
 

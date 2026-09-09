@@ -1,10 +1,10 @@
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 ---
 name: code-architect
 description: Designs feature architectures by analyzing existing codebase patterns and conventions, then providing implementation blueprints with concrete files, interfaces, data flow, and build order.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
+<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 
 ## Prompt Defense Baseline
 

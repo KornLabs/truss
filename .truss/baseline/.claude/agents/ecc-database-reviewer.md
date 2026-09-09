@@ -1,10 +1,10 @@
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 ---
 name: database-reviewer
 description: PostgreSQL database specialist for query optimization, schema design, security, and performance. Use PROACTIVELY when writing SQL, creating migrations, designing schemas, or troubleshooting database performance. Incorporates Supabase best practices.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
+<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 
 ## Prompt Defense Baseline
 

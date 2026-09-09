@@ -1,8 +1,8 @@
-<!-- Source: obra/superpowers, MIT License, imported 2026-08-07 -->
 ---
 name: using-superpowers
 description: Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before ANY response including clarifying questions
 ---
+<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 <SUBAGENT-STOP>
 If you were dispatched as a subagent to execute a specific task, ignore this skill.
@@ -57,6 +57,7 @@ If your harness appears here, read its reference file for special instructions:
 - Codex: `references/codex-tools.md`
 - Pi: `references/pi-tools.md`
 - Antigravity: `references/antigravity-tools.md`
+- Hermes Agent: `references/hermes-tools.md`
 
 ## User Instructions
 

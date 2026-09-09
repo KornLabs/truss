@@ -1,8 +1,8 @@
-<!-- Source: obra/superpowers, MIT License, imported 2026-08-07 -->
 ---
 name: dispatching-parallel-agents
 description: Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
 ---
+<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Dispatching Parallel Agents
 

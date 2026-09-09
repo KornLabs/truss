@@ -1,8 +1,8 @@
-<!-- Source: ComposioHQ/awesome-claude-skills, see individual LICENSE.txt, imported 2026-08-07 -->
 ---
 name: changelog-generator
 description: Automatically creates user-facing changelogs from git commits by analyzing commit history, categorizing changes, and transforming technical commits into clear, customer-friendly release notes. Turns hours of manual changelog writing into minutes of automated generation.
 ---
+<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Changelog Generator
 
@@ -102,3 +102,4 @@ guidelines from CHANGELOG_STYLE.md
 - Writing app store update descriptions
 - Generating email updates for users
 - Creating social media announcement posts
+

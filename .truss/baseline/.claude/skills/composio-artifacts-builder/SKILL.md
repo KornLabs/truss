@@ -1,9 +1,9 @@
-<!-- Source: ComposioHQ/awesome-claude-skills, see individual LICENSE.txt, imported 2026-08-07 -->
 ---
 name: artifacts-builder
 description: Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for complex artifacts requiring state management, routing, or shadcn/ui components - not for simple single-file HTML/JSX artifacts.
 license: Complete terms in LICENSE.txt
 ---
+<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Artifacts Builder
 

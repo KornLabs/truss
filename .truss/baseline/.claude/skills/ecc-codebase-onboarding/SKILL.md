@@ -1,10 +1,10 @@
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 ---
 name: codebase-onboarding
 description: Analyze an unfamiliar codebase and generate a structured onboarding guide with architecture map, key entry points, conventions, and a starter CLAUDE.md. Use when joining a new project or setting up Claude Code for the first time in a repo.
 metadata:
   origin: ECC
 ---
+<!-- Source: affaan-m/ECC (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Codebase Onboarding
 

@@ -1,10 +1,10 @@
-<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 ---
 name: planner
 description: Expert planning specialist for complex features and refactoring. Use PROACTIVELY when users request feature implementation, architectural changes, or complex refactoring. Automatically activated for planning tasks.
 tools: Read, Grep, Glob
 model: opus
 ---
+<!-- Source: affaan-m/ECC, MIT License, imported 2026-08-07 -->
 
 ## Prompt Defense Baseline
 

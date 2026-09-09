@@ -1,8 +1,8 @@
-<!-- Source: upstash/context7, MIT License, imported 2026-08-07 -->
 ---
 name: context7-cli
 description: Use the ctx7 CLI to fetch library documentation, manage AI coding skills, and configure Context7 MCP. Activate when the user mentions "ctx7" or "context7", needs current docs for any library, wants to install/search/generate skills, or needs to set up Context7 for their AI coding agent.
 ---
+<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # ctx7 CLI
 

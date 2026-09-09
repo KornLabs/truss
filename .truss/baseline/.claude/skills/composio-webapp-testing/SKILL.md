@@ -1,9 +1,9 @@
-<!-- Source: ComposioHQ/awesome-claude-skills, see individual LICENSE.txt, imported 2026-08-07 -->
 ---
 name: webapp-testing
 description: Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.
 license: Complete terms in LICENSE.txt
 ---
+<!-- Source: ComposioHQ/awesome-claude-skills (Apache-2.0) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Web Application Testing
 
