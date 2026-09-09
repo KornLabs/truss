@@ -1,5 +1,5 @@
 ---
-name: ui-styling
+name: uiux-ui-styling
 description: Create beautiful, accessible user interfaces with shadcn/ui components (built on Radix UI + Tailwind), Tailwind CSS utility-first styling, and canvas-based visual designs. Use when building user interfaces, implementing design systems, creating responsive layouts, adding accessible components (dialogs, dropdowns, forms, tables), customizing themes and colors, implementing dark mode, generating visual designs and posters, or establishing consistent styling patterns across applications.
 argument-hint: "[component or layout]"
 license: MIT
@@ -7,7 +7,7 @@ metadata:
   author: claudekit
   version: "1.0.0"
 ---
-<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # UI Styling Skill
 

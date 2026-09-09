@@ -1,5 +1,5 @@
 ---
-name: design-system
+name: uiux-design-system
 description: Token architecture, component specifications, and slide generation. Three-layer tokens (primitive→semantic→component), CSS variables, spacing/typography scales, component specs, strategic slide creation. Use for design tokens, systematic design, brand-compliant presentations.
 argument-hint: "[component or token]"
 license: MIT
@@ -7,7 +7,7 @@ metadata:
   author: claudekit
   version: "1.0.0"
 ---
-<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Design System
 

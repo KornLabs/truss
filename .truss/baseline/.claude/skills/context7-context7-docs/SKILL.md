@@ -1,5 +1,5 @@
 ---
-name: context7-docs
+name: context7-context7-docs
 description: >-
   Fetch up-to-date documentation and code examples for any library, framework,
   SDK, CLI tool, or cloud service. Use whenever the user asks about a specific
@@ -16,7 +16,7 @@ description: >-
   date. Prefer this over web search for library documentation.
 license: MIT
 ---
-<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: upstash/context7 (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Context7 Documentation Lookup
 

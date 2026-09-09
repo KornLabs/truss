@@ -1,8 +1,8 @@
 ---
-name: subagent-driven-development
+name: superpowers-subagent-driven-development
 description: Use when executing implementation plans with independent tasks in the current session
 ---
-<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: obra/superpowers (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Subagent-Driven Development
 

@@ -1,7 +1,7 @@
 # Skill & Agent Sources
 
-> Imported foreign content, not Truss code. Every file's first line names its source,
-> licence and import date; the licence texts are in `THIRD-PARTY-LICENSES.md`.
+> Imported foreign content, not Truss code. Every file carries a header naming its
+> source, licence and import date; the licence texts are in `THIRD-PARTY-LICENSES.md`.
 > Re-imported in full on 2026-09-09 — `SKILL.md` **and** its `references/`, assets and
 > scripts, from each upstream's then-current state. `slop-scan` joined on 2026-09-10.
 
@@ -16,6 +16,13 @@
 | `context7-*` | [upstash/context7](https://github.com/upstash/context7) | MIT | 4 skills, 1 agent |
 
 **Totals: 87 skills, 7 agents.**
+
+**The prefix is the command.** In Claude Code a project skill is invoked by its
+directory name and an agent by its `name:` field, so every entry here carries the
+prefixed name in both places — `/slop-scan`, `/marketing-ads`, agent `ecc-planner`.
+That is also what keeps a baseline copy from colliding with the same skill installed
+globally from its upstream. The upstream name survives in the header line and in the
+table below.
 
 ## The `slop-*` group
 
