@@ -56,7 +56,7 @@ Routing policy: which file owns what. Not a file inventory — that is `state/ma
 
 On demand means: the path does not exist until its first real entry. Never create a file empty or "for later" — write it the moment the first admitted entry needs it; a directory appears when its first file does. Promote a file to a directory only when pruning can no longer keep it under the growth limit (~450 lines) AND tasks regularly need only a slice of it — split by theme; prune first, split second. What §1 names is not on demand: those files ship with the workspace and stay when their last entry is removed — an empty `open-decisions.md` is the correct state of a project with no open questions, not a file to delete.
 
-Not Truss territory: agent skills (`SKILL.md`) and agents (`.md` role files) belong in the directory your AI tool reads automatically — `.claude/skills/` and `.claude/agents/` for Claude Code (primary). No single path works across all tools; pick your primary. Truss neither scans nor places these; `.trussignore` keeps them out of `state/map.md` and doctor. Add a skill or agent there, not in a Truss-owned path.
+Not Truss territory: agent skills (`SKILL.md`) and agents (`.md` role files) belong in the directory your AI tool reads automatically — `.claude/skills/` and `.claude/agents/` for Claude Code (primary). No single path works across all tools; pick your primary. Truss neither scans nor places these; `.trussignore` keeps them out of `state/map.md` and doctor. Add a skill or agent there, not in a Truss-owned path. A skill carries order and triggers; every rule it states must also stand in the owning domain file, which the skill links — other hosts and `doctor` never read the skill.
 
 Routing tie-breakers: "remember this" / any durable rule about how you work → state/profile.md · technical convention → docs/conventions.md · describes the world → domain file · commits us to act → owning domain · is a decision → state/decisions/ · only a human can do it → HUMAN-TODOS.md · a systemic weakness in how you or the framework work → state/learnings.md, or state/truss-findings.md when only Truss itself can fix it · unsure → ask, don't guess.
 
@@ -76,7 +76,7 @@ Work discipline — these apply to every deliverable (code, documents, plans, an
 
 Simplicity first: deliver the minimum that solves the task. No deliverables beyond what was asked, no structure for single-use content, no speculative flexibility. If the output is far longer than it needs to be, compress it. Ask yourself: "Would an experienced practitioner call this overcomplicated?" If yes, simplify.
 
-Surgical changes: when editing existing material — code, documents, configuration — touch only what the task requires. Do not "improve" adjacent content, reformat untouched sections, or refactor what is not broken. Match existing conventions, even if you would do it differently. If you notice an unrelated issue, mention it — do not fix it silently. Clean up what YOUR changes made obsolete; do not remove pre-existing dead material unless asked. The test: every change traces directly to the task.
+Surgical changes: when editing existing material — code, documents, configuration — touch only what the task requires. Do not "improve" adjacent content, reformat untouched sections, or refactor what is not broken. Match existing conventions, even if you would do it differently — unless the convention itself breaks Admission; then do not extend it, name it. If you notice an unrelated issue, mention it — do not fix it silently. Clean up what YOUR changes made obsolete; do not remove pre-existing dead material unless asked. The test: every change traces directly to the task.
 
 Goal-driven execution: before multi-step work, state a brief plan with verification checkpoints (`1. [step] → verify: [check]`). Transform vague requests into verifiable goals. Loop until the verification passes — do not declare done on the first attempt without checking.
 
@@ -92,7 +92,7 @@ IDs: D-NNN decisions · OD-NNN open decisions · HT-NNN human todos · R-NNN ris
 
 Never act silently on ambiguity — the four cases below share one rule: name it, then proceed or ask.
 
-Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical session-start command (date/time anchor, phase, health, branch); state what you will do. Unclear intent: name the assumption you would act on, and ask when guessing wrong would cost more than the question. Code-root configured and its branch differs from `branch:` in state/current.md: say so before you edit anything.
+Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical session-start command (date/time anchor, phase, preferences, health, branch); state what you will do. After a context compaction, run it again: the preferences are what a summary loses first. Unclear intent: name the assumption you would act on, and ask when guessing wrong would cost more than the question. Code-root configured and its branch differs from `branch:` in state/current.md: say so before you edit anything.
 
 During: respect the phase block — if an action would violate `forbidden`, name the conflict and ask before proceeding. Write back per work unit: the moment a task lands, update state/current.md and route its loose ends. Sessions can end without warning; unrecorded state misleads the next agent.
 
