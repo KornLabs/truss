@@ -240,11 +240,11 @@ Issues and pull requests are welcome. Keep the **zero-dependency** rule intact, 
 
 ## Status
 
-`1.0.0-rc.4` — alpha, and the version number is the honest part.
+`1.0.0-rc.4` — the file grammar and the CLI are a versioned contract from here: breaking changes only with a major bump and a migration note, additive ones as minor releases.
 
-What is verified: the engine has a test suite that runs green in CI on every push, and Truss is in daily use on exactly one project — its own development. That is real usage, and it is a single data point.
+What is verified: the engine has a test suite that runs green in CI on every push, and Truss is in daily use on the author's own projects — its own development and several others, one of them with two to five agent sessions in a single tree. That is real usage, and it is one person's.
 
-What is not: it has not been through a stranger's project, on a stranger's machine, with a stranger's AI tool. Expect rough edges in the first hour and command surface to still move before `1.0.0`. Try it on a project you can afford to have opinions about, tell us what broke, and keep the tag pinned so an upgrade is something you choose.
+What is not: it has not been through a stranger's project, on a stranger's machine, with a stranger's AI tool. Expect rough edges in the first hour. Try it on a project you can afford to have opinions about, tell us what broke, and keep the tag pinned so an upgrade is something you choose.
 
 ## License
 
