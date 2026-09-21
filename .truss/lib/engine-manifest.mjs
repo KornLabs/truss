@@ -17,6 +17,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { writeFileAtomic } from './scaffold.mjs'
+import { isOsJunk } from './workspace.mjs'
 
 /** The manifest's own path, relative to the engine dir. */
 export const MANIFEST_REL = 'MANIFEST.sha256'
@@ -53,6 +54,12 @@ async function walk(dir, rel = '') {
   for (const e of entries) {
     const r = rel ? `${rel}/${e.name}` : e.name
     if (EXCLUDED_RELS.has(r)) continue
+    // The same OS junk the workspace walk skips (`.DS_Store`, `Thumbs.db`, …).
+    // One rule, two walks: before this, opening `.truss/` in Finder made the
+    // same file invisible to ST-02 and an `extra file` for ST-09 (TF-005 in
+    // the forge). Both sides of the manifest share this walk, so a release
+    // never hashes it either.
+    if (isOsJunk(e.name)) continue
     // withFileTypes reports the entry's own type (lstat-like): a symlink is
     // neither isDirectory() nor isFile(), so it is skipped here without ever
     // being followed — no separate symlink check needed.

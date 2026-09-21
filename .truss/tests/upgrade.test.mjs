@@ -179,6 +179,9 @@ describe('planBaseline', () => {
     assert.equal(by['docs/fresh.md'], 'write')
     assert.equal(by['docs/dropped.md'], 'skip')
     assert.equal(by['docs/gone.md'], 'skip')
+    // The line is the only place the per-file opt-out is visible; it must read
+    // as a respected choice, not as an upstream change that failed (forge TF-004).
+    assert.match(plan.find(p => p.rel === 'docs/gone.md').note, /deleted here — kept deleted/)
     assert.equal(by['docs/logo.bin'], 'report', 'binaries never reach a line merge')
     assert.equal(by['AGENTS.md'], 'merge')
     assert.equal(by['state/current.md'], 'report', 'seed file is reported, never written')
