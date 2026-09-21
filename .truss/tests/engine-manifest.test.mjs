@@ -117,6 +117,20 @@ describe('engine-manifest: verification', () => {
     assert.deepEqual(await verifyEngine(dir), { modified: [], missing: [], extra: [], unreadable: [] })
   })
 
+  // OS junk is neither hashed nor reported: the workspace walk already skips it
+  // for ST-02, and the manifest walk did not, so a Finder visit to `.truss/`
+  // became an ST-09 `extra file` on every macOS install (forge TF-005).
+  it('ignores OS junk in both directions — a .DS_Store is neither extra nor hashed', async () => {
+    const dir = await makeFakeEngine()
+    await fs.writeFile(path.join(dir, 'lib', '.DS_Store'), 'finder\n')
+    await writeManifest(dir)
+    const hashed = await readManifest(dir)
+    assert.equal(hashed.has('lib/.DS_Store'), false)
+    await fs.writeFile(path.join(dir, '.DS_Store'), 'finder\n')
+    await fs.writeFile(path.join(dir, 'lib', '._a.mjs'), 'appledouble\n')
+    assert.deepEqual(await verifyEngine(dir), { modified: [], missing: [], extra: [], unreadable: [] })
+  })
+
   it('readManifest returns null when absent, a rel→sha Map when present', async () => {
     const dir = await makeFakeEngine()
     assert.equal(await readManifest(dir), null)

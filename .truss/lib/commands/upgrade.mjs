@@ -220,9 +220,12 @@ export async function planBaseline(target, baseDir, theirsDir, { exclude = null 
 
     if (mine === null) {
       // New in this version → create it. Deleted locally while the baseline
-      // still had it → the deletion was deliberate; do not resurrect.
+      // still had it → the deletion was deliberate; do not resurrect. That is
+      // the supported way to opt out of ONE skill when the group selection is
+      // too coarse, so the line has to read as a respected choice, not as a
+      // failure to apply (forge TF-004).
       if (base === null) plan.push({ rel, action: 'write', note: 'new in this version' })
-      else plan.push({ rel, action: 'skip', note: 'not present here — upstream change not applied' })
+      else plan.push({ rel, action: 'skip', note: 'deleted here — kept deleted (delete again after any restore to keep opting out)' })
       continue
     }
     if (sameBytes(mine, theirs)) continue                           // already matches the new baseline
