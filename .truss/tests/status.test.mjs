@@ -64,6 +64,29 @@ test('status lists open decisions with their age', async () => {
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
 
+// TF-014: `Opened:` is a local date (status prints its anchor as `(local)` for
+// exactly that reason). Read as UTC midnight, an entry opened this morning in
+// UTC+14 sat in `status` as `(-1d)` until two in the afternoon.
+test('status ages an open decision by the local calendar, never negative', async () => {
+  const root = await makeRoot('truss-status-od-tz-')
+  const tz = process.env.TZ
+  try {
+    process.env.TZ = 'Pacific/Kiritimati'   // UTC+14, no DST
+    await runInit(root, ['--name', 'East', '--lang', 'English'])
+    const d = new Date()
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    await fs.writeFile(path.join(root, 'state', 'open-decisions.md'), OD_FILE(
+      `## OD-001 — Fresh today\n\nOpened: ${today}\nOptions:\n- A: x — y +a / –b\n- B: p — q +a / –b\nTrade-offs: t\nLeaning: A\n`
+    ))
+    const out = await captureStatus(root)
+    assert.match(out, /OD-001 — Fresh today  \(0d\)/)
+    assert.doesNotMatch(out, /-1d/)
+  } finally {
+    if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
 test('status marks an open decision that challenges a recorded one', async () => {
   const root = await makeRoot('truss-status-od-challenge-')
   try {
@@ -306,4 +329,24 @@ test('status keeps its exit code contract — findings do not make it fail', asy
     process.exitCode = prev
     await fs.rm(root, { recursive: true, force: true })
   }
+})
+
+// ── Boot cost and active preferences (TF-007, TF-010) ───────────────────────
+// The map prices every domain file; the mandatory §1 boot went unpriced. And
+// the preferences block is what a context compaction loses first — `status`
+// is the command a session runs to find its footing again.
+
+test('status prices the §1 boot and shows the active preferences', async () => {
+  const root = await makeRoot('truss-status-boot-')
+  try {
+    await runInit(root, ['--name', 'Boot', '--lang', 'English'])
+    const before = await captureStatus(root)
+    assert.match(before, /Boot:    ≈[\d.]+k? tokens for the §1 load order \(\d+ files; heaviest AGENTS\.md ≈[\d.]+k?\)/)
+    assert.doesNotMatch(before, /Prefs:/, 'a fresh init has no preference set')
+
+    execFileSync(process.execPath, [path.join(root, '.truss', 'bin', 'truss.mjs'), 'set', 'clarify', 'ask'], { cwd: root })
+    execFileSync(process.execPath, [path.join(root, '.truss', 'bin', 'truss.mjs'), 'set', 'auto-commit', 'on'], { cwd: root })
+    const after = await captureStatus(root)
+    assert.match(after, /Prefs:   clarify=ask · auto-commit=on/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
 })

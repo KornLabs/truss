@@ -26,6 +26,22 @@ export function formatTimestamp(date = new Date()) {
 }
 
 /**
+ * `YYYY-MM-DD` → epoch ms at LOCAL midnight, or null.
+ *
+ * Every date an agent writes into a state file (`Opened:`, `Date:`) is a local
+ * date: `truss status` prints its anchor as `(local)` precisely so those dates
+ * can be judged against it (D-010). Parsing them as UTC midnight made every
+ * new entry east of Greenwich "-1d" old until 09:00 local, and aged every entry
+ * west of it a day too early (TF-014).
+ */
+export function parseLocalDate(ymd) {
+  const m = String(ymd ?? '').match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/)
+  if (!m) return null
+  const t = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime()
+  return Number.isNaN(t) ? null : t
+}
+
+/**
  * Render the phase block inner content from a phase definition.
  *
  * @param {object} phaseDef  — parsed phase object from workspace.phases.defs

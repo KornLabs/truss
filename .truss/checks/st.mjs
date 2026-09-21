@@ -290,6 +290,11 @@ export async function run(ctx) {
   }
 
   // ── ST-05: files > 450 lines (growth-rule hint) ────────────────────────
+  // The number is a prompt for a decision, not a limit: AGENTS.md §2 says
+  // "prune first, split second", and splitting only when tasks regularly need
+  // a slice. The fix text carries all three answers — prune, split, or keep it
+  // and say why with a marker — because a workspace that read the number as a
+  // limit silenced the check for good and reported the rule as broken (TF-005).
   const LIMIT = 450;
   for (const [relPath, fileCtx] of ctx.files) {
     if (fileCtx.lines.length > LIMIT) {
@@ -297,8 +302,8 @@ export async function run(ctx) {
         id: 'ST-05', severity: 'I',
         file: relPath,
         line: fileCtx.lines.length,
-        message: `file has ${fileCtx.lines.length} lines (> ${LIMIT}); consider splitting per growth rule`,
-        fix: `Apply the growth rule: if this file has 5+ themes or ~450+ lines, convert to a folder`,
+        message: `file has ${fileCtx.lines.length} lines (> ${LIMIT}) — the growth rule asks for a decision`,
+        fix: `Prune first (AGENTS.md §3 admission). Split into dotted sub-domains only if tasks regularly need one slice of it. If it legitimately stays this size, record why in the file: <!-- truss: st-05 ok — <reason> --> (docs/conventions.md, "Silencing a finding").`,
       });
     }
   }

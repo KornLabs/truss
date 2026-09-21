@@ -10,6 +10,9 @@ import { decisionFilesFrom } from '../decisions-index.mjs'
 import { runAllChecks } from '../run-checks.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE, ignoredLines } from '../md.mjs'
 import { classById, fileForClass } from '../schema.mjs'
+import { parseLocalDate, parsePrefsRows } from '../render.mjs'
+import { measureBootContext, toTokens } from '../context-budget.mjs'
+import { formatTokens } from './map.mjs'
 
 const RECENT_COMMITS_MAX = 5
 // Same 60-char cutoff other status-adjacent messages use (checks/sy.mjs,
@@ -92,7 +95,29 @@ export async function runStatus(root, argv) {
   if (phasesPresent) {
     console.log(`  Phase:   ${currentPhaseId} (${total > 0 ? (position > 0 ? position : '?') : '?'} / ${total})`)
   }
+  // The active preferences, as one line. They are the rules a context
+  // compaction loses first — short, machine-written, never the topic of the
+  // work — and `status` is what a session runs to find its footing, at the start
+  // and after a compaction (TF-010). Keys only; the directive text is in the
+  // block this was rendered from.
+  const prefRows = parsePrefsRows(ctx.blocks?.get('preferences')?.innerLines ?? [])
+  if (prefRows.length > 0) {
+    console.log(`  Prefs:   ${prefRows.map(r => `${r.key}=${r.value}`).join(' · ')}`)
+  }
   console.log(`  Health:  ${doctorSummary}`)
+  // What §1 costs THIS session, measured the way CX-01 measures it — the map
+  // prices every domain file, and the mandatory boot went unpriced (TF-007).
+  // A number, not a verdict: whether the boot contract is worth its tokens is
+  // a judgement only someone who knows the number can make.
+  try {
+    const { counted, tokens } = await measureBootContext(ctx, async (rel) => {
+      try { return await fs.readFile(path.join(root, rel), 'utf8') } catch { return null }
+    })
+    if (counted.length > 0) {
+      const heaviest = [...counted].sort((a, b) => b.words - a.words)[0]
+      console.log(`  Boot:    ≈${formatTokens(tokens).slice(1)} tokens for the §1 load order (${counted.length} files; heaviest ${heaviest.file} ≈${formatTokens(toTokens(heaviest.words)).slice(1)})`)
+    }
+  } catch { /* a boot line that cannot be measured is simply absent */ }
 
   // Core-state integrity (F-04): a present-but-unparseable phases.md yielded a
   // silent `unknown (? / 0)` line with exit 0, so a CI step that only ran
@@ -348,7 +373,7 @@ function openDecisionLines(ctx, now, useColor) {
     let days = null
     for (let j = i + 1; j < od.lines.length && !/^##\s+/.test(od.lines[j]); j++) {
       const o = od.lines[j].match(/^\s*opened:\s*(\d{4}-\d{2}-\d{2})\s*$/i)
-      if (o) { days = Math.floor((now - Date.parse(`${o[1]}T00:00:00Z`)) / 86_400_000); break }
+      if (o) { days = Math.floor((now - parseLocalDate(o[1])) / 86_400_000); break }
     }
     entries.push({ id: m[1], title: m[2].trim(), days, challenges: challenges.get(m[1]) })
   }

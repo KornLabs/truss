@@ -81,7 +81,7 @@ export async function runAllChecks(ctx) {
   // afterwards would either drop every occurrence because the representative's
   // file happened to carry a marker, or keep them all because it did not. Per
   // occurrence, each finding is still attributed to the file it is about.
-  const { kept, suppressed, unapplied } = applySuppressions(allFindings, ctx)
+  const { kept, suppressed, unapplied, unused } = applySuppressions(allFindings, ctx)
   allFindings.length = 0
   allFindings.push(...kept)
 
@@ -107,6 +107,9 @@ export async function runAllChecks(ctx) {
     // marker that does nothing has to say so, or it is just a line somebody
     // wrote once and now believes in.
     unapplied,
+    // Markers that answer no open finding: written ahead of time, or outlived
+    // the finding they answered (TF-017). Reported so they die visibly.
+    unused,
     errors, warnings, infos,
     exitCode: errors.length > 0 ? 2 : warnings.length > 0 ? 1 : 0,
   }
