@@ -221,7 +221,22 @@ describe('journal — what changed since MY last run', () => {
 
   it('is empty and safe on a first run (no previous record)', () => {
     const d = journalDiff(null, { head: 'x', dirty: ['a'], core: {} })
-    assert.deepEqual(d, { coreChanged: [], headMoved: null, preexisting: [], minutes: null })
+    assert.deepEqual(d, { coreChanged: [], headMoved: null, preexisting: [], appeared: [], minutes: null })
+  })
+
+  // TF-009: the incident the journal did not catch — paths that became dirty
+  // DURING the session, three of them another session's unfinished drafts,
+  // committed along with nine of one's own. Not pre-existing, so unreported.
+  it('names paths that became dirty since the previous run, minus the pre-existing ones', () => {
+    const d = journalDiff(prev, { head: 'aaa1111', dirty: ['secrets.enc.env', 'state/truss-findings.md', 'context/messbetrieb.md'], core: prev.snapshot.core })
+    assert.deepEqual(d.appeared, ['context/messbetrieb.md', 'state/truss-findings.md'])
+    assert.deepEqual(d.preexisting, ['secrets.enc.env'])
+  })
+
+  it('does not repeat a path that was already dirty at the previous run', () => {
+    const p = { ...prev, snapshot: { ...prev.snapshot, dirty: ['context/messbetrieb.md'] } }
+    const d = journalDiff(p, { head: 'aaa1111', dirty: ['context/messbetrieb.md'], core: prev.snapshot.core })
+    assert.deepEqual(d.appeared, [])
   })
 })
 
@@ -261,6 +276,41 @@ describe('rendering — silence is the default', () => {
     assert.match(out, /claude-code\(4242\) since 2h10/)
     assert.match(out, /secrets\.enc\.env/)
     assert.match(out, /git commit -- /, 'the line must carry the action, not only the warning')
+  })
+
+  it('lists what became uncommitted since the last run, only with a second session', () => {
+    const diff = journalDiff(
+      { seen: new Date(Date.now() - 9 * 60_000).toISOString(), first: { dirty: [] }, snapshot: { head: 'a', dirty: [], core: {} } },
+      { head: 'a', dirty: ['context/plan.md', 'state/truss-findings.md'], core: {} })
+    const two = { sessions: 2, identity: true, foreignHost: 0, others: [{ pid: 1, tool: 'claude-code', started: new Date().toISOString() }], diff }
+    const out = presenceLines(two, { lockAgeMs: null }).join('\n')
+    assert.match(out, /Uncommitted since your last truss run \(9 min\): context\/plan\.md, state\/truss-findings\.md/)
+    assert.match(out, /yours or another session's — commit by path: git commit -- /)
+    const one = { sessions: 1, identity: true, foreignHost: 0, others: [], diff }
+    assert.deepEqual(presenceLines(one, { lockAgeMs: null }), [], 'alone in the tree, own new work is not news')
+  })
+
+  it('shows how long a session has gone without a truss call, once it is long', () => {
+    const now = Date.now()
+    const obs = {
+      sessions: 3, identity: true, foreignHost: 0,
+      others: [
+        { pid: 51899, tool: 'claude-code', started: new Date(now - 2446 * 60_000).toISOString(), seen: new Date(now - 972 * 60_000).toISOString() },
+        { pid: 98975, tool: 'claude-code', started: new Date(now - 16 * 60_000).toISOString(), seen: new Date(now - 2 * 60_000).toISOString() },
+      ],
+      diff: journalDiff(null),
+    }
+    const out = presenceLines(obs, { lockAgeMs: null }).join('\n')
+    assert.match(out, /claude-code\(51899\) since 40h46, idle 16h12/)
+    assert.match(out, /claude-code\(98975\) since 16min(?!, idle)/, 'a session between two calls is not idle')
+  })
+
+  it('says the journal cannot tell who changed a core file', () => {
+    const diff = journalDiff(
+      { seen: new Date().toISOString(), first: { dirty: [] }, snapshot: { head: 'a', dirty: [], core: { 'state/current.md': 'h1' } } },
+      { head: 'a', dirty: [], core: { 'state/current.md': 'h2' } })
+    const out = presenceLines({ sessions: 1, identity: true, foreignHost: 0, others: [], diff }, { lockAgeMs: null }).join('\n')
+    assert.match(out, /by you or another session — re-read/)
   })
 
   it('contradicts git\'s advice to delete index.lock', () => {

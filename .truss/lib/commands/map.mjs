@@ -3,6 +3,7 @@ import path from 'node:path';
 import { loadIgnore } from '../ignore.mjs';
 import { resolveCodeRoot } from '../code-root.mjs';
 import { wordCount, toTokens } from '../context-budget.mjs';
+import { gitUntrackedPaths } from '../git.mjs';
 
 // ── Per-file read-cost estimate (~Tokens column) ──────────────────────────
 // Rationale: show what exists AND its retrieval cost, so an agent can make an
@@ -359,6 +360,26 @@ export async function runMap(root, args) {
     await fs.writeFile(mapPath, content, 'utf8');
 
     console.log(`truss map: successfully generated state/map.md`);
+
+    // The walk reads the working tree, not the index, so a file another
+    // session is still writing lands in the map the moment it exists — and a
+    // map committed with it points at a path the repository does not have
+    // (TF-001). The map is not changed by this: an untracked file IS in the
+    // tree. But `map` has to say what it took, or the only way to notice is to
+    // read the diff. Git is optional here as everywhere: no checkout, no line.
+    const untracked = await gitUntrackedPaths(root);
+    if (untracked.ok) {
+      const inMap = new Set(mdFiles);
+      const taken = untracked.paths.filter(p => inMap.has(p)).sort();
+      if (taken.length > 0) {
+        const shown = taken.slice(0, 4).join(', ');
+        const more = taken.length > 4 ? `, +${taken.length - 4} more` : '';
+        console.log(
+          `truss map: ${taken.length} mapped file${taken.length === 1 ? ' is' : 's are'} not tracked by git yet: ${shown}${more}\n` +
+          `           Commit them with state/map.md — or, if another session is still writing them, leave the map to that session.`
+        );
+      }
+    }
   } catch (err) {
     console.error(`truss map: failed — ${err.message}`);
     process.exit(2);

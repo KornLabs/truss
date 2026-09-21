@@ -303,10 +303,10 @@ export async function writePresence(root, self, { head = null, dirty = [], core 
  * What changed since THIS session's previous run — never "since someone else's".
  *
  * @returns {{coreChanged: string[], headMoved: {from: string, to: string}|null,
- *            preexisting: string[], minutes: number|null}}
+ *            preexisting: string[], appeared: string[], minutes: number|null}}
  */
 export function journalDiff(previous, { head = null, dirty = [], core = {} } = {}) {
-  const empty = { coreChanged: [], headMoved: null, preexisting: [], minutes: null }
+  const empty = { coreChanged: [], headMoved: null, preexisting: [], appeared: [], minutes: null }
   if (!previous?.snapshot) return empty
 
   const prev = previous.snapshot
@@ -322,11 +322,21 @@ export function journalDiff(previous, { head = null, dirty = [], core = {} } = {
   const firstDirty = new Set(previous.first?.dirty ?? [])
   const preexisting = dirty.filter(p => firstDirty.has(p)).sort()
 
+  // Paths that became dirty since this session's previous run. The same
+  // honesty applies: they may be this session's own new work or another
+  // session's — the snapshot cannot tell. The incident this answers (TF-009): a
+  // session committed twelve paths, three of them another session's unfinished
+  // drafts, with both sessions reading `2 sessions live` at that moment. The
+  // rule "stage by path" was in force as prose and did not hold; what holds is
+  // the concrete list at the moment of committing (D-101).
+  const prevDirty = new Set(prev.dirty ?? [])
+  const appeared = dirty.filter(p => !prevDirty.has(p) && !firstDirty.has(p)).sort()
+
   let minutes = null
   const seen = Date.parse(previous.seen ?? '')
   if (Number.isFinite(seen)) minutes = Math.max(0, Math.round((Date.now() - seen) / 60000))
 
-  return { coreChanged, headMoved, preexisting, minutes }
+  return { coreChanged, headMoved, preexisting, appeared, minutes }
 }
 
 /**
@@ -385,13 +395,18 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
   const multi = (obs.sessions ?? 1) > 1
 
   if (multi) {
+    // Two clocks per session, both honest about what they are (TF-009): `since`
+    // counts from the session's FIRST truss call, not from its process start,
+    // and `idle` from its LAST one. A desktop host keeps a finished conversation
+    // open for days; its record stays (it IS present), but a session that has
+    // not called truss for hours is not the one about to commit over your work.
     const who = obs.others
-      .map(r => `${r.tool || r.comm || 'session'}(${r.pid})${ageOf(r.started)}`)
+      .map(r => `${r.tool || r.comm || 'session'}(${r.pid})${ageOf(r.started)}${idleOf(r.seen)}`)
       .join(', ')
     lines.push(`${obs.sessions} sessions live in this tree — also: ${who}`)
   }
 
-  const { preexisting, coreChanged, headMoved, minutes } = obs.diff
+  const { preexisting, appeared, coreChanged, headMoved, minutes } = obs.diff
 
   if (multi && gitAvailable && preexisting.length > 0) {
     const shown = preexisting.slice(0, 4).join(', ')
@@ -400,13 +415,26 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
     lines.push(`  → stage by path: git commit -- <the paths you changed>   (git add -A takes these too)`)
   }
 
+  if (multi && gitAvailable && appeared.length > 0) {
+    const since = minutes === null ? '' : ` (${minutes} min)`
+    const shown = appeared.slice(0, 4).join(', ')
+    const more = appeared.length > 4 ? `, +${appeared.length - 4} more` : ''
+    lines.push(`Uncommitted since your last truss run${since}: ${shown}${more}`)
+    lines.push(`  → yours or another session's — commit by path: git commit -- <the paths you changed>`)
+  }
+
   if (coreChanged.length > 0 || headMoved) {
     const since = minutes === null ? '' : ` (${minutes} min)`
     const what = []
     if (headMoved) what.push(`HEAD ${headMoved.from} → ${headMoved.to}`)
     if (coreChanged.length) what.push(coreChanged.join(', '))
     lines.push(`Changed since your last truss run${since}: ${what.join('; ')}`)
-    if (coreChanged.length) lines.push(`  → re-read those files before you rewrite them`)
+    // "By you or another session": the journal compares against this session's
+    // own previous run and cannot attribute the change. With one session it is
+    // redundant with the editor's own memory; with two it is the only warning
+    // that arrives before the rewrite. Saying which reading applies is not
+    // possible; saying that both exist is (TF-009).
+    if (coreChanged.length) lines.push(`  → by you or another session — re-read those files before you rewrite them`)
   }
 
   if (lockAgeMs !== null) {
@@ -422,12 +450,28 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
   return lines
 }
 
-/** " since 2h10" / " since 12min" — cheap, and absent when unparseable. */
-function ageOf(iso) {
+/** "2h10" / "12min" — cheap, and null when unparseable. */
+function spanOf(iso) {
   const t = Date.parse(iso ?? '')
-  if (!Number.isFinite(t)) return ''
+  if (!Number.isFinite(t)) return null
   const min = Math.max(0, Math.round((Date.now() - t) / 60000))
-  return min >= 60 ? ` since ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : ` since ${min}min`
+  return min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min}min`
+}
+
+/** " since 2h10" — time since the session's FIRST truss call. */
+function ageOf(iso) {
+  const s = spanOf(iso)
+  return s === null ? '' : ` since ${s}`
+}
+
+/** Below this, a session is simply between two truss calls; above it, say so. */
+const IDLE_SHOWN_AFTER_MS = 30 * 60_000
+
+/** ", idle 16h12" — time since the session's LAST truss call, once it is long. */
+function idleOf(iso) {
+  const t = Date.parse(iso ?? '')
+  if (!Number.isFinite(t) || Date.now() - t < IDLE_SHOWN_AFTER_MS) return ''
+  return `, idle ${spanOf(iso)}`
 }
 
 /**

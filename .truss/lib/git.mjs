@@ -182,6 +182,30 @@ export async function gitChangedPaths(repoDir) {
   }
 }
 
+/**
+ * Paths git does not track and does not ignore — new files nobody has committed.
+ * Same off-switches and failure shape as gitChangedPaths.
+ *
+ * @returns {Promise<{ok: boolean, paths: string[], reason: string|null}>}
+ */
+export async function gitUntrackedPaths(repoDir) {
+  const off = (reason) => ({ ok: false, paths: [], reason })
+  if (process.env.TRUSS_NO_GIT) return off('disabled')
+  if (!await isGitCheckout(repoDir)) return off('not-a-checkout')
+  try {
+    const { stdout } = await execFileP(
+      'git',
+      ['-C', repoDir, 'ls-files', '--others', '--exclude-standard', '-z'],
+      { timeout: 5000, maxBuffer: 4 << 20 }
+    )
+    const paths = stdout.split('\0').filter(Boolean).map(p => p.replace(/\\/g, '/'))
+    return { ok: true, paths, reason: null }
+  } catch (err) {
+    if (err?.code === 'ENOENT') return off('no-git-binary')
+    return off('error')
+  }
+}
+
 /** The `branch:` value declared in state/current.md (the expected branch), or null. */
 export async function declaredBranch(root) {
   try {
