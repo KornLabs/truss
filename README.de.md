@@ -242,11 +242,11 @@ Issues und Pull Requests sind willkommen. Halte die **Null-Abhängigkeiten**-Reg
 
 ## Status
 
-`1.0.0-rc.4` — Alpha, und die Versionsnummer ist der ehrliche Teil.
+`1.0.0-rc.4` — Datei-Grammatik und CLI sind ab hier ein versionierter Vertrag: Breaking Changes nur mit Major-Sprung und Migrationsnote, additive als Minor-Releases.
 
-Belegt ist: Die Engine hat eine Test-Suite, die bei jedem Push grün in der CI läuft, und Truss ist auf genau einem Projekt im täglichen Einsatz — seiner eigenen Entwicklung. Das ist echte Nutzung, und es ist ein einzelner Datenpunkt.
+Belegt ist: Die Engine hat eine Test-Suite, die bei jedem Push grün in der CI läuft, und Truss ist auf den eigenen Projekten des Autors im täglichen Einsatz — seiner eigenen Entwicklung und mehreren anderen, eines davon mit zwei bis fünf Agent-Sessions in einem Baum. Das ist echte Nutzung, und es ist die einer Person.
 
-Nicht belegt ist: Truss war noch nicht im Projekt eines Fremden, auf dessen Maschine, mit dessen KI-Werkzeug. Rechne in der ersten Stunde mit Kanten, und damit, dass sich die Befehlsfläche bis `1.0.0` noch bewegt. Probier es an einem Projekt aus, bei dem du dir eine Meinung leisten kannst, sag uns, was kaputtging, und halte den Tag gepinnt, damit ein Upgrade eine Entscheidung bleibt.
+Nicht belegt ist: Truss war noch nicht im Projekt eines Fremden, auf dessen Maschine, mit dessen KI-Werkzeug. Rechne in der ersten Stunde mit Kanten. Probier es an einem Projekt aus, bei dem du dir eine Meinung leisten kannst, sag uns, was kaputtging, und halte den Tag gepinnt, damit ein Upgrade eine Entscheidung bleibt.
 
 ## License
 
