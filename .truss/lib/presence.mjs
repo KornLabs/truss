@@ -328,7 +328,9 @@ export function journalDiff(previous, { head = null, dirty = [], core = {} } = {
   // session committed twelve paths, three of them another session's unfinished
   // drafts, with both sessions reading `2 sessions live` at that moment. The
   // rule "stage by path" was in force as prose and did not hold; what holds is
-  // the concrete list at the moment of committing (D-101).
+  // the concrete list at the moment of committing (D-101). Each path is named
+  // ONCE: on the next run it is in `prev.dirty` and drops out, so the line is
+  // not the every-run noise its header warns against — it is news, once.
   const prevDirty = new Set(prev.dirty ?? [])
   const appeared = dirty.filter(p => !prevDirty.has(p) && !firstDirty.has(p)).sort()
 
