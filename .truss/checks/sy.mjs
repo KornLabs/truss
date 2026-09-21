@@ -141,6 +141,12 @@ export async function run(ctx) {
   // then demanded that current.md be touched anyway. Two checks pulling in
   // opposite directions produced a `note:` log in current.md, the one file
   // every session loads. A domain edit is written back where SY-12 put it.
+  // The exclusion is file-wide, coarser than the report asked for ("only when
+  // the frontmatter was touched too"): an mtime cannot see which lines moved,
+  // and a hash of the last frontmatter would be runtime state inside a
+  // hermetic check. So a domain whose body grows while its own `next:` goes
+  // stale is not caught here — it never was, in truth: firing SY-08 for it
+  // demanded a touch of current.md, which was the wrong file to fix.
   //
   // What remains is a comparison of clocks, not of authors: a file can be newer
   // than current.md because this session skipped the write-back, or because

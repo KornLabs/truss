@@ -303,7 +303,7 @@ export async function run(ctx) {
         file: relPath,
         line: fileCtx.lines.length,
         message: `file has ${fileCtx.lines.length} lines (> ${LIMIT}) — the growth rule asks for a decision`,
-        fix: `Prune first (AGENTS.md §3 admission). Split into dotted sub-domains only if tasks regularly need one slice of it. If it legitimately stays this size, record why in the file: <!-- truss: st-05 ok — <reason> --> (docs/conventions.md, "Silencing a finding").`,
+        fix: `Prune first (AGENTS.md §2, growth rule). Split into dotted sub-domains only if tasks regularly need one slice of it. If it legitimately stays this size, record why in the file: <!-- truss: st-05 ok — <reason> --> (docs/conventions.md, "Silencing a finding").`,
       });
     }
   }
