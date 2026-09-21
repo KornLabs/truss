@@ -86,6 +86,16 @@ resolution here — never leave a "DECIDED" tombstone in open-decisions.md inste
 alternatives survive only in git history and "why not B?" becomes unanswerable
 from active context.
 
+**Who decided, and in what words.** A `D-NNN` binds the same whether the human
+decided it or delegated it, and whether the human wrote a paragraph or answered
+`A`. The entry has to show the difference, or the next session cannot weigh it:
+a decision built from three words is easier to have misread than one the human
+spelled out. So, when a decision answers an OD or a question the human replied
+to briefly, quote the reply verbatim in `Rationale:` (`the human answered
+"A — one folder"`), and when the human handed the choice over ("you decide"),
+say so at the start of `Decision:` (`Delegated: …`). Both stay inside the
+existing fields; neither is a new one.
+
 `Addresses:` is the same kind of trace pointing the other way: it names the
 `L-NNN` whose adjustment this decision implements, so "did that learning ever
 change anything?" is answerable from the decision side instead of only from the
@@ -249,9 +259,16 @@ makes them — so the weakness gets found a second time by the session that had 
 reason to look. Put the rule where the next session must pass anyway: the check
 that would catch it, the test, the convention that governs it, a comment at the
 line that got it wrong. `Adjustment:` then names that place, and the entry keeps
-the trace rather than the rule. A weakness with no such place — a habit, not a
-rule — stays here in full; that is the exception, and it is the one case where
-re-reading this file is the only mechanism there is.
+the trace rather than the rule. When the behaviour can happen on more than one
+path, name every path the mechanism covers — a lock on the usual path leaves the
+others unprotected and still looks like protection. A weakness with no such
+place — a habit, not a rule — stays here in full, and its one-line rule goes
+to `state/profile.md`, the durable-behaviour sheet every session loads
+(AGENTS.md §2); this file is on demand, and a habit recorded only here is
+found again by the session that had no reason to open it.
+
+"I" in an `L` entry is the agent as a role, not one session: several sessions
+may write into the same file, and the next reader cannot tell them apart.
 
 When the adjustment is itself a decision, record the D-NNN with `Addresses:
 L-NNN`. Without that line the pair is readable only from this side, and the link
@@ -275,6 +292,33 @@ systemic agent weaknesses with a local fix (`L-NNN`): a finding is feedback
 *upstream*, meant to be filed against the Truss repository once confirmed.
 Workspaces initialised with `--findings off` have no findings channel; do not
 create the file there.
+
+Before writing an `L`, ask the other question once: did the cause lie in your
+behaviour, or in what the framework allowed? If only Truss can close the gap —
+a check that cannot see the case, a rule that contradicts another, a cost the
+framework itself imposes — it is a `TF-NNN`, not an `L`. Self-attribution is
+the nearer reading in the moment, and it is the reason findings stay unreported.
+
+Written, as an example:
+
+```markdown
+## TF-001 — `doctor` stamps its header in UTC, `status` in local time
+
+Date: 2026-09-21
+Observed: `status` prints `20:35 (local)`; five minutes later `doctor` prints `11:40` with no zone. Git log and every entry here are local.
+Impact: laid next to `git log`, a doctor finding reads nine hours out of order — noticed only while cross-checking for this file.
+Suggestion: both commands in one zone, or `doctor` labels its zone as `status` does.
+```
+
+`Observed:` is what the tool did, with the exact output; `Impact:` what it cost
+here; `Suggestion:` what upstream would change. One finding per entry, and no
+inference about the cause the engine did not show.
+
+A reader outside this repository needs the frame — Truss version, host, whether
+several sessions share the tree — before any entry makes sense. Until the entry
+grammar has a place for it, put that frame in a bold paragraph or a `>` block
+before the first entry: every `##` heading in this file is read as an entry
+(SY-03), so a `## Context` section would be reported as a malformed one.
 
 **Quoting IDs from another workspace.** Two Truss workspaces share the grammar
 and therefore the ID space: a report that arrives from another instance carries
@@ -344,6 +388,11 @@ Four limits, on purpose:
   that check is open on the file, the marker applies to *none* of them and
   `doctor` says so: the reason you wrote about one entry is not true of the
   others, and a blanket would also silence entries added later.
+- **It answers a finding that is open now.** A marker written ahead of the
+  finding ("young file, far under the limit") silences nothing today and would
+  fire later with a reason that stopped being true — `doctor` reports it as
+  unused, as it does one whose finding has since gone away. Remove it; write it
+  when the finding is there.
 
 The reason belongs next to the thing it justifies, which is why this is a line in
 the file rather than an entry in a central ignore list. `.trussignore` is a
@@ -489,3 +538,13 @@ file moved a level deeper. The name still shows the hierarchy, and it reads the
 same in `truss status`, in the map, and in a link. This is a naming rule only —
 no code splits on the dot, and nested directories under `context/` keep working
 if a project prefers them.
+
+**Working documents** — a plan, a report, an analysis somebody asked for — take
+the same dotted form under their domain: `context/messbetrieb.plan.md`,
+`context/installation.laufzeit.md`. They are documents, not state, so three
+things differ: admission is relaxed (a plan may carry the reasoning it will be
+judged by), the header says when the document ends (after the campaign, once
+the question is answered), and at that point its durable facts move into the
+domain file and the document goes to `archive/` with a pointer. Give it a
+`focus:` only if it really is a domain of its own; without one it stays out of
+the domain register and `truss status`.

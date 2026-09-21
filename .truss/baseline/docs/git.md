@@ -35,7 +35,7 @@ The agent only runs `git commit` itself when `auto-commit: on` is set.
 
 ## Several sessions in one tree
 
-Two agent sessions in the same working tree share one index and one HEAD. `truss status` reports what it can see — how many sessions are live, which paths were already uncommitted when yours began, and what moved since your last run.
+Two agent sessions in the same working tree share one index and one HEAD. `truss status` reports what it can see — how many sessions are live and how long each has gone without a truss call, which paths were already uncommitted when yours began, which became uncommitted since your last run, and which core files moved. It cannot say *who* changed a path; it names the paths, and you commit yours: `git commit -- <the paths you changed>`. A new file you create is untracked until you commit it, and `truss map` in any session will put it on the map — commit early, or say in the file's head that it is in progress.
 
 **`.git/index.lock` is not damage.** Concurrent git commands do not corrupt anything; the loser fails loudly with `Unable to create '.git/index.lock': File exists`. Git's own message then suggests removing the file by hand — that advice is written for one person at one machine. With another session in the tree, deleting the lock destroys the other process's write. Wait a couple of seconds and repeat your command instead; after three tries, say so and continue without committing.
 

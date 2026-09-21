@@ -17,6 +17,7 @@
 - Flag instead of drifting: if something is wrong or suboptimal, name it.
 - Route facts, decisions, and todos as they arise — don't batch at the end; apply the admission test below before each write, and prune what you touch.
 - Write back per work unit: when a task completes (deliverable done, decision recorded, `next:` item finished), update state/current.md before or together with reporting it done. This is silent standard practice — no announcement; the diff is the record. The test: if the session ended right now, would state/current.md mislead the next agent? Review rounds on an unfinished draft are not a unit; a newly discovered blocker is — record it when it appears.
+- Before an expensive or unattended execution — an overnight run, a migration, a deletion, a plan another session will carry out — have the plan reviewed in a **fresh context** (a subagent or a new session) with the one brief "find what is wrong". The rules that would have caught the errors are all in AGENTS.md §3; what they lack is a moment at which a second reading is forced, and this is it. A concern you already voiced and then built past counts as unreviewed.
 - When orchestrating subagents, the orchestrating session owns the state/current.md write-back; subagents report their results, they don't write it.
 - If terminal/CLI access is unavailable, keep working in Markdown but say that `doctor`, `render`, `set`, or `map` validation could not run and suggest to run them manually or inspect the touched files.
 

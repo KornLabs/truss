@@ -82,6 +82,13 @@ opted-out groups; the file is absent only when every group is enabled. A default
 `init` installs no group, so a fresh workspace carries it with an empty list —
 that is what keeps a later `upgrade` from installing all of them behind you.
 
+**Opting out of one skill** inside a group you keep — because you carry it
+globally already, say — is done by deleting its directory. `upgrade` treats a
+file that was in the old baseline and is absent here as a deliberate deletion
+and does not bring it back (`deleted here — kept deleted` in its report); the
+rest of the group keeps updating. Copying the others back after removing the
+group would make them *yours* and take them out of upgrades for good.
+
 ---
 
 ## `upgrade`
@@ -133,9 +140,14 @@ replacements after the swap. Full walkthrough: [upgrade.md](upgrade.md).
 ## `status`
 
 Print a compact, read-only summary of the workspace — current date/time, phase,
-and health. The **canonical session-start command** (AGENTS.md §4): agents run it
-first every session. The `Date:` line is a temporal anchor — agents have no
-reliable clock, and a current timestamp lets them date what they write.
+active preferences, health, and what the boot costs. The **canonical
+session-start command** (AGENTS.md §4): agents run it first every session, and
+again after a context compaction. The `Date:` line is a temporal anchor — agents
+have no reliable clock, and a current timestamp lets them date what they write.
+`Prefs:` lists the set preference keys in one line — the rules a summary loses
+first. `Boot:` is the token estimate for the §1 load order, measured the way
+CX-01 measures it: the map prices every domain file, and this prices the
+mandatory part.
 When `state/profile.md` configures a
 `code-root`, it also prints a **Branch** line: the live code-root branch against the
 `branch:` declared in `state/current.md` (`✓` when they match, `✗ MISMATCH` with a
@@ -160,9 +172,13 @@ simply absent, and the exit code is unaffected.
 
 When more than one agent session is working in the same tree, a **Parallel**
 block reports what the current session cannot see for itself (D-101): how many
-sessions are live, which paths were already uncommitted when this one began,
-what moved since its own last `truss` run, and whether a `.git/index.lock` is
-present. It is **visibility, not coordination** — nothing is locked, claimed or
+sessions are live — `since` counts from each one's first `truss` call, and
+`idle` says how long it has gone without one, so a conversation a desktop host
+keeps open for days is distinguishable from one that is working — which paths
+were already uncommitted when this one began, which became uncommitted since its
+own last `truss` run, which core files moved, and whether a `.git/index.lock` is
+present. It never says *who* changed a path — the record cannot know — so the
+lines name the paths and put the path-scoped commit beside them. It is **visibility, not coordination** — nothing is locked, claimed or
 queued, and the exit code never changes, so `doctor --gate` cannot start failing
 because a colleague is present. Silent whenever there is nothing to say, which
 is the normal case for a single session in a quiet tree.
@@ -223,8 +239,13 @@ by it.
 switched off for one file by writing the reason into that file:
 `<!-- truss: st-05 ok — reference table; splitting it would break the format -->`.
 The report then ends with a line counting what it silenced, so the decision stays
-visible. Info only, and the reason is required — the full rule is in your
-workspace's `docs/conventions.md`.
+visible — and a note for every marker that silenced nothing, whether because
+several findings of that check are open on the file or because none is. Info
+only, and the reason is required — the full rule is in your workspace's
+`docs/conventions.md`.
+
+Every warning and error prints its fix on the line below (`→ …`); an info stays
+one line. The header timestamp is local time, like `status`.
 
 ---
 
