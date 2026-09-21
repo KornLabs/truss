@@ -956,7 +956,7 @@ describe('SY-08 ritual drift', () => {
     await fs.utimes(path.join(root, 'state', 'current.md'), old, old)
     const f = await sy.run(await ctxFor(root))
     assert.equal(ids(f, 'SY-08').length, 1)
-    assert.match(ids(f, 'SY-08')[0].message, /4h later/)
+    assert.match(ids(f, 'SY-08')[0].message, /is 4h newer/)
     await fs.rm(root, { recursive: true, force: true })
   })
   it('stays quiet inside the grace window and when current.md is newest', async () => {
@@ -973,6 +973,35 @@ describe('SY-08 ritual drift', () => {
     const now = new Date()
     await fs.utimes(path.join(root, 'state', 'current.md'), now, now)
     assert.equal(ids(await sy.run(await ctxFor(root)), 'SY-08').length, 0)
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  // TF-016: a domain carries its own write-back in its frontmatter (SY-12 put
+  // it there), so editing one is not drift against current.md. A context file
+  // WITHOUT a focus: is not a domain and still counts.
+  it('does not count a domain file with its own focus: as drift', async () => {
+    const root = await driftRoot()
+    await fs.mkdir(path.join(root, 'context'), { recursive: true })
+    const domain = '---\nfocus: ship the thing\nnext:\n  - a\nblockers: none\n---\n\n# Ship\n'
+    const plain = '# Notes\n\nno frontmatter here\n'
+    await fs.writeFile(path.join(root, 'context', 'ship.md'), domain)
+    await fs.writeFile(path.join(root, 'context', 'notes.md'), plain)
+    const old = new Date(Date.now() - 2 * DAY)
+    await fs.utimes(path.join(root, 'state', 'current.md'), old, old)
+    await fs.utimes(path.join(root, 'state', 'decisions.md'), old, old)
+    await fs.utimes(path.join(root, 'context', 'notes.md'), old, old)
+    const ctx = await ctxFor(root)
+    ctx.files.set('context/ship.md', { lines: domain.split('\n'), content: domain })
+    ctx.files.set('context/notes.md', { lines: plain.split('\n'), content: plain })
+    ctx.mdFiles.push('context/ship.md', 'context/notes.md')
+    // Only the domain is newer → quiet.
+    assert.equal(ids(await sy.run(ctx), 'SY-08').length, 0)
+    // The plain context file is newer too → fires, and names both readings.
+    const now = new Date()
+    await fs.utimes(path.join(root, 'context', 'notes.md'), now, now)
+    const f = ids(await sy.run(ctx), 'SY-08')
+    assert.equal(f.length, 1)
+    assert.match(f[0].message, /context\/notes\.md/)
+    assert.match(f[0].message, /another session/)
     await fs.rm(root, { recursive: true, force: true })
   })
   it('ignores the excluded surfaces (map.md, missing files)', async () => {

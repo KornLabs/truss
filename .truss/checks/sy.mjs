@@ -51,8 +51,9 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { wordCount, toTokens, CONTEXT_FILES, WARN_TOKENS } from '../lib/context-budget.mjs'
+import { parseLocalDate } from '../lib/render.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE, parseFrontmatter, ignoredLines } from '../lib/md.mjs'
-import { hasDomains, meaningful, DOMAIN_DIR } from '../lib/domains.mjs'
+import { hasDomains, readDomain, meaningful, DOMAIN_DIR } from '../lib/domains.mjs'
 import { DECISIONS_DIR } from '../lib/decisions-index.mjs'
 import { filesForClass, fileForClass, classById } from '../lib/schema.mjs'
 
@@ -133,6 +134,18 @@ export async function run(ctx) {
   // which says nothing about whether the agent wrote its state back — a `render`
   // run long after the last work unit would otherwise report drift that no edit
   // to current.md could ever clear.
+  //
+  // Domain files with their own `focus:` are excluded too (TF-016). Since U5
+  // (SY-12) the write-back for a domain's work lives in that domain's own
+  // frontmatter, not in current.md — SY-12 sends the `next:` there, and SY-08
+  // then demanded that current.md be touched anyway. Two checks pulling in
+  // opposite directions produced a `note:` log in current.md, the one file
+  // every session loads. A domain edit is written back where SY-12 put it.
+  //
+  // What remains is a comparison of clocks, not of authors: a file can be newer
+  // than current.md because this session skipped the write-back, or because
+  // another session in the same tree wrote it. The message names both (TF-002),
+  // since the remedy is the same either way — current.md has to reflect it.
   if (current?.stat) {
     const stamp = (ms) => {
       const d = new Date(ms)
@@ -143,7 +156,8 @@ export async function run(ctx) {
       (rel.startsWith('state/') || rel.startsWith('context/'))
       && rel !== 'state/current.md'
       && rel !== 'state/map.md'
-      && rel !== 'state/decisions-index.md')
+      && rel !== 'state/decisions-index.md'
+      && !readDomain(ctx.files.get(rel) ?? {}, rel))
     let newest = null
     for (const rel of candidates) {
       try {
@@ -159,8 +173,8 @@ export async function run(ctx) {
       findings.push({
         id: 'SY-08', severity: 'W',
         file: 'state/current.md',
-        message: `workspace state changed after current.md's last update — ${newest.rel} was modified ${behind} later (${stamp(newest.mtimeMs)} vs ${stamp(current.stat.mtimeMs)}); the write-back per work unit may have been skipped`,
-        fix: `Refresh state/current.md (focus / next) so it reflects the newer state — AGENTS.md §4. If it is still accurate, saving it again clears this.`,
+        message: `${newest.rel} is ${behind} newer than current.md (${stamp(newest.mtimeMs)} vs ${stamp(current.stat.mtimeMs)}) — a write-back was skipped, or another session in this tree wrote it; either way current.md may no longer reflect it`,
+        fix: `Re-read ${newest.rel}, then refresh state/current.md (focus / blockers) so it reflects the newer state — AGENTS.md §4. If it is still accurate, saving it again clears this.`,
       })
     }
   }
@@ -750,8 +764,7 @@ function parseOpenedDate(body) {
   const opened = body.find(l => /^\s*opened:\s*/i.test(l))
   const m = opened?.match(/^\s*opened:\s*(\d{4})-(\d{2})-(\d{2})\s*$/i)
   if (!m) return null
-  const parsed = Date.parse(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`)
-  return Number.isNaN(parsed) ? null : parsed
+  return parseLocalDate(`${m[1]}-${m[2]}-${m[3]}`)
 }
 
 // ── profile.md: strict headings for core config ───────────────────────────────

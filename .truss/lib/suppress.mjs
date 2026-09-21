@@ -191,5 +191,37 @@ export function applySuppressions(findings, ctx) {
       unapplied.push({ file: f.file, id, reason, matches: matchCount.get(keyOf(f)) })
     }
   }
-  return { kept, suppressed, unapplied }
+  return { kept, suppressed, unapplied, unused: unusedMarkers(ctx, suppressed, unapplied) }
+}
+
+/**
+ * Markers that answer no open finding at all.
+ *
+ * The loop above visits findings, so a marker with nothing to match is never
+ * seen — and that is the third way a marker can be wrong (TF-017): written in
+ * advance ("young file, far under the limit"), it is silent today and fires
+ * years later with a reason that was true when written and false when it
+ * finally applies. Or the finding it answered has since gone away and the line
+ * survives as an exception nobody can explain. Both are reported as `unused`,
+ * the same one-line way `unapplied` is; neither changes the exit code.
+ *
+ * Keyed by CARRIER: a marker in `state/decisions/README.md` that answered a
+ * finding on `state/decisions/` counts as used, because that is where
+ * `carrierFor` looked for it.
+ *
+ * @returns {Array<{file: string, id: string, reason: string}>}
+ */
+function unusedMarkers(ctx, suppressed, unapplied) {
+  const used = new Set()
+  for (const f of suppressed) used.add(`${carrierFor(f.file)}\u0000${String(f.id).toUpperCase()}`)
+  for (const u of unapplied) used.add(`${carrierFor(u.file)}\u0000${String(u.id).toUpperCase()}`)
+
+  const out = []
+  for (const [rel, file] of ctx?.files ?? []) {
+    for (const [id, reason] of suppressionsIn(file?.lines)) {
+      if (used.has(`${rel}\u0000${id}`)) continue
+      out.push({ file: rel, id, reason })
+    }
+  }
+  return out.sort((a, b) => a.file.localeCompare(b.file) || a.id.localeCompare(b.id))
 }

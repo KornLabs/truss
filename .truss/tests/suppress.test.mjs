@@ -254,3 +254,63 @@ test('a marker in some other file of the directory does not reach the directory 
   assert.equal(suppressed.length, 0)
   assert.equal(kept.length, 1)
 })
+
+// ── unused markers (TF-017) ─────────────────────────────────────────────────
+// The two ways a marker fails were "reaches too far" and "matches several".
+// The third, from the field: it matches NOTHING — written in advance of the
+// finding ("young file, far under the limit"), so it is silent now and would
+// fire later with a reason that no longer holds. Nothing visited it, because
+// the loop walks findings. It has to be named, the same way `unapplied` is.
+
+test('a marker that answers no open finding is reported as unused', () => {
+  const ctx = ctxWith({
+    'context/young.md': '<!-- truss: st-05 ok — young file, far under the limit -->\n# Young\n',
+  })
+  const { kept, suppressed, unapplied, unused } = applySuppressions([], ctx)
+  assert.equal(kept.length, 0)
+  assert.equal(suppressed.length, 0)
+  assert.equal(unapplied.length, 0)
+  assert.deepEqual(unused, [{ file: 'context/young.md', id: 'ST-05', reason: 'young file, far under the limit' }])
+})
+
+test('a marker that silences its finding is not unused, and neither is an unapplied one', () => {
+  const ctx = ctxWith({
+    'context/grammar.md': '<!-- truss: st-05 ok — grammar table -->\n# G\n',
+    'state/open-decisions.md': '<!-- truss: sy-10 ok — both wait on the same call -->\n# OD\n',
+  })
+  const { unused } = applySuppressions([
+    finding(),
+    { id: 'SY-10', severity: 'I', file: 'state/open-decisions.md', message: 'a' },
+    { id: 'SY-10', severity: 'I', file: 'state/open-decisions.md', message: 'b' },
+  ], ctx)
+  assert.deepEqual(unused, [])
+})
+
+test('a directory marker in the README counts as used when it answered the directory finding', () => {
+  const ctx = ctxWith({
+    'state/decisions/README.md': '<!-- truss: sy-09 ok — every entry still constrains a choice -->\n# Decisions\n',
+  })
+  const { suppressed, unused } = applySuppressions([
+    { id: 'SY-09', severity: 'I', file: 'state/decisions/', message: 'big' },
+  ], ctx)
+  assert.equal(suppressed.length, 1)
+  assert.deepEqual(unused, [])
+})
+
+test('an unused marker reaches the doctor run without touching the exit code', async () => {
+  const root = await makeRoot('truss-suppress-unused-')
+  try {
+    await runInit(root, ['--name', 'Unused', '--lang', 'English'])
+    await fs.mkdir(path.join(root, 'context'), { recursive: true })
+    await fs.writeFile(path.join(root, 'context', 'young.md'),
+      '<!-- truss: st-05 ok — young file, far under the limit -->\n# Young\n\nfocus: none yet\n')
+    // The map would be stale after adding a file; regenerate so ST-07 stays out of the way.
+    const { runMap } = await import('../lib/commands/map.mjs')
+    const originalLog = console.log
+    console.log = () => {}
+    try { await runMap(root, []) } finally { console.log = originalLog }
+    const res = await runAllChecks(await loadWorkspace(root))
+    assert.deepEqual(res.unused.map(u => `${u.file}:${u.id}`), ['context/young.md:ST-05'])
+    assert.equal(res.exitCode, 0)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})

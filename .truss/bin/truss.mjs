@@ -55,7 +55,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
-import { renderPhaseBlock, renderNoPhasesBlock, renderPrefsBlock, parsePrefsRows } from '../lib/render.mjs'
+import { renderPhaseBlock, renderNoPhasesBlock, renderPrefsBlock, parsePrefsRows, formatTimestamp } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
 import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
@@ -346,7 +346,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   // read a cached, undated .truss/out/doctor.json instead, which on a fresh
   // clone reported "unknown" forever and otherwise could contradict a doctor
   // run from a minute earlier without saying so.
-  const { registry, findings, occurrenceTotal, suppressed, unapplied, errors, warnings, infos, exitCode } =
+  const { registry, findings, occurrenceTotal, suppressed, unapplied, unused, errors, warnings, infos, exitCode } =
     await runAllChecks(ctx)
 
   // ── JSON output ─────────────────────────────────────────────────────────
@@ -362,6 +362,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       // A marker that silenced nothing is exactly what a tooling consumer needs to
       // see: it looks like a decision in the file and has no effect.
       unappliedMarkers: unapplied,
+      unusedMarkers: unused,
       scan: ctx.ignore,        // { sources: [...], excluded: n } — what the ignore layer dropped
       checks: registry,        // full catalog of all checks (A2), independent of what fired
       findings,                // deduped: each carries occurrences + locations
@@ -419,9 +420,12 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
   if (wantJson || wantHtml) await exitFlushed(exitCode)
 
   // ── Human-readable output ────────────────────────────────────────────────
-  const now = new Date().toISOString().replace('T', ' ').slice(0, 16)
+  // Local time, labelled — the same clock `truss status` prints, so a doctor
+  // finding can be laid next to a status line or a git log without a silent
+  // offset of hours between them (TF-014). The JSON/HTML reports keep ISO UTC.
+  const now = formatTimestamp().replace('T', ' ')
   const gateLabel = gate ? ' --gate' : ''
-  console.log(`\ntruss doctor${gateLabel} — ${now}\n`)
+  console.log(`\ntruss doctor${gateLabel} — ${now} (local)\n`)
 
   if (findings.length === 0) {
     console.log('  ✓  All checks passed.\n')
@@ -435,6 +439,11 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
         `${loc.padEnd(38)}  ` +
         `${f.message}${occ}`
       )
+      // Every check already knows the way out; until TF-018 the plain output
+      // kept it for `--json`/`--html`/`--fix-prompt` only, so a warning read as
+      // a question whose answer existed one flag away. Print it for what must
+      // be acted on (W/E); an info line stays one line.
+      if (f.fix && f.severity !== 'I') console.log(`     ${col(f.severity, '→')} ${f.fix}`)
     }
     console.log('')
   }
@@ -467,6 +476,14 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
     console.log(
       `  ${col('I', 'note')}     the ${u.id} marker in ${u.file} did not apply: ${u.matches} ${u.id} findings are open on that file, ` +
       `and one reason cannot answer them all. Resolve the others, or remove the marker.\n`
+    )
+  }
+  // A marker with nothing to answer is either premature or left over; either way
+  // its reason is not being tested against anything (TF-017).
+  for (const u of unused) {
+    console.log(
+      `  ${col('I', 'note')}     the ${u.id} marker in ${u.file} silences nothing: no ${u.id} finding is open on that file. ` +
+      `Remove it — a reason written ahead of the finding will not be true when the finding comes.\n`
     )
   }
   if (errors.length > 0) console.log('  Run with --fix-prompt for a copyable remediation prompt.\n')
@@ -625,8 +642,11 @@ async function renderPhaseInto(ctx) {
       console.error(`truss render: failed to write block — ${err.message}`)
       await exitFlushed(2)
     }
-    console.log('truss render: no state/phases.md — phase block set to the no-phases notice.')
-    console.log('  Add state/phases.md (e.g. from .truss/phase-profiles/) and re-run to enable phases.')
+    // One line, no advice: a workspace without a phase model is a supported
+    // configuration, and `status` says nothing about it for that reason —
+    // telling the user on every run to add the file described it as a lack
+    // (TF-018).
+    console.log('truss render: no state/phases.md — phase block kept as the no-phases notice.')
     return
   }
 
