@@ -50,7 +50,7 @@ When commands like `truss doctor` are run, the engine outputs the results (e.g.,
 ### `prefs/`
 
 Contains system preferences, behavioral modifiers, and configuration templates for AI agents.
-These preferences (e.g., `auto-commit`, `subagents`, `clarify`, `scope`) dictate how agents should interact, their level of autonomy, communication style, and workflow gates within the project. Every key defaults to `off`; the canonical catalogue is `lib/prefs.mjs`.
+These preferences (e.g., `auto-commit`, `subagents`, `clarify`, `scope`) dictate how agents should interact, their level of autonomy, communication style, and workflow gates within the project. No key has a default — a preference exists only once it is set, and `truss unset` removes it again; the canonical catalogue is `lib/prefs.mjs`.
 
 ### `prompts/`
 

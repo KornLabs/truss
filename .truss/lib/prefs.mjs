@@ -1,25 +1,40 @@
 // lib/prefs.mjs — Preferences catalog (single source of truth)
-// Imported by checks/bl.mjs (validation) and the set command (validation + row ordering).
-// Catalog order defines the canonical row order in the preferences block.
+// Imported by checks/bl.mjs (validation) and the set/unset commands (validation
+// + row ordering). Catalog order defines the canonical row order in the block.
 
-// D-028: every key defaults to 'off' and 'off' renders NO directive line —
-// a fresh AGENTS.md carries an empty preferences block (0 boot tokens). A
+// D-028: a key has NO default — "no preference" is the absence of a row, and a
+// fresh AGENTS.md carries an empty preferences block (0 boot tokens). A
 // directive exists only when the human explicitly sets a deviation from the
 // host agent's native behavior.
-// D-029: nine keys. A key earns its place only when projects genuinely differ
-// AND the exact wording is worth not reinventing. Everything whose floor is
-// universally right now lives as a fixed rule in AGENTS.md §3/§4 — the key only
-// sells the harder variant (clarify, branch-guard) or is gone entirely.
+// D-108: that absence is expressed by `truss unset <key>`, not by a sentinel
+// value. `off` used to be that sentinel; it stays accepted as a legacy alias
+// (see LEGACY_UNSET_VALUES) so an older workspace never goes red, but it is no
+// longer listed, documented or written.
+// D-029: the catalog is deliberately small. A key earns its place only when
+// projects genuinely differ AND the exact wording is worth not reinventing.
+// Everything whose floor is universally right lives as a fixed rule in
+// AGENTS.md §3/§4.
 export const PREFS_CATALOG = [
-  { key: 'subagents',       values: ['off', 'research', 'full'],                default: 'off', omit: ['off'] },
-  { key: 'verify-inputs',   values: ['off', 'on'],                              default: 'off', omit: ['off'] },
-  { key: 'clarify',         values: ['off', 'ask', 'infer'],                    default: 'off', omit: ['off'] },
-  { key: 'scope',           values: ['off', 'minimal', 'balanced', 'thorough'], default: 'off', omit: ['off'] },
-  { key: 'auto-commit',     values: ['off', 'suggest', 'on'],                   default: 'off', omit: ['off'] },
-  { key: 'gate-advocate',   values: ['off', 'on', 'agentic'],                   default: 'off', omit: ['off'] },
-  { key: 'branch-guard',    values: ['off', 'strict'],                          default: 'off', omit: ['off'] },
-  { key: 'control-word',    values: ['off'],                                    default: 'off', omit: ['off'], free: true },
+  { key: 'subagents',       values: ['never', 'research', 'full'] },
+  { key: 'verify-inputs',   values: ['on'] },
+  { key: 'clarify',         values: ['ask', 'infer'] },
+  { key: 'scope',           values: ['minimal', 'balanced', 'thorough'] },
+  { key: 'auto-commit',     values: ['never', 'suggest', 'on'] },
+  { key: 'gate-advocate',   values: ['on', 'agentic'] },
+  { key: 'branch-guard',    values: ['strict'] },
+  { key: 'control-word',    values: [], free: true },
 ]
+
+// Values that mean "no preference" and therefore render no line at all.
+// D-108 replaced them with `truss unset`; they are accepted, never produced.
+// A `set <key> off` is routed to the unset path and says so.
+export const LEGACY_UNSET_VALUES = new Set(['off'])
+
+// True when a (key, value) pair should produce no preferences-block line.
+// Key-independent today; the signature keeps call sites stable if that changes.
+export function isUnsetValue(_key, value) {
+  return LEGACY_UNSET_VALUES.has(value)
+}
 
 // Keys retired in D-029. Their behaviour either became a fixed rule in AGENTS.md
 // or merged into a surviving key. An existing workspace keeps rendering them
@@ -38,29 +53,21 @@ export const RETIRED_KEYS = new Map([
 ])
 
 // Keys whose value is free-form (not restricted to the listed values).
-// `control-word` may be 'off' or any short word the human picks (session-health marker).
+// `control-word` is any short word the human picks (session-health marker);
+// removing it is `truss unset control-word`.
 export const FREE_VALUE_KEYS = new Set(
   PREFS_CATALOG.filter(e => e.free).map(e => e.key)
 )
 
-// Validate a free value: 'off' or a short word/token.
+// Validate a free value: a short word/token. `off` passes the pattern but is
+// caught earlier as a legacy unset, so it cannot become a literal control word.
 export function isValidFreeValue(value) {
-  return value === 'off' || /^[A-Za-z][A-Za-z0-9-]{0,23}$/.test(value)
+  return /^[A-Za-z][A-Za-z0-9-]{0,23}$/.test(value)
 }
 
-// Map: key → Set of values that render NO directive in AGENTS.md at all.
-// `set` skips behavior lookup and drops the row; renderPrefsBlock filters them
-// defensively. `scope=off` means "impose no solution-scope bias — omit the line".
-export const OMIT_VALUES = new Map(
-  PREFS_CATALOG.filter(e => e.omit).map(e => [e.key, new Set(e.omit)])
-)
-
-// True when (key, value) should produce no preferences-block line.
-export function isOmitValue(key, value) {
-  return OMIT_VALUES.get(key)?.has(value) ?? false
-}
-
-// Map for bl.mjs validation: key → Set of valid values
+// Map for bl.mjs validation and error messages: key → Set of canonical values.
+// Legacy unset values are NOT in here — callers accept them separately, so a
+// message never advertises a value the writer no longer produces.
 export const CATALOG_KEYS = new Map(
   PREFS_CATALOG.map(e => [e.key, new Set(e.values)])
 )

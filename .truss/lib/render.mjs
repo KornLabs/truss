@@ -1,7 +1,7 @@
 // lib/render.mjs — Phase block and prefs block renderers
 // Pure functions — no I/O. Called by bin/truss.mjs render and set commands.
 
-import { isOmitValue } from './prefs.mjs'
+import { isUnsetValue } from './prefs.mjs'
 
 /**
  * Ensure a fragment ends with exactly one sentence terminator (a period).
@@ -150,13 +150,13 @@ export const PREFS_GROUPS = [
  * @returns {string[]}  — lines to place between the markers
  */
 export function renderPrefsBlock(rows) {
-  // Drop values flagged as "omit" (e.g. scope=off): they render no line.
-  rows = rows.filter(r => !isOmitValue(r.key, r.value))
+  // Drop the legacy `key=off` sentinel (D-108): it renders no line.
+  rows = rows.filter(r => !isUnsetValue(r.key, r.value))
 
-  // Empty block = all preferences at their 'off' default (D-028): render a
-  // single pointer line so the block costs ~0 boot tokens.
+  // Empty block = no preference set (D-028): render a single pointer line so
+  // the block costs ~0 boot tokens.
   if (rows.length === 0) {
-    return ['> empty — all preferences off (host-agent defaults). Set via `node .truss/bin/truss.mjs set <key> <value>`.']
+    return ['> empty — no preferences set (host-agent defaults). Set via `node .truss/bin/truss.mjs set <key> <value>`.']
   }
 
   const byKey = new Map(rows.map(r => [r.key, r]))

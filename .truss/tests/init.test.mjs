@@ -108,10 +108,10 @@ describe('init (core)', () => {
     assert.match(profile, /language: English/)
     assert.match(await read(root, 'VISION.md'), /Acme/)
 
-    // rendered blocks (D-028: all preferences off → empty block + phase 1/1)
+    // rendered blocks (D-028/D-108: no key has a default → empty block + phase 1/1)
     const agents = await read(root, 'AGENTS.md')
     assert.doesNotMatch(agents, /- [\w-]+=\w+ ::/)
-    assert.match(agents, /all preferences off/)
+    assert.match(agents, /no preferences set/)
     assert.match(await phaseBlockOf(root), /\*\*Phase 1\/1 — kickoff/)
 
     assert.equal(res.conflicts.length, 0)

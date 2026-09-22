@@ -60,7 +60,7 @@ unambiguous.
 
 **Sessions, die bei der Aufgabe bleiben:** Das Pflicht-Boot-Set liegt bei etwa 3,2k Tokens; alles Weitere lädt nur bei Bedarf. Das Fenster bleibt frei für die eigentliche Arbeit — Sessions leben länger, degradieren später und kosten weniger.
 
-**Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten für Recherche einsetzen oder alles selbst erledigen? Jede Präferenz startet auf `off`, dein KI-Tool verhält sich also wie immer, bis du etwas änderst. Einmal setzen (`truss set`), und jede künftige Session hält sich daran.
+**Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten für Recherche einsetzen oder alles selbst erledigen? Nichts ist voreingestellt, dein KI-Tool verhält sich also wie immer, bis du etwas änderst. Einmal setzen (`truss set`), mit `truss unset` wieder entfernen, und jede künftige Session hält sich daran.
 
 **Stützen für die Struktur:** Eine kleine CLI ohne Abhängigkeiten stützt das System: Sie prüft, ob die Dateien ihrer Struktur noch folgen, warnt, wenn State driftet oder eine Datei ihren Fokus verliert, und hält generierte Blöcke synchron. Sie berichtet nur — jede Warnung lässt die Entscheidung bei dir und dem Agenten.
 
@@ -175,7 +175,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 5. **Das Pflicht-Boot-Set bleibt klein.** Etwa 3,2k geschätzte Tokens beim Scaffold; der Kontext-Check des `doctor` misst es, warnt ab 18k und meldet ab 30k einen Fehler. Systeme, die ihr ganzes Regelwerk in jede Session schicken, verbrauchen das Fenster, bevor die Arbeit beginnt; Truss spart es für die Aufgabe.
 6. **Den kleinsten Kontext laden, der die Aufgabe beantwortet — dann stoppen.** Die Routing-Tabelle sagt, wo Information lebt; die generierte `state/map.md` ergänzt Token-Schätzungen pro Datei. Domain-Wissen lädt bei Bedarf, nicht per Default.
 7. **Kontrolliertes Vergessen.** Überholtes wandert mit einer einzeiligen Invalidierungsnotiz nach `archive/`. Längen-Checks warnen, wenn eine State-Datei ihren Fokus verliert, und der Lesekosten-Check meldet ein teuer gewordenes Boot-Set. Truss lässt nichts nach Kalender verfallen: Ein Projekt, das zwei Wochen ruht, macht genau dort weiter, wo es aufgehört hat, und über das Aussortieren entscheidet Relevanz statt Datum.
-8. **Präferenzen statt Prompt-Wiederholung.** Nachfragen vs. selbst entscheiden, Input-Prüfung, Subagent-Einsatz, Commit-Verhalten: jede ist eine Einstellung in einem generierten Block, geändert über `truss set`, beachtet von jeder künftigen Session. Alle starten auf `off`, ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
+8. **Präferenzen statt Prompt-Wiederholung.** Nachfragen vs. selbst entscheiden, Input-Prüfung, Subagent-Einsatz, Commit-Verhalten: jede ist eine Einstellung in einem generierten Block, geändert über `truss set`, beachtet von jeder künftigen Session. Keine hat einen Default — „keine Vorgabe“ ist die Abwesenheit einer Zeile, kein Wert, den du wählst — ein frischer Workspace liefert also einen leeren Block und kostet dich keinen Kontext für Regeln, die du nie verlangt hast.
 
 ### Menschen entscheiden, Skripte berichten
 
@@ -190,7 +190,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 14. **Null Abhängigkeiten.** Node ≥ 20 ist die einzige Voraussetzung. Kein `npm install`, kein Lockfile, kein Build-Schritt, nichts, was zur Laufzeit nachgeladen wird, und kein ausgelieferter Fremdcode — alles unter `.truss/` ist unminifizierter Quelltext, den du lesen kannst, bevor du ihm vertraust.
 15. **Struktur wächst mit beobachtetem Bedarf.** Domain-Dateien entstehen, wenn ein Thema sich eine verdient. Kein vorsorglicher Backlog, keine leeren Ordner, keine Index-Dateien pro Verzeichnis.
 16. **Overlay lässt dein Repo in Ruhe.** Eingebetteter Code behält seine eigene Git-Historie; eine `code-root`-Einstellung zieht eine Grenze, die Checks, Maps und Branch-Status gemeinsam nutzen. Truss umschließt das Projekt, es absorbiert es nicht.
-17. **Ein Kontrollwort als Session-Kanarienvogel.** Opt-in: Nach `truss set control-word TRUSS` beginnt jede Agenten-Antwort mit `` `TRUSS — ` ``. Verschwindet der Marker mitten in der Session, degradiert der Kontext — Zeit für eine neue Session. Abschalten: `truss set control-word off`.
+17. **Ein Kontrollwort als Session-Kanarienvogel.** Opt-in: Nach `truss set control-word TRUSS` beginnt jede Agenten-Antwort mit `` `TRUSS — ` ``. Verschwindet der Marker mitten in der Session, degradiert der Kontext — Zeit für eine neue Session. Wieder entfernen: `truss unset control-word`.
 
 ## Wie es funktioniert
 
@@ -224,6 +224,7 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | `doctor` | Agenten führen ihn routinemäßig aus; du, wenn du neugierig bist |
 | `status` | ein Fünf-Zeilen-Snapshot im Terminal |
 | `set <key> <value>` | eine Agenten-Präferenz ändern |
+| `unset <key>` | eine Agenten-Präferenz entfernen — keine Vorgabe mehr |
 | `upgrade` | wenn eine neue Truss-Version da ist — aus der neuen Engine heraus ausgeführt, merged sie die Änderungen in deinen Workspace und lässt deinen State in Ruhe ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Dokumentation

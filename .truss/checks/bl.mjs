@@ -4,7 +4,7 @@
 // BL-02  E  phase block content has drifted from state/phases.md (content comparison)
 // BL-03  E  preferences block has unknown key, invalid value, or grammar error
 
-import { CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, RETIRED_KEYS } from '../lib/prefs.mjs'
+import { CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { renderPhaseBlock, renderNoPhasesBlock, parsePrefsRows } from '../lib/render.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
@@ -179,7 +179,7 @@ export async function run(ctx) {
             ? `preferences block: '${key}' is retired — ${retired}`
             : `preferences block: unknown key '${key}'`,
           fix: retired
-            ? `Delete the line, or run any \`truss set <key> <value>\` — the writer drops retired directives`
+            ? `Run \`truss unset ${key}\`, or delete the line — the writer drops retired directives`
             : `Remove the directive for '${key}' or update the prefs catalog`,
         })
         continue
@@ -194,20 +194,25 @@ export async function run(ctx) {
       }
       seenKeys.add(key)
 
+      // The legacy `key=off` sentinel (D-108) is still valid input: an older
+      // workspace must never go red for a line it wrote correctly under the
+      // previous version. It renders nothing and the next write drops it.
+      if (isUnsetValue(key, value)) continue
+
       const validValues = CATALOG_KEYS.get(key)
       if (FREE_VALUE_KEYS.has(key)) {
         if (!isValidFreeValue(value)) {
           findings.push({
             id: 'BL-03', severity: 'E', file: 'AGENTS.md', line,
-            message: `preferences block: invalid value '${value}' for key '${key}' (expected 'off' or a short word)`,
-            fix: `Set '${key}' to 'off' or a short word (letters/digits/-)`,
+            message: `preferences block: invalid value '${value}' for key '${key}' (expected a short word)`,
+            fix: `Set '${key}' to a short word (letters/digits/-), or remove it: truss unset ${key}`,
           })
         }
       } else if (!validValues.has(value)) {
         findings.push({
           id: 'BL-03', severity: 'E', file: 'AGENTS.md', line,
           message: `preferences block: invalid value '${value}' for key '${key}' (valid: ${[...validValues].join(', ')})`,
-          fix: `Change the value of '${key}' to one of: ${[...validValues].join(', ')}`,
+          fix: `Change the value of '${key}' to one of: ${[...validValues].join(', ')}, or remove it: truss unset ${key}`,
         })
       }
     }

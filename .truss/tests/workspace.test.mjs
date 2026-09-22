@@ -368,6 +368,29 @@ describe('BL-03: invalid pref value detected', async () => {
     assert(findings.some(f => f.id === 'BL-03' && f.message.includes("unknown key 'superpower'")),
       'should flag unknown pref key as BL-03')
   })
+
+  // D-108: `off` is no longer a catalogue value, but a workspace written by an
+  // older engine still carries `key=off` lines. Those must stay green — an
+  // upgrade never turns doctor red for a line that was correct when written.
+  it('stays silent on the legacy off sentinel', async () => {
+    const lines = [
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '',
+      '**AUTONOMY**',
+      '- subagents=off :: written by an older engine',
+      '<!-- truss:end preferences -->',
+    ]
+    const blocks = parseBlocks(lines)
+    const ctx = {
+      blocks,
+      phases: { frontmatter: {}, ordered: [], defs: new Map() },
+      files: new Map(),
+    }
+    const findings = await bl.run(ctx)
+    assert.equal(findings.filter(f => f.id === 'BL-03').length, 0,
+      `legacy key=off must not produce a finding; got ${JSON.stringify(findings)}`)
+  })
 })
 
 describe('RF-03: duplicate ID definition detected', async () => {
@@ -1133,6 +1156,66 @@ describe('render + set end-to-end (T4)', () => {
     agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
     assert(/-\s*scope=minimal\s*::/.test(agents), 'set should change scope to minimal (new directive format)')
 
+    // unset removes the row again and the block falls back to the empty notice
+    await execFileP('node', [bin, 'unset', 'scope'], { cwd: tmp })
+    agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(!/scope=/.test(agents), 'unset should remove the scope directive')
+    assert(/no preferences set/.test(agents), 'an empty block should render the pointer line')
+
+    // unsetting a key that carries no directive is a no-op, not an error
+    await execFileP('node', [bin, 'unset', 'scope'], { cwd: tmp })
+
+    await rmTmp(tmp)
+  })
+
+  // D-108: "no preference" is the absence of a row, expressed by `unset`. The
+  // former sentinel `off` stays accepted so an older workspace keeps working,
+  // and `never` is the active prohibition it can no longer express.
+  it('set <key> off unsets, and never writes an active prohibition', async () => {
+    const tmp = await mkTmp('e2e-unset')
+    await fs.cp(ENGINE_DIR, path.join(tmp, '.truss'), { recursive: true })
+    await writeFileIn(tmp, 'AGENTS.md', [
+      '# AGENTS.md', '',
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '',
+      '**AUTONOMY**',
+      '- subagents=off :: written by an older engine',
+      '<!-- truss:end preferences -->',
+      '',
+    ].join('\n'))
+
+    const bin = path.join(tmp, '.truss', 'bin', 'truss.mjs')
+
+    // the active prohibition — a real directive, not an omission
+    await execFileP('node', [bin, 'set', 'subagents', 'never'], { cwd: tmp })
+    let agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(/-\s*subagents=never\s*::\s*\S/.test(agents), 'subagents=never should render a directive with behaviour text')
+
+    // the legacy sentinel still works and names its successor
+    const { stdout } = await execFileP('node', [bin, 'set', 'subagents', 'off'], { cwd: tmp })
+    assert(/truss unset subagents/.test(stdout), 'set <key> off should point at unset')
+    agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(!/subagents=/.test(agents), 'set <key> off should leave no directive behind')
+
+    await rmTmp(tmp)
+  })
+
+  it('auto-commit never is a directive of its own', async () => {
+    const tmp = await mkTmp('e2e-never')
+    await fs.cp(ENGINE_DIR, path.join(tmp, '.truss'), { recursive: true })
+    await writeFileIn(tmp, 'AGENTS.md', [
+      '# AGENTS.md', '',
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '<!-- truss:end preferences -->',
+      '',
+    ].join('\n'))
+    const bin = path.join(tmp, '.truss', 'bin', 'truss.mjs')
+    await execFileP('node', [bin, 'set', 'auto-commit', 'never'], { cwd: tmp })
+    const agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(/-\s*auto-commit=never\s*::\s*never run a writing git command/.test(agents),
+      'auto-commit=never should render its prohibition')
     await rmTmp(tmp)
   })
 })
