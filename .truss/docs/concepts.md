@@ -189,13 +189,14 @@ workspace was changed without running the CLI.
 
 ## 7. Preferences
 
-A small catalogue of nine preferences tunes how agents behave — autonomy,
-whether to ask or infer, commit behaviour, response style, and so on. They live
-in the generated preferences block of `AGENTS.md` and are changed only through
-`truss set <key> <value>`, which validates the value against the catalogue.
-Every key defaults to `off` and renders nothing — a fresh workspace has an
-empty block that costs no boot context, and a directive line exists only for
-the deviations the human explicitly sets (D-028). What is universally right is
+A small catalogue of eight preferences tunes how agents behave — autonomy,
+whether to ask or infer, commit behaviour, and so on. They live in the generated
+preferences block of `AGENTS.md` and are changed only through
+`truss set <key> <value>`, which validates the value against the catalogue, and
+`truss unset <key>`, which removes one again. No key has a default: "no
+preference" is the absence of a row, not a value, so a fresh workspace has an
+empty block that costs no boot context and a directive line exists only for the
+deviations the human explicitly sets (D-028, D-108). What is universally right is
 not a preference at all: naming plan weaknesses before executing, naming the
 assumption behind an unclear task, naming a forbidden-path or branch conflict,
 and running `doctor` before reporting done are fixed rules in AGENTS.md §3/§4.

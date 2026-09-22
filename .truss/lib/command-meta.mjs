@@ -47,6 +47,11 @@ export const COMMAND_META = [
     flags: {}, literalFrom: 1,
   },
   {
+    name: 'unset', display: 'unset <key>',
+    summary: 'remove a preference — no directive, host-agent default applies',
+    flags: {},
+  },
+  {
     name: 'ack', display: 'ack context [flags]',
     summary: 'record that the boot context was reviewed at its current size',
     flags: { '--clear': {}, '--note': { value: true, equals: false } },

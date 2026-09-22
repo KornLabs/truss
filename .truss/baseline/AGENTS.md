@@ -6,7 +6,7 @@
 > This workspace is where you work and what you remember. The work product lives in the code root; everything a future session needs in order to act lives here, each fact in the one file §2 assigns it — a new topic earns its own file rather than crowding an existing one. Nothing durable stays in the chat, and nothing is written just in case (§3).
 
 <!-- truss:begin preferences -->
-> empty — all preferences off (host-agent defaults). Set via `node .truss/bin/truss.mjs set <key> <value>`.
+> empty — no preferences set (host-agent defaults). Set via `node .truss/bin/truss.mjs set <key> <value>`.
 <!-- truss:end preferences -->
 
 <!-- truss:begin phase -->

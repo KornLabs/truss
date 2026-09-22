@@ -26,7 +26,7 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── run-checks.mjs   # loads, runs, suppresses, sorts and dedupes every family
 │   ├── suppress.mjs     # a reasoned in-file marker silences one info finding
 │   ├── engine-manifest.mjs # hash + verify the engine's own files (writes and checks MANIFEST.sha256)
-│   ├── defaults.mjs     # default preference rows + behaviour text
+│   ├── defaults.mjs     # resolves a preference's behaviour text
 │   └── commands/        # init, status, map, phase, skills, upgrade handlers
 ├── checks/              # one module per check family (st, bl, rf, sy, ph, cx)
 ├── docs/                # product documentation (concepts, cli, architecture)

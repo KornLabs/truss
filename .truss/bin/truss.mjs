@@ -57,7 +57,7 @@ import { readFileSync } from 'node:fs'
 import { loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
 import { renderPhaseBlock, renderNoPhasesBlock, renderPrefsBlock, parsePrefsRows, formatTimestamp } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
-import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isOmitValue, RETIRED_KEYS } from '../lib/prefs.mjs'
+import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { runUpgrade } from '../lib/commands/upgrade.mjs'
@@ -673,78 +673,26 @@ async function renderPhaseInto(ctx) {
   }
 }
 
-// ── set ───────────────────────────────────────────────────────────────────────
-async function runSet(keyArg, valueArg) {
-  if (!keyArg || !valueArg) {
-    console.error('Usage: truss set <key> <value>')
-    console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
-    await exitFlushed(1)
-  }
+// ── set / unset ───────────────────────────────────────────────────────────────
 
-  // Validate key
-  if (!CATALOG_KEYS.has(keyArg)) {
-    console.error(`truss set: unknown key '${keyArg}'`)
-    console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
-    await exitFlushed(1)
-  }
-
-  // Validate value
-  const isFree = FREE_VALUE_KEYS.has(keyArg)
-  if (isFree) {
-    if (!isValidFreeValue(valueArg)) {
-      console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}' (expected 'off' or a short word)`)
-      await exitFlushed(1)
-    }
-  } else {
-    const validValues = CATALOG_KEYS.get(keyArg)
-    if (!validValues.has(valueArg)) {
-      console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}'`)
-      console.error(`Valid values: ${[...validValues].join(', ')}`)
-      await exitFlushed(1)
-    }
-  }
-
-  // Omit-values (e.g. scope=off) write no directive at all — skip the
-  // behavior lookup entirely; the row is dropped below.
-  const omit = isOmitValue(keyArg, valueArg)
-
-  // Behavior text. Free-value keys with a custom value generate it dynamically;
-  // everything else (incl. control-word 'off') reads the shared template loader.
-  let behaviorText
-  if (!omit) {
-    if (keyArg === 'control-word' && valueArg !== 'off') {
-      behaviorText = `begin every response with \`${valueArg} — \` as a session-health marker; if the marker is missing, context may be degrading`
-    } else {
-      behaviorText = await loadBehaviorText(root, keyArg, valueArg)
-    }
-
-    if (!behaviorText) {
-      console.error(`truss set: no behavior template found for '${keyArg}/${valueArg}'`)
-      console.error(`Expected at: .truss/prefs/${keyArg}/${valueArg}.md`)
-      await exitFlushed(2)
-    }
-  }
-
-  // Load current prefs from the block
+// Shared tail of both commands: load the block, apply ONE row change, write it
+// back in catalog order. `row === null` removes the key. One writer, so `set`
+// and `unset` can never drift in how they rebuild the block (GE-13).
+async function writePrefRow(keyArg, row) {
   let ctx
   try {
     ctx = await loadWorkspace(root)
   } catch (err) {
-    console.error(`truss set: failed to load workspace — ${err.message}`)
+    console.error(`truss: failed to load workspace — ${err.message}`)
     await exitFlushed(2)
   }
 
   const prefsBlock = ctx.blocks?.get('preferences')
   const currentRows = prefsBlock ? parsePrefsRows(prefsBlock.innerLines ?? []) : []
 
-  // Build row map from current block; update the target key. An omit-value
-  // removes the row so nothing renders for this preference.
   const rowMap = new Map(currentRows.map(r => [r.key, r]))
-  if (omit) {
-    rowMap.delete(keyArg)
-  } else {
-    rowMap.set(keyArg, { key: keyArg, value: valueArg, behavior: behaviorText })
-  }
+  if (row === null) rowMap.delete(keyArg)
+  else rowMap.set(keyArg, row)
 
   // Rebuild in catalog order; append any extra rows not in catalog at the end
   const catalogKeys = PREFS_CATALOG.map(e => e.key)
@@ -752,27 +700,105 @@ async function runSet(keyArg, valueArg) {
     ...catalogKeys.filter(k => rowMap.has(k)).map(k => rowMap.get(k)),
     ...[...rowMap.values()].filter(r => !catalogKeys.includes(r.key)),
   ]
-  // Retired keys never reach the writer — a `set` is the migration moment.
+  // Retired keys never reach the writer — a `set`/`unset` is the migration moment.
   const kept = ordered.filter(r => !RETIRED_KEYS.has(r.key))
 
-  const newInnerLines = renderPrefsBlock(kept)
-
-  // Lines an older instance wrote that no longer belong: values that now render
-  // nothing (every key's 'off' since D-028) and keys retired by D-029. Both are
-  // dropped here rather than silently carried in the OTHER group.
+  // Lines an older instance wrote that no longer belong: the legacy `key=off`
+  // sentinel (D-108) and keys retired by D-029. Both are dropped here rather
+  // than silently carried in the OTHER group.
   const dropped = ordered.filter(r =>
-    r.key !== keyArg && (isOmitValue(r.key, r.value) || RETIRED_KEYS.has(r.key)))
+    r.key !== keyArg && (isUnsetValue(r.key, r.value) || RETIRED_KEYS.has(r.key)))
 
   try {
-    await writeBlock(agentsMdPath, 'preferences', newInnerLines)
-    console.log(`truss set: ${keyArg} = ${valueArg}${omit ? ' (no directive written)' : ''}`)
-    if (dropped.length) {
-      console.log(`  removed ${dropped.length} directive(s) that are retired or now the default: ${dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
-    }
+    await writeBlock(agentsMdPath, 'preferences', renderPrefsBlock(kept))
   } catch (err) {
-    console.error(`truss set: failed to write block — ${err.message}`)
+    console.error(`truss: failed to write block — ${err.message}`)
     await exitFlushed(2)
   }
+
+  if (dropped.length) {
+    console.log(`  removed ${dropped.length} directive(s) that are retired or no longer written: ${dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
+  }
+}
+
+// Key must be known. Retired keys are accepted by `unset` only — removing one
+// is exactly the migration BL-03 asks for.
+async function requireKnownKey(keyArg, { allowRetired = false } = {}) {
+  if (CATALOG_KEYS.has(keyArg)) return
+  if (allowRetired && RETIRED_KEYS.has(keyArg)) return
+  console.error(`truss: unknown key '${keyArg}'`)
+  console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
+  await exitFlushed(1)
+}
+
+async function runSet(keyArg, valueArg) {
+  if (!keyArg || !valueArg) {
+    console.error('Usage: truss set <key> <value>   (remove one: truss unset <key>)')
+    console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
+    await exitFlushed(1)
+  }
+
+  await requireKnownKey(keyArg)
+
+  // Legacy sentinel: `set <key> off` used to mean "no preference" (D-028). It
+  // still works and does the right thing, but it names its successor so the
+  // vocabulary converges instead of living on in two forms (D-108).
+  if (isUnsetValue(keyArg, valueArg)) {
+    console.log(`truss set: '${valueArg}' means "no preference" — use \`truss unset ${keyArg}\` from now on`)
+    await runUnset(keyArg)
+    return
+  }
+
+  // Validate value
+  const isFree = FREE_VALUE_KEYS.has(keyArg)
+  if (isFree) {
+    if (!isValidFreeValue(valueArg)) {
+      console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}' (expected a short word: letters, digits, '-')`)
+      await exitFlushed(1)
+    }
+  } else {
+    const validValues = CATALOG_KEYS.get(keyArg)
+    if (!validValues.has(valueArg)) {
+      console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}'`)
+      console.error(`Valid values: ${[...validValues].join(', ')} (remove the preference with: truss unset ${keyArg})`)
+      await exitFlushed(1)
+    }
+  }
+
+  // Behavior text. Free-value keys generate it dynamically; everything else
+  // reads the shared template loader.
+  let behaviorText
+  if (keyArg === 'control-word') {
+    behaviorText = `begin every response with \`${valueArg} — \` as a session-health marker; if the marker is missing, context may be degrading`
+  } else {
+    behaviorText = await loadBehaviorText(root, keyArg, valueArg)
+  }
+
+  if (!behaviorText) {
+    console.error(`truss set: no behavior template found for '${keyArg}/${valueArg}'`)
+    console.error(`Expected at: .truss/prefs/${keyArg}/${valueArg}.md`)
+    await exitFlushed(2)
+  }
+
+  console.log(`truss set: ${keyArg} = ${valueArg}`)
+  await writePrefRow(keyArg, { key: keyArg, value: valueArg, behavior: behaviorText })
+}
+
+// `unset` is how "no preference" is expressed (D-108). Absence is not a value:
+// the row is removed, the host agent's native behavior applies, and the block
+// costs nothing. Unsetting a key that carries no directive is a no-op, not an
+// error — the end state is what was asked for.
+async function runUnset(keyArg) {
+  if (!keyArg) {
+    console.error('Usage: truss unset <key>')
+    console.error(`Known keys: ${PREFS_CATALOG.map(e => e.key).join(', ')}`)
+    await exitFlushed(1)
+  }
+
+  await requireKnownKey(keyArg, { allowRetired: true })
+
+  console.log(`truss unset: ${keyArg} — no directive; the host agent's own behavior applies`)
+  await writePrefRow(keyArg, null)
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -788,6 +814,7 @@ const HANDLERS = {
     return runSplitDecisions(root, args)
   },
   set:       (args) => runSet(args[0], args[1]),
+  unset:     (args) => runUnset(args[0]),
   ack:       (args) => runAck(args),
   phase:     (args) => runPhase(root, args),
   status:    (args) => runStatus(root, args),

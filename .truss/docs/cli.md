@@ -342,38 +342,49 @@ proof that a human invoked the command.
 
 ---
 
-## `set`
+## `set` / `unset`
 
-Change one agent preference. The value is validated against the catalogue before
-the preferences block in `AGENTS.md` is rewritten.
+Change one agent preference, or remove it. The value is validated against the
+catalogue before the preferences block in `AGENTS.md` is rewritten.
 
 ```bash
 truss set verify-inputs on
 truss set clarify ask
+truss unset clarify          # back to the host agent's own behavior
 ```
 
 ### Preference keys
 
-| Key | Values | Default |
-|---|---|---|
-| `subagents` | off · research · full | off |
-| `verify-inputs` | off · on | off |
-| `clarify` | off · ask · infer | off |
-| `scope` | off · minimal · balanced · thorough | off |
-| `auto-commit` | off · suggest · on | off |
-| `gate-advocate` | off · on · agentic | off |
-| `branch-guard` | off · strict | off |
-| `control-word` | `off` or any short word | off |
+| Key | Values |
+|---|---|
+| `subagents` | never · research · full |
+| `verify-inputs` | on |
+| `clarify` | ask · infer |
+| `scope` | minimal · balanced · thorough |
+| `auto-commit` | never · suggest · on |
+| `gate-advocate` | on · agentic |
+| `branch-guard` | strict |
+| `control-word` | any short word |
 
-Every key defaults to `off`, and `off` renders **no directive line** — a fresh
-workspace ships an empty preferences block that costs no boot context. Setting
-any other value writes exactly one directive line; setting a key back to `off`
-removes its line. The block therefore only ever contains the human's explicit
-deviations from the host agent's native behavior.
+**No key has a default.** "No preference" is not a value — it is the absence of
+a row, and that is the state every key starts in. A fresh workspace therefore
+ships an *empty* preferences block that costs no boot context, and the block
+only ever contains the human's explicit deviations from the host agent's native
+behavior. `truss set` writes exactly one directive line; `truss unset` removes
+it again.
 
-Upgrading from an older instance: existing `key=off` directives stay readable and
-`doctor` accepts them, but the next `set` of any key rewrites the block without
-them — they are the default now. `set` names each line it drops. Keys retired in
+`never` is the opposite of absence: `subagents never` and `auto-commit never`
+write an active prohibition ("do not delegate", "do not touch git"). Only these
+two keys have one, because they are the only two where a host agent's default is
+plausibly *more* than a project wants. The other keys have nothing to forbid —
+no project asks to take handed figures at face value — so their absence is the
+whole story.
+
+Upgrading from an older instance: `off` used to be that absence, written as a
+value. It stays accepted — `truss set <key> off` does the right thing and names
+its successor, `doctor` never reports an existing `key=off` line — but it is no
+longer written, listed or documented, and the next write of any key drops it
+from the block. `set` and `unset` name each line they drop. Keys retired in
 D-029 (`orchestration`, `research-agent`, `review-agent`, `criticality`,
 `input-trust`, `source-citation`, `post-task-check`, `phase-lock`) and
 `response-style`, retired before the beta freeze, are reported by `BL-03` as a

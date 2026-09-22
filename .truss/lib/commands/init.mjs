@@ -62,7 +62,6 @@ import {
 import { writeBlock } from "../writer.mjs";
 import { renderPrefsBlock, renderPhaseBlock, renderNoPhasesBlock } from "../render.mjs";
 import { parsePhases, parseBlocks } from "../md.mjs";
-import { defaultPrefsRows } from "../defaults.mjs";
 import { generateMapContent } from "./map.mjs";
 import { buildIndex, readDecisionSource, INDEX_REL } from "../decisions-index.mjs";
 import {
@@ -526,13 +525,9 @@ export async function runInit(root, argv, invokedCwd = null) {
       `init: preflight failed at ${first.path}: ${first.error}; no files were changed.`,
     );
   }
-  let defaultRows;
-  try {
-    defaultRows = await defaultPrefsRows(root);
-  } catch (err) {
-    throw new InitError(`init: preference render preflight failed: ${err.message}; no files were changed.`);
-  }
-  const prefsBlock = renderPrefsBlock(defaultRows);
+  // No key has a default (D-028/D-108) — a fresh workspace ships an empty
+  // preferences block and the human sets what deviates.
+  const prefsBlock = renderPrefsBlock([]);
   const phaseBlock = opts.noPhases
     ? renderNoPhasesBlock()
     : renderPhaseBlock(

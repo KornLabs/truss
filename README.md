@@ -58,7 +58,7 @@ unambiguous.
 
 **Sessions that stay on the task:** The mandatory boot set is about 3.2k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
 
-**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Every preference starts off, so your AI tool keeps its own behavior until you change one. Set what you want once (`truss set`), and every future session honors it.
+**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Nothing is preset, so your AI tool keeps its own behavior until you change something. Set what you want once (`truss set`), remove it again with `truss unset`, and every future session honors it.
 
 **Support for the structure:** A small, zero-dependency CLI backs the system: it checks that the files still follow their structure, warns when state drifts or a file grows past focus, and keeps generated blocks in sync. It only reports — every warning leaves the decision to you and the agent.
 
@@ -173,7 +173,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 5. **The mandatory boot set stays small.** About 3.2k estimated tokens at scaffold; the `doctor` context check measures it, warns past 18k, and errors past 30k. Systems that ship their whole rulebook into every session spend the window before the work starts; Truss saves it for the task.
 6. **Load the smallest context that answers the task, then stop.** The routing table says where information lives; the generated `state/map.md` adds per-file token estimates. Domain knowledge loads on demand, not by default.
 7. **Controlled forgetting.** Superseded material moves to `archive/` with a one-line invalidation note. Length checks warn when a state file outgrows its focus, and the read-cost check flags a boot set that has grown expensive. Truss never ages content out by the calendar: a project that rests for two weeks resumes exactly where it stopped, and relevance decides what goes, not the date.
-8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior: each is a setting in a generated block, changed through `truss set`, honored by every future session. Every one starts off, so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
+8. **Preferences instead of prompt repetition.** Ask-vs-decide, input verification, subagent use, commit behavior: each is a setting in a generated block, changed through `truss set`, honored by every future session. None of them has a default — “no preference” is the absence of a line, not a value you pick — so a fresh workspace ships an empty block and costs you no context for rules you never asked for.
 
 ### Humans decide, scripts report
 
@@ -188,7 +188,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 14. **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`, no lockfile, no build step, nothing fetched at runtime, and no third-party code shipped — everything under `.truss/` is plain, unminified source you can read before trusting it.
 15. **Structure grows on observed need.** Domain files are created when a topic earns one. No premade backlog, no empty folders, no per-folder index files.
 16. **Overlay leaves your repo alone.** Nested code keeps its own git history; a `code-root` setting draws one boundary that checks, maps, and branch status all share. Truss wraps the project, it doesn't absorb it.
-17. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Turn it off again: `truss set control-word off`.
+17. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Remove it again: `truss unset control-word`.
 
 ## How it works
 
@@ -222,6 +222,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | `doctor` | agents run it routinely; you run it when you're curious |
 | `status` | a five-line snapshot in the terminal |
 | `set <key> <value>` | change an agent preference |
+| `unset <key>` | remove an agent preference — no directive at all |
 | `upgrade` | when a new Truss version is out — run it from the new engine, it merges the changes into your workspace and leaves your state alone ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Documentation
