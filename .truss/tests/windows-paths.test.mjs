@@ -8,7 +8,7 @@
 // to what it asserts — invisible on macOS and Linux, where the same expression
 // happens to work.
 //
-// It has already been fixed once: 77a366e (2026-08-07) corrected
+// It has already been fixed once: 0487ff5 (2026-08-07) corrected
 // tests/context-ack.test.mjs and its message even named the pattern to copy. Three
 // weeks later tests/split-decisions.test.mjs was written with the broken form
 // again, and Windows CI went red and stayed red across two release cuts. A fix
