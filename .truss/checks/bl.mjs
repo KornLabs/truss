@@ -4,7 +4,7 @@
 // BL-02  E  phase block content has drifted from state/phases.md (content comparison)
 // BL-03  E  preferences block has unknown key, invalid value, or grammar error
 
-import { CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
+import { CATALOG_KEYS, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { renderPhaseBlock, renderNoPhasesBlock, parsePrefsRows } from '../lib/render.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
@@ -200,15 +200,7 @@ export async function run(ctx) {
       if (isUnsetValue(key, value)) continue
 
       const validValues = CATALOG_KEYS.get(key)
-      if (FREE_VALUE_KEYS.has(key)) {
-        if (!isValidFreeValue(value)) {
-          findings.push({
-            id: 'BL-03', severity: 'E', file: 'AGENTS.md', line,
-            message: `preferences block: invalid value '${value}' for key '${key}' (expected a short word)`,
-            fix: `Set '${key}' to a short word (letters/digits/-), or remove it: truss unset ${key}`,
-          })
-        }
-      } else if (!validValues.has(value)) {
+      if (!validValues.has(value)) {
         findings.push({
           id: 'BL-03', severity: 'E', file: 'AGENTS.md', line,
           message: `preferences block: invalid value '${value}' for key '${key}' (valid: ${[...validValues].join(', ')})`,

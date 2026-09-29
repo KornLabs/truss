@@ -364,7 +364,6 @@ truss unset clarify          # back to the host agent's own behavior
 | `auto-commit` | never · suggest · on |
 | `gate-advocate` | on · agentic |
 | `branch-guard` | strict |
-| `control-word` | any short word |
 
 **No key has a default.** "No preference" is not a value — it is the absence of
 a row, and that is the state every key starts in. A fresh workspace therefore

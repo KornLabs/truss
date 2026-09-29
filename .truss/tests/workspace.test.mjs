@@ -391,6 +391,29 @@ describe('BL-03: invalid pref value detected', async () => {
     assert.equal(findings.filter(f => f.id === 'BL-03').length, 0,
       `legacy key=off must not produce a finding; got ${JSON.stringify(findings)}`)
   })
+
+  // D-109: control-word was removed after 1.0.0. A workspace that set it gets a
+  // migration warning, never an unknown-key error.
+  it('reports a leftover control-word as retired (W), not unknown (E)', async () => {
+    const lines = [
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '',
+      '**RESPONSE**',
+      '- control-word=TRUSS :: begin every response with `TRUSS — `',
+      '<!-- truss:end preferences -->',
+    ]
+    const blocks = parseBlocks(lines)
+    const ctx = {
+      blocks,
+      phases: { frontmatter: {}, ordered: [], defs: new Map() },
+      files: new Map(),
+    }
+    const bl03 = (await bl.run(ctx)).filter(f => f.id === 'BL-03')
+    assert.equal(bl03.length, 1, JSON.stringify(bl03))
+    assert.equal(bl03[0].severity, 'W')
+    assert.match(bl03[0].message, /'control-word' is retired/)
+  })
 })
 
 describe('RF-03: duplicate ID definition detected', async () => {

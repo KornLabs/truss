@@ -57,7 +57,7 @@ import { readFileSync } from 'node:fs'
 import { loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
 import { renderPhaseBlock, renderNoPhasesBlock, renderPrefsBlock, parsePrefsRows, formatTimestamp } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
-import { PREFS_CATALOG, CATALOG_KEYS, FREE_VALUE_KEYS, isValidFreeValue, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
+import { PREFS_CATALOG, CATALOG_KEYS, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { runUpgrade } from '../lib/commands/upgrade.mjs'
@@ -750,29 +750,14 @@ async function runSet(keyArg, valueArg) {
   }
 
   // Validate value
-  const isFree = FREE_VALUE_KEYS.has(keyArg)
-  if (isFree) {
-    if (!isValidFreeValue(valueArg)) {
-      console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}' (expected a short word: letters, digits, '-')`)
-      await exitFlushed(1)
-    }
-  } else {
-    const validValues = CATALOG_KEYS.get(keyArg)
-    if (!validValues.has(valueArg)) {
-      console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}'`)
-      console.error(`Valid values: ${[...validValues].join(', ')} (remove the preference with: truss unset ${keyArg})`)
-      await exitFlushed(1)
-    }
+  const validValues = CATALOG_KEYS.get(keyArg)
+  if (!validValues.has(valueArg)) {
+    console.error(`truss set: invalid value '${valueArg}' for key '${keyArg}'`)
+    console.error(`Valid values: ${[...validValues].join(', ')} (remove the preference with: truss unset ${keyArg})`)
+    await exitFlushed(1)
   }
 
-  // Behavior text. Free-value keys generate it dynamically; everything else
-  // reads the shared template loader.
-  let behaviorText
-  if (keyArg === 'control-word') {
-    behaviorText = `begin every response with \`${valueArg} — \` as a session-health marker; if the marker is missing, context may be degrading`
-  } else {
-    behaviorText = await loadBehaviorText(root, keyArg, valueArg)
-  }
+  const behaviorText = await loadBehaviorText(root, keyArg, valueArg)
 
   if (!behaviorText) {
     console.error(`truss set: no behavior template found for '${keyArg}/${valueArg}'`)

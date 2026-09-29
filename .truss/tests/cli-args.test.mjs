@@ -81,7 +81,7 @@ describe('inspectArgs', () => {
   it('stops inspecting at literalFrom (preference values)', () => {
     const set = COMMAND_BY_NAME.get('set')
     assert.deepEqual(inspectArgs(set, ['--help']), { help: true })
-    assert.deepEqual(inspectArgs(set, ['control-word', '--anything']), {})
+    assert.deepEqual(inspectArgs(set, ['clarify', '--anything']), {})
   })
 
   it('routes skills help and unknown flags through the shared argument gate', () => {

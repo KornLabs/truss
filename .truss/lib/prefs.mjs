@@ -22,7 +22,6 @@ export const PREFS_CATALOG = [
   { key: 'auto-commit',     values: ['never', 'suggest', 'on'] },
   { key: 'gate-advocate',   values: ['on', 'agentic'] },
   { key: 'branch-guard',    values: ['strict'] },
-  { key: 'control-word',    values: [], free: true },
 ]
 
 // Values that mean "no preference" and therefore render no line at all.
@@ -36,7 +35,7 @@ export function isUnsetValue(_key, value) {
   return LEGACY_UNSET_VALUES.has(value)
 }
 
-// Keys retired in D-029. Their behaviour either became a fixed rule in AGENTS.md
+// Keys retired in D-029 (and later, as noted per row). Their behaviour either became a fixed rule in AGENTS.md
 // or merged into a surviving key. An existing workspace keeps rendering them
 // until its next `truss set`; BL-03 reports them as a warning with the migration
 // hint instead of an unknown-key error, so upgrading never turns doctor red.
@@ -50,20 +49,8 @@ export const RETIRED_KEYS = new Map([
   ['post-task-check', 'now a fixed rule — AGENTS.md §4 runs doctor before reporting done'],
   ['phase-lock',      'now a fixed rule — AGENTS.md §4 names the conflict and asks'],
   ['response-style',  'now a fixed rule — AGENTS.md §4: record and report are two artefacts; the response form follows the task'],
+  ['control-word',    'removed (D-109) — a reply prefix survives longest and so signals health exactly when it is gone; after a compaction run `truss status` instead'],
 ])
-
-// Keys whose value is free-form (not restricted to the listed values).
-// `control-word` is any short word the human picks (session-health marker);
-// removing it is `truss unset control-word`.
-export const FREE_VALUE_KEYS = new Set(
-  PREFS_CATALOG.filter(e => e.free).map(e => e.key)
-)
-
-// Validate a free value: a short word/token. `off` passes the pattern but is
-// caught earlier as a legacy unset, so it cannot become a literal control word.
-export function isValidFreeValue(value) {
-  return /^[A-Za-z][A-Za-z0-9-]{0,23}$/.test(value)
-}
 
 // Map for bl.mjs validation and error messages: key → Set of canonical values.
 // Legacy unset values are NOT in here — callers accept them separately, so a

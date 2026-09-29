@@ -188,7 +188,6 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 14. **Zero dependencies.** Node ≥ 20 is the only requirement. No `npm install`, no lockfile, no build step, nothing fetched at runtime, and no third-party code shipped — everything under `.truss/` is plain, unminified source you can read before trusting it.
 15. **Structure grows on observed need.** Domain files are created when a topic earns one. No premade backlog, no empty folders, no per-folder index files.
 16. **Overlay leaves your repo alone.** Nested code keeps its own git history; a `code-root` setting draws one boundary that checks, maps, and branch status all share. Truss wraps the project, it doesn't absorb it.
-17. **A control word as session canary.** Opt-in: `truss set control-word TRUSS` makes every agent reply start with `` `TRUSS — ` ``. When the marker disappears mid-session, context is degrading and it's time for a new session. Remove it again: `truss unset control-word`.
 
 ## How it works
 
