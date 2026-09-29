@@ -1,5 +1,5 @@
 # Claude Code — Truss Workspace
 
-This project uses the open `agents.md` standard. Read `AGENTS.md` — that file is the complete boot instruction for this workspace.
+This project uses the open `agents.md` standard. `AGENTS.md`, imported below, is the complete boot instruction for this workspace — it is already in your context, do not read it again.
 
-> **Important Setup:** This workspace relies on local scripts (`.truss/bin/truss.mjs`) to manage its state and health. You must ensure Claude Code has permission to execute terminal commands automatically in this directory, otherwise the system will fail.
+@AGENTS.md

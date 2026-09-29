@@ -43,7 +43,7 @@ Routing policy: which file owns what. Not a file inventory — that is `state/ma
 | state/learnings.md (on demand) | A | systemic agent/framework weaknesses — not a product bug log |
 | state/truss-findings.md (on demand) | A | friction with Truss itself from long-term use — logic errors, unclean rules, rules that break long-term, context cost; when Truss, not your project, causes extra work or awkwardness, record it there for upstream feedback |
 | state/map.md (on demand) | S | auto-generated domain map with read-cost estimates; read-only |
-| HUMAN-TODOS.md (on demand) | A→H | only what **you cannot execute**: access you lack, acting under the human's identity, a physical/legal act, or a sign-off the protocol reserves. Could you do it with the tools you have? Then it is not an HT — route it to `next:` or the owning file; a judgment call is an OD. HT-NNN carries numbered steps and `Done when:` and must be executable from the entry alone — never `see D-NNN` where the instruction belongs; template + full test in docs/conventions.md; settled `[x]` → archive/human-todos.md |
+| HUMAN-TODOS.md (on demand) | A→H | only what **you cannot execute** — access you lack, acting under the human's identity, a physical/legal act, or a sign-off the protocol reserves; a judgment call is an OD. Entry shape (numbered steps, `Done when:`, executable from the entry alone) and the full test: docs/conventions.md; settled `[x]` → archive/human-todos.md |
 | docs/ | A | working docs (schema · conventions · protocols · git · import) — read per §6 |
 | context/ (on demand) | H+A | domain (topic) files — one canonical home per topic (`context/<domain>.md`) |
 | archive/ (on demand) | A | superseded material with one-line invalidation note |
@@ -64,21 +64,13 @@ Routing tie-breakers: "remember this" / any durable rule about how you work → 
 
 Canonical truth: every operational fact lives in exactly one file; link, never copy.
 
-Admission & expiry: before writing, name what a future session does differently because of the entry — if nothing, don't write it; never restate what git, the code, or another file already carries. Then write only that, in the shortest form the next session can act on: the entry is the record, not the reasoning that produced it. Length is admission applied twice — a sentence that changes no future action fails the same test as a whole entry that changes none. Boot files (§1) hold only what every session needs. Whenever you touch a file, prune what no longer earns its place — relevance decides, not age, and VISION.md and state/ are not exempt; archive with a pointer (docs/protocols.md), never silently drop.
+Admission & expiry: before writing, name what a future session does differently because of the entry — if nothing, don't write it; never restate what git, the code, or another file already carries. Then write only that, in the shortest form the next session can act on: the entry is the record, not the reasoning that produced it. Length is admission applied twice — a sentence that changes no future action fails the same test as a whole entry that changes none. Boot files (§1) hold only what every session needs. Whenever you touch a file, prune what no longer earns its place — relevance decides, not age, and VISION.md and state/ are not exempt; archive with a pointer (docs/protocols.md), never silently drop. Match existing conventions — unless one breaks Admission: then do not extend it, name it.
 
 Language: all free-text follows `language:` in state/profile.md — entry titles and bodies included; only the machine-parsed skeleton stays English — ID tokens, keys/field labels, fixed file headings.
 
 Consistency — a change is complete only with its follow-ups: human decided → D-NNN (with `Closes:`), update affected canonical files, remove the OD entry · new undecided question that blocks work → open-decisions briefing · new fact → its one canonical file, contradicted content gets an invalidation note · task done → write focus/next/blockers back to state/current.md before reporting done · same fact found in two files → fix the canonical one, then grep and sync the copies · superseded content → archive/ plus invalidation note.
 
-Think critically, and say so before you execute: name the weaknesses you see in a plan, a request, or the input you were handed *before* acting on it, not after it failed. If multiple interpretations exist, present them — do not pick silently. If a simpler approach exists, say so and push back when warranted. If something is unclear, stop — name what is confusing and ask. Disagreement is wanted — "X may be wrong because Y, I suggest Z" beats silent compliance, and agreeing by default is the more expensive habit. Never knowingly pass a problem by: fix it if no human input is needed and say so; otherwise flag it (open-decisions or HT entry). A future trap that does not block yet gets a `latent:` note where it belongs. When the problem is not in the work but in how the work is done — a weakness the framework let happen and would let happen again — it is an `L-NNN`, written when you spot it, not once you fix it.
-
-Work discipline — these apply to every deliverable (code, documents, plans, analyses), not only to workspace state files:
-
-Simplicity first: deliver the minimum that solves the task. No deliverables beyond what was asked, no structure for single-use content, no speculative flexibility. If the output is far longer than it needs to be, compress it. Ask yourself: "Would an experienced practitioner call this overcomplicated?" If yes, simplify.
-
-Surgical changes: when editing existing material — code, documents, configuration — touch only what the task requires. Do not "improve" adjacent content, reformat untouched sections, or refactor what is not broken. Match existing conventions, even if you would do it differently — unless the convention itself breaks Admission; then do not extend it, name it. If you notice an unrelated issue, mention it — do not fix it silently. Clean up what YOUR changes made obsolete; do not remove pre-existing dead material unless asked. The test: every change traces directly to the task.
-
-Goal-driven execution: before multi-step work, state a brief plan with verification checkpoints (`1. [step] → verify: [check]`). Transform vague requests into verifiable goals. Loop until the verification passes — do not declare done on the first attempt without checking.
+Think critically, and say so before you execute: name the weaknesses you see in a plan, a request, or the input you were handed *before* acting on it, not after it failed, and push back when warranted — "X may be wrong because Y, I suggest Z" beats silent compliance. Never knowingly pass a problem by: fix it if no human input is needed and say so; otherwise flag it (open-decisions or HT entry). A future trap that does not block yet gets a `latent:` note where it belongs. When the problem is not in the work but in how the work is done — a weakness the framework let happen and would let happen again — it is an `L-NNN`, written when you spot it, not once you fix it.
 
 Decisions bind until superseded — and they are evidence, not scripture. Challenge one when, and only when: new evidence it did not have · a consequence it predicted demonstrably did not hold · it now contradicts another canonical file or a later decision. Not a different preference, not taste, not "this could be cleaner", not "I don't see why". Open the challenge yourself — an OD entry naming the decision, plus `Challenged-by: OD-NNN` on it — but never change or supersede a decision without the human's explicit go-ahead. Rejected challenge → put the tested alternative into that decision's `Rationale:` in one clause; a rejected challenge hardens the decision instead of returning next session.
 
@@ -90,9 +82,9 @@ IDs: D-NNN decisions · OD-NNN open decisions · HT-NNN human todos · R-NNN ris
 
 ## 4 Session protocol
 
-Never act silently on ambiguity — the four cases below share one rule: name it, then proceed or ask.
+Never act silently on ambiguity — the cases below share one rule: name it, then proceed or ask.
 
-Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical session-start command (date/time anchor, phase, preferences, health, branch); state what you will do. After a context compaction, run it again: the preferences are what a summary loses first. Unclear intent: name the assumption you would act on, and ask when guessing wrong would cost more than the question. Code-root configured and its branch differs from `branch:` in state/current.md: say so before you edit anything.
+Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical session-start command (date/time anchor, phase, preferences, health, branch); state what you will do. After a context compaction, run it again: the preferences are what a summary loses first. Unclear intent: name the assumption you would act on; the `clarify` preference, when set, decides whether you ask first. Code-root configured and its branch differs from `branch:` in state/current.md: say so before you edit anything.
 
 During: respect the phase block — if an action would violate `forbidden`, name the conflict and ask before proceeding. Write back per work unit: the moment a task lands, update state/current.md and route its loose ends. Sessions can end without warning; unrecorded state misleads the next agent.
 
@@ -108,9 +100,7 @@ Phase exit — when exit criteria appear met (never self-declare a phase change)
 - Phase definitions are yours to maintain — restructure future phases with a D-NNN, tell the human, then `truss render`; never loosen the CURRENT phase's `forbidden`/`forbidden-globs`/`exit` without explicit human confirmation.
 - Never edit the generated blocks by hand — use `truss set`, `truss render`, `truss phase`.
 - Never write or commit secrets: keys live in a gitignored `.env`; document required key names in a tracked `.env.example`.
-- Never store the same truth twice, create empty files or folders, or add per-folder index files — the §1 files are the exception: they ship with the workspace and stay even when empty.
-- Never delete a decision — supersede it, and only with the human's explicit go-ahead (§3).
-- Never ignore a known problem — fix or flag it (§3).
+- Never create empty files or folders, or add per-folder index files — the §1 files are the exception: they ship with the workspace and stay even when empty.
 - Subagents inherit your active preferences and the current phase's forbidden list / `forbidden-globs` — recursively; before any write to a forbidden path they re-check the phase gate and refuse if the phase forbids it.
 
 ## 6 On-demand docs
