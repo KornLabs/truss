@@ -19,7 +19,7 @@
 2. `state/current.md` — focus, next actions, blockers.
 3. `VISION.md` — once per session.
 4. `state/profile.md` — project language, tools, style.
-5. `state/decisions-index.md` — always: every decision's title and status. Then the bodies your task touches (`state/decisions/D-NNN.md`), and all of them before making or proposing any decision — the index says *what* was decided, the body *why* and *at what cost*. `state/open-decisions.md` when the task touches an open question.
+5. `state/decisions-index.md` — always: every decision's title and status. Then the bodies your task touches (`state/decisions/D-NNN.md`), and all of them before making or proposing any decision, then say which ones you read — the index says *what* was decided, the body *why* and *at what cost*. `state/open-decisions.md` when the task touches an open question.
 6. The phase block's read list, then the one domain file your task belongs to (§2).
 
 Load the smallest context that can answer the task; stop as soon as it is unambiguous — no archives, history, bulk data, engine internals, or unrelated domains unless the task requires them.
