@@ -134,7 +134,7 @@ export const PREFS_GROUPS = [
   { title: 'HARD — STOP conditions; never violate silently', keys: ['clarify', 'branch-guard'] },
   { title: 'AUTONOMY',               keys: ['subagents', 'gate-advocate'] },
   { title: 'RIGOR & VERIFICATION',   keys: ['verify-inputs'] },
-  { title: 'WORKFLOW',               keys: ['scope', 'auto-commit'] },
+  { title: 'WORKFLOW',               keys: ['scope', 'auto-commit', 'git-flow'] },
 ]
 
 /**

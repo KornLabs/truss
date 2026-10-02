@@ -64,11 +64,22 @@ export const COMMAND_META = [
       '--overlay': {}, '--no-phases': {}, '--code-root': { value: true },
       '--adopt-agents': {}, '--root': { value: true },
       '--skills': { value: true }, '--findings': { value: true },
+      '--team': {}, '--as': { value: true },
     },
   },
   {
     name: 'skills', display: 'skills <list|add|remove> [group]',
     summary: 'manage baseline skill groups',
+    flags: {},
+  },
+  {
+    name: 'team', display: 'team <enable [--as @me]|whoami|link|unlink>',
+    summary: 'team mode: enable it, set who you are, link a workspace you do not hold',
+    flags: { '--as': { value: true } },
+  },
+  {
+    name: 'ci', display: 'ci <list|add|remove> [doctor|merge]',
+    summary: 'optional GitHub Actions: doctor check and the team merge workflow',
     flags: {},
   },
   {

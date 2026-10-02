@@ -1,0 +1,29 @@
+# truss-doctor — written by `truss ci add doctor` (Truss, D-116).
+# Runs `truss doctor` on every push and pull request. Fails only on errors
+# (exit 2); warnings stay visible in the log without turning the check red.
+name: truss-doctor
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: truss doctor
+        env:
+          TRUSS_NO_PRESENCE: '1'
+        run: |
+          set +e
+          node .truss/bin/truss.mjs doctor
+          code=$?
+          if [ "$code" -ge 2 ]; then exit 1; fi
+          exit 0

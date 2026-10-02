@@ -22,6 +22,9 @@ export const PREFS_CATALOG = [
   { key: 'auto-commit',     values: ['never', 'suggest', 'on'] },
   { key: 'gate-advocate',   values: ['on', 'agentic'] },
   { key: 'branch-guard',    values: ['strict'] },
+  // D-115: the team workspace's git flow. Only meaningful with state/team.md;
+  // TM-02 asks for it there.
+  { key: 'git-flow',        values: ['team'] },
 ]
 
 // Values that mean "no preference" and therefore render no line at all.

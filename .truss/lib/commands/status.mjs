@@ -13,6 +13,10 @@ import { classById, fileForClass } from '../schema.mjs'
 import { parseLocalDate, parsePrefsRows } from '../render.mjs'
 import { measureBootContext, toTokens } from '../context-budget.mjs'
 import { formatTokens } from './map.mjs'
+import {
+  TEAM_FILE, LINKS_FILE, isTeamMode, parseTeam, findMember, focusFileFor, parseLinksFile, openRequests,
+  resolveIdentity, localLinks, othersSinceLastRun, readLinkedLinks, htAddressees,
+} from '../team.mjs'
 
 const RECENT_COMMITS_MAX = 5
 // Same 60-char cutoff other status-adjacent messages use (checks/sy.mjs,
@@ -172,6 +176,13 @@ export async function runStatus(root, argv) {
   const parallel = await parallelLines(root, useColorGlobal)
   for (const l of parallel) console.log(l)
 
+  // Team mode and links (D-112/D-119) — who you are here, what the others
+  // changed since you last looked, and the requests waiting on you. Same
+  // contract as the Parallel block: live reads in the command layer, never an
+  // exit code, silent in a solo workspace without links.
+  const team = await teamLines(ctx, root)
+  for (const l of team.lines) console.log(l)
+
   // Domain register — generated, never stored. AGENTS.md §1 step 6 tells an
   // agent to open "the one domain file your task belongs to", and until now
   // nothing said cheaply *which* files those are. This block answers it from
@@ -202,7 +213,7 @@ export async function runStatus(root, argv) {
   // session that wrote it had ended. No age is shown because the class carries no
   // date field; making it visible is what the median-38-day-old entry needed, not
   // a number.
-  for (const l of await humanTodoLines(ctx, root, now)) console.log(l)
+  for (const l of await humanTodoLines(ctx, root, now, team.login)) console.log(l)
 
   // Open decisions — questions parked on the human's desk. status is the canonical
   // session-start command (§4), so this is the one place that guarantees a waiting
@@ -267,7 +278,7 @@ const HT_TEXT_MAX = 60
  * are not shown. Silent when nothing is open.
  * @returns {string[]}
  */
-async function humanTodoLines(ctx, root, now) {
+async function humanTodoLines(ctx, root, now, me = null) {
   const cls = classById(ctx.schema?.classes, 'HT')
   const ht = fileForClass(ctx, cls)
   if (!cls || !ht) return []
@@ -308,11 +319,24 @@ async function humanTodoLines(ctx, root, now) {
     return at == null ? null : Math.max(0, Math.floor((now - at) / 86_400_000))
   }
 
+  // Team mode (D-120): an entry may name its doer with `For: @login`. Yours
+  // come first, then the ones for everybody, then the ones for someone else —
+  // so the cut below drops other people's work before your own.
+  const addressees = isTeamMode(ctx) ? htAddressees(ht.lines, cls.id) : new Map()
+  const forOf = (entry) => addressees.get(entry.line)?.login ?? null
+  const rank = (entry) => {
+    const f = forOf(entry)
+    if (!f) return 1
+    return me && f.toLowerCase() === me.toLowerCase() ? 0 : 2
+  }
+
   // Longest-idle first. The block is a nudge, and the entry nobody has touched
   // in six weeks is the one it exists for — so it must never be the one the
   // HT_SHOWN_MAX cut drops. Entries without an age keep file order behind the
   // dated ones rather than sorting as if they were fresh.
   const ordered = [...open].sort((a, b) => {
+    const ra = rank(a), rb = rank(b)
+    if (ra !== rb) return ra - rb
     const da = idleDays(a), db = idleDays(b)
     if (da == null && db == null) return a.line - b.line
     if (da == null) return 1
@@ -334,7 +358,10 @@ async function humanTodoLines(ctx, root, now) {
     // so re-wording an entry restarts its clock. The OD block one section below
     // prints a real age from `Opened:` — two identical-looking numbers meaning
     // different things is exactly the silent wrongness worth one extra word.
-    out.push(`${label} ${short}${days == null ? '' : `  (idle ${days}d)`}`)
+    const f = forOf(entry)
+    const who = !f ? [] : [rank(entry) === 0 ? 'for you' : `for @${f}`]
+    const notes = [...who, ...(days == null ? [] : [`idle ${days}d`])]
+    out.push(`${label} ${short}${notes.length ? `  (${notes.join(', ')})` : ''}`)
   }
   if (open.length > HT_SHOWN_MAX) {
     out.push(`           … and ${open.length - HT_SHOWN_MAX} more in ${ht.relPath}`)
@@ -432,5 +459,81 @@ async function parallelLines(root, useColor) {
   } catch {
     // A presence layer that can break `truss status` would be worse than none.
     return []
+  }
+}
+
+const TEAM_PATHS_SHOWN = 4
+const LINKS_SHOWN_MAX = 5
+
+/**
+ * The `Team:`, `Links:` and `Linked:` blocks (D-112/D-119).
+ * Never throws; returns the resolved login so the ToDo block can put the
+ * entries addressed to this person first.
+ * @returns {Promise<{lines: string[], login: string|null}>}
+ */
+async function teamLines(ctx, root) {
+  try {
+    const teamMode = isTeamMode(ctx)
+    const linksFile = ctx.files.get(LINKS_FILE)
+    const local = await localLinks(root)
+    if (!teamMode && !linksFile && local.length === 0) return { lines: [], login: null }
+
+    const { login } = await resolveIdentity(root)
+    const isMe = (l) => !!login && !!l && l.replace(/^@/, '').toLowerCase() === login.toLowerCase()
+    const out = []
+
+    if (teamMode) {
+      const members = parseTeam(ctx.files.get(TEAM_FILE).lines).members
+      if (!login) {
+        out.push('  Team:    who are you here? set it once: node .truss/bin/truss.mjs team whoami @<your-github-login>')
+      } else {
+        const m = findMember(members, login)
+        out.push(m
+          ? `  Team:    you are @${m.login} — ${m.name}${m.role ? ` · role: ${m.role}` : ''}${m.domains.length ? ` · domains: ${m.domains.join(', ')}` : ''}`
+          : `  Team:    you are @${login} — not in ${TEAM_FILE} yet; add your line there`)
+        const focus = focusFileFor(login)
+        out.push(`           your focus: ${focus}${ctx.files.has(focus) ? '' : ' — not written yet; create it when you take up work'}`)
+      }
+      const feed = await othersSinceLastRun(root)
+      if (feed && feed.commits.length) {
+        const byAuthor = new Map()
+        for (const c of feed.commits) byAuthor.set(c.author, (byAuthor.get(c.author) || 0) + 1)
+        const paths = [...new Set(feed.commits.flatMap(c => c.paths))]
+        const shown = paths.slice(0, TEAM_PATHS_SHOWN).join(', ')
+        const more = paths.length > TEAM_PATHS_SHOWN ? ` (+${paths.length - TEAM_PATHS_SHOWN} more)` : ''
+        const n = feed.commits.length
+        out.push(`           since your last status: ${n} commit${n === 1 ? '' : 's'} by others — ${[...byAuthor].map(([a, k]) => `${a} (${k})`).join(', ')}${shown ? `: ${shown}${more}` : ''}`)
+      }
+    }
+
+    if (linksFile) {
+      const { links } = parseLinksFile(linksFile.lines)
+      for (const [n, l] of links.slice(0, LINKS_SHOWN_MAX).entries()) {
+        const open = openRequests(l).length
+        const label = n === 0 ? '  Links:  ' : '          '
+        const req = `${open} open request${open === 1 ? '' : 's'}`
+        const who = !l.owner ? 'no owner named'
+          : isMe(l.owner) ? `held by you · ${req} for you`
+          : `held by ${l.owner.startsWith('@') ? l.owner : `@${l.owner}`} — not yours to build here; add a request · ${req}`
+        out.push(`${label} ${l.name} — ${who}`)
+      }
+      if (links.length > LINKS_SHOWN_MAX) out.push(`           … and ${links.length - LINKS_SHOWN_MAX} more in ${LINKS_FILE}`)
+    }
+
+    for (const [n, l] of local.entries()) {
+      const label = n === 0 ? '  Linked: ' : '          '
+      const theirs = await readLinkedLinks(l.path)
+      let note = ''
+      if (theirs) {
+        const mine = theirs.links.filter(x => isMe(x.owner)).flatMap(openRequests)
+        note = login
+          ? ` — ${mine.length} open request${mine.length === 1 ? '' : 's'} for you there`
+          : ' — set your identity to see requests addressed to you'
+      }
+      out.push(`${label} ${l.name} → ${l.path}${note}`)
+    }
+    return { lines: out, login }
+  } catch {
+    return { lines: [], login: null }
   }
 }

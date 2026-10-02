@@ -151,6 +151,17 @@ Truss never places, clones, or moves code: where your repository comes from and 
 
 Code sitting somewhere else in the workspace (a tracked submodule, say)? Point at it instead: `init --overlay --code-root product`. Truss records `code-root: product` in `state/profile.md`, and checks, branch status, phase evidence, and `map` share that one boundary. Nothing moves.
 
+### A small team (optional)
+
+Truss is built for one person carrying a project. If two or three people share it, each on their own clone, team mode adds who is who (`state/team.md`, by GitHub login), one focus file per person, a feed of what the others changed, and `state/links.md` for repositories not everyone can see:
+
+```bash
+node .truss/bin/truss.mjs init --team --as @<your-github-login>     # or, later: truss team enable
+node .truss/bin/truss.mjs ci add doctor merge                         # optional GitHub Actions
+```
+
+Roles describe, they grant nothing: on a private GitHub Free repository the only thing that keeps work from someone is a repository they cannot access. Details and limits: [.truss/docs/team.md](.truss/docs/team.md).
+
 ### What your agent needs
 
 One permission matters: **terminal / command execution** in the workspace, so the agent can run `doctor`, `render`, `set`, and `map` itself. Allowing auto-run for `node .truss/bin/truss.mjs` commands gives the smoothest sessions.
@@ -231,6 +242,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | [.truss/docs/concepts.md](.truss/docs/concepts.md) | the model — files, state layer, phases, checks, preferences |
 | [.truss/docs/cli.md](.truss/docs/cli.md) | command reference and flags |
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | moving an existing project to a newer Truss version |
+| [.truss/docs/team.md](.truss/docs/team.md) | team mode — several people, one workspace (optional) |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | how the engine is built (contributors) |
 | [.truss/prompts/README.md](.truss/prompts/README.md) | where your own prompts live |
 

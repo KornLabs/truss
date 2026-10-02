@@ -60,6 +60,8 @@ import {
   writeFileSafe,
 } from "../scaffold.mjs";
 import { writeBlock } from "../writer.mjs";
+import { normalizeLogin, resolveIdentity } from "../team.mjs";
+import { enableTeam } from "./team.mjs";
 import { renderPrefsBlock, renderPhaseBlock, renderNoPhasesBlock } from "../render.mjs";
 import { parsePhases, parseBlocks } from "../md.mjs";
 import { generateMapContent } from "./map.mjs";
@@ -107,6 +109,8 @@ export function parseInitArgs(argv) {
     root: null,
     skills: null,
     findings: true,
+    team: false,
+    as: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -121,6 +125,9 @@ export function parseInitArgs(argv) {
       return v;
     };
     if (a === "--overlay") opts.overlay = true;
+    else if (a === "--team") opts.team = true;
+    else if (a === "--as") opts.as = value("--as");
+    else if (a.startsWith("--as=")) opts.as = a.slice("--as=".length);
     else if (a === "--no-phases") opts.noPhases = true;
     else if (a === "--adopt-agents") opts.adoptAgents = true;
     else if (a === "--name") opts.name = value("--name");
@@ -141,8 +148,15 @@ export function parseInitArgs(argv) {
     else if (a.startsWith("--skills=")) opts.skills = a.slice("--skills=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --no-phases --code-root --adopt-agents --root --skills --findings`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --no-phases --code-root --adopt-agents --root --skills --findings --team --as`,
       );
+  }
+  // D-114: a team workspace records friction with Truss — the channel is not optional there.
+  if (opts.team && !opts.findings) {
+    throw new InitError("init: --team requires the findings channel (D-114); drop --findings off.");
+  }
+  if (opts.as && !opts.team) {
+    throw new InitError("init: --as only applies with --team (it names your GitHub login).");
   }
   if (opts.codeRoot && !opts.overlay) {
     throw new InitError(
@@ -452,6 +466,19 @@ export async function runInit(root, argv, invokedCwd = null) {
   const treeExcludes = new Set(skillExcludes);
   if (opts.noPhases) treeExcludes.add("state/phases.md");
   const skillSelection = selectionContent(groups, selectedGroups);
+  // Team mode: know who is enabling it BEFORE anything is written, so a
+  // missing identity never leaves a half-initialised workspace behind.
+  let teamLogin = null;
+  if (opts.team) {
+    teamLogin = opts.as ? normalizeLogin(opts.as) : (await resolveIdentity(root)).login;
+    if (!teamLogin) {
+      throw new InitError(
+        opts.as
+          ? `init: '${opts.as}' is not a GitHub login.`
+          : "init: --team cannot tell who you are — pass --as @<your-github-login>, log in with `gh auth login`, or set TRUSS_USER.",
+      );
+    }
+  }
   if (opts.codeRoot) {
     try { await assertExistingCodeRoot(root, opts.codeRoot); }
     catch (err) {
@@ -712,6 +739,15 @@ export async function runInit(root, argv, invokedCwd = null) {
   const report = {};
   await gitInitMaybe(root, report);
 
+  // 6b. Team mode (D-112) — the same switch `truss team enable` throws.
+  if (teamLogin) {
+    try {
+      await enableTeam(root, { as: teamLogin });
+    } catch (err) {
+      throw new InitError(`init: the workspace is initialised, but enabling team mode failed — ${err.message}\n  Fix the cause, then run: node .truss/bin/truss.mjs team enable --as @${teamLogin}`);
+    }
+  }
+
   const codeRootReady = codeRoot
     ? await exists(path.join(root, ...codeRoot.split("/")))
     : false;
@@ -729,6 +765,7 @@ export async function runInit(root, argv, invokedCwd = null) {
     codeRootReady,
     skills: [...selectedGroups],
     findings: opts.findings ? "on" : "off",
+    team: teamLogin,
     currentPhase: currentId ?? "(none — no phase model)",
     baselineWritten: baseRes.written.length,
     conflicts,
@@ -752,6 +789,7 @@ function printReport(root, r) {
   L.push(`  Baseline files written: ${r.baselineWritten}`);
   L.push(`  Current phase:          ${r.currentPhase}`);
   L.push(`  Truss findings:         ${r.findings}`);
+  if (r.team) L.push(`  Team mode:              on (you: @${r.team}) — fill in state/team.md; .truss/docs/team.md`);
   L.push(`  Git:                    ${r.git}`);
   L.push(`  Skills:                 ${r.skills.length ? r.skills.join(", ") : "none"}`);
   if (!r.skills.length) {

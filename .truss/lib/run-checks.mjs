@@ -18,7 +18,7 @@ import { applySuppressions } from './suppress.mjs'
  * The check families, in catalog order. Adding a family means adding it here —
  * the one place, which is the whole point of this module.
  */
-export const CHECK_MODULES = ['st', 'bl', 'rf', 'ph', 'sy', 'cx']
+export const CHECK_MODULES = ['st', 'bl', 'rf', 'ph', 'sy', 'tm', 'cx']
 
 /**
  * Load and run every check against a loaded workspace context.

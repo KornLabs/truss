@@ -16,9 +16,9 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
+      { name: 'A', lang: 'English', overlay: false, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true, team: false, as: null })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true })
+      { name: 'A B', lang: null, overlay: true, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true, team: false, as: null })
   })
   it('rejects the retired --repo flag (D-059 — init never places the code)', () => {
     assert.throws(() => parseInitArgs(['--overlay', '--repo', '/p/code']), InitError)

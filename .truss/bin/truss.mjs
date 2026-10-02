@@ -57,6 +57,7 @@ import { readFileSync } from 'node:fs'
 import { loadWorkspace, resolveRoot } from '../lib/workspace.mjs'
 import { renderPhaseBlock, renderNoPhasesBlock, renderPrefsBlock, parsePrefsRows, formatTimestamp } from '../lib/render.mjs'
 import { writeBlock } from '../lib/writer.mjs'
+import { writePrefRows } from '../lib/prefs-writer.mjs'
 import { PREFS_CATALOG, CATALOG_KEYS, isUnsetValue, RETIRED_KEYS } from '../lib/prefs.mjs'
 import { loadBehaviorText } from '../lib/defaults.mjs'
 import { runInit } from '../lib/commands/init.mjs'
@@ -248,6 +249,7 @@ Init flags:
   --code-root <dir> select one existing in-workspace code root (overlay only)
   --skills <groups> none (default), all, or comma-separated baseline groups
   --no-phases       scaffold without state/phases.md (no gates, no exit criteria)
+  --team [--as @me] team mode: state/team.md, auto-commit=on, git-flow=team (needs the findings channel)
 
 Doctor flags:
   --gate        also run PH-04 phase-exit checks
@@ -679,45 +681,16 @@ async function renderPhaseInto(ctx) {
 // back in catalog order. `row === null` removes the key. One writer, so `set`
 // and `unset` can never drift in how they rebuild the block (GE-13).
 async function writePrefRow(keyArg, row) {
-  let ctx
+  let result
   try {
-    ctx = await loadWorkspace(root)
+    result = await writePrefRows(root, [{ key: keyArg, row }])
   } catch (err) {
-    console.error(`truss: failed to load workspace — ${err.message}`)
+    console.error(`truss: failed to write the preferences block — ${err.message}`)
     await exitFlushed(2)
   }
 
-  const prefsBlock = ctx.blocks?.get('preferences')
-  const currentRows = prefsBlock ? parsePrefsRows(prefsBlock.innerLines ?? []) : []
-
-  const rowMap = new Map(currentRows.map(r => [r.key, r]))
-  if (row === null) rowMap.delete(keyArg)
-  else rowMap.set(keyArg, row)
-
-  // Rebuild in catalog order; append any extra rows not in catalog at the end
-  const catalogKeys = PREFS_CATALOG.map(e => e.key)
-  const ordered = [
-    ...catalogKeys.filter(k => rowMap.has(k)).map(k => rowMap.get(k)),
-    ...[...rowMap.values()].filter(r => !catalogKeys.includes(r.key)),
-  ]
-  // Retired keys never reach the writer — a `set`/`unset` is the migration moment.
-  const kept = ordered.filter(r => !RETIRED_KEYS.has(r.key))
-
-  // Lines an older instance wrote that no longer belong: the legacy `key=off`
-  // sentinel (D-108) and keys retired by D-029. Both are dropped here rather
-  // than silently carried in the OTHER group.
-  const dropped = ordered.filter(r =>
-    r.key !== keyArg && (isUnsetValue(r.key, r.value) || RETIRED_KEYS.has(r.key)))
-
-  try {
-    await writeBlock(agentsMdPath, 'preferences', renderPrefsBlock(kept))
-  } catch (err) {
-    console.error(`truss: failed to write block — ${err.message}`)
-    await exitFlushed(2)
-  }
-
-  if (dropped.length) {
-    console.log(`  removed ${dropped.length} directive(s) that are retired or no longer written: ${dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
+  if (result.dropped.length) {
+    console.log(`  removed ${result.dropped.length} directive(s) that are retired or no longer written: ${result.dropped.map(r => `${r.key}=${r.value}`).join(', ')}`)
   }
 }
 
@@ -805,6 +778,14 @@ const HANDLERS = {
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
   skills:    (args) => runSkills(root, args),
+  team:      async (args) => {
+    const { runTeam } = await import('../lib/commands/team.mjs')
+    return runTeam(root, args)
+  },
+  ci:        async (args) => {
+    const { runCi } = await import('../lib/commands/ci.mjs')
+    return runCi(root, args)
+  },
   // init targets the caller's cwd (or --root), never silently the engine's own
   // directory (D-024) — pass where the user actually stands.
   init:      (args) => runInit(root, args, process.cwd()),
@@ -814,7 +795,7 @@ const HANDLERS = {
 }
 
 // init/phase surface user-facing fatals as a throw → exit code 2.
-const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions', 'team', 'ci'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); await exitFlushed(0)

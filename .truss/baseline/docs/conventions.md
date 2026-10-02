@@ -141,6 +141,10 @@ doctor flags a `Challenged-by:` whose OD no longer exists (SY-11).
   **Background:** [D-NNN · file — context only, never something a step needs]
 ```
 
+In team mode (`state/team.md` exists, `.truss/docs/team.md`), an entry may name
+its doer with an indented `For: @login` line in its body; `truss status` lists
+the reader's own entries first. Without it, the entry is for everyone.
+
 Qualifier — before writing an HT, ask: could an agent do this itself, with the
 tools it has, inside this workspace or the code root? If yes it is not an HT;
 route it to `state/current.md` `next:` or the owning domain file. An HT is only

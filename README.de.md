@@ -153,6 +153,17 @@ Truss platziert, klont und verschiebt keinen Code: woher dein Repository kommt u
 
 Liegt dein Code woanders im Workspace (etwa als getracktes Submodul)? Zeig stattdessen darauf: `init --overlay --code-root product`. Truss trägt `code-root: product` in `state/profile.md` ein, und Checks, Branch-Status, Phasen-Evidenz und `map` teilen sich diese eine Grenze. Verschoben wird nichts.
 
+### Ein kleines Team (optional)
+
+Truss ist für eine Person gebaut, die ein Vorhaben trägt. Teilen es zwei oder drei Leute, jede mit eigenem Klon, ergänzt der Team-Modus, wer wer ist (`state/team.md`, per GitHub-Login), eine Fokusdatei je Person, einen Feed dessen, was die anderen geändert haben, und `state/links.md` für Repositories, die nicht alle sehen:
+
+```bash
+node .truss/bin/truss.mjs init --team --as @<dein-github-login>      # oder später: truss team enable
+node .truss/bin/truss.mjs ci add doctor merge                         # optionale GitHub Actions
+```
+
+Rollen beschreiben, sie berechtigen nichts: In einem privaten Repository auf GitHub Free hält nur ein Repository, auf das jemand keinen Zugriff hat, Arbeit von ihm fern. Details und Grenzen: [.truss/docs/team.md](.truss/docs/team.md).
+
 ### Was dein Agent braucht
 
 Eine Berechtigung zählt: **Terminal-/Befehlsausführung** im Workspace, damit der Agent `doctor`, `render`, `set` und `map` selbst ausführen kann. Auto-Run für `node .truss/bin/truss.mjs`-Befehle zu erlauben ergibt die reibungslosesten Sessions.
@@ -233,6 +244,7 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | [.truss/docs/concepts.md](.truss/docs/concepts.md) | das Modell — Dateien, State-Layer, Phasen, Checks, Präferenzen |
 | [.truss/docs/cli.md](.truss/docs/cli.md) | Befehlsreferenz und Flags |
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | ein bestehendes Projekt auf eine neuere Truss-Version heben |
+| [.truss/docs/team.md](.truss/docs/team.md) | Team-Modus — mehrere Personen, ein Workspace (optional) |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | wie die Engine gebaut ist (Contributors) |
 | [.truss/prompts/README.md](.truss/prompts/README.md) | wo deine eigenen Prompts liegen |
 

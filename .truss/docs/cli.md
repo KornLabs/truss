@@ -36,6 +36,8 @@ truss init --name "My Project" --lang English
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
 | `--skills <selection>` | install `none` (default), `all` groups, or comma-separated group IDs such as `superpowers,ecc`. In a TTY without this option, init offers an interactive group choice, defaulting to none. The skills are optional because their frontmatter alone is context your host agent loads into every session — around 8.7k tokens for the full set, which Truss cannot see or budget. Add them later with `truss skills add <group>`. `.claude/SOURCES.md` is always installed as provenance |
+| `--team` | team mode ([team.md](team.md)): writes `state/team.md` with your line, routes AGENTS.md to it, sets `auto-commit=on` and `git-flow=team`. Requires the findings channel, so `--findings off` is refused. Your login comes from `--as`, `TRUSS_USER`, git config or `gh`; init stops before writing anything if none is known |
+| `--as <@login>` | (with `--team`) your GitHub login |
 | `--findings <on\|off>` | collect agent findings about Truss itself in `state/truss-findings.md` (default `on`). With `off`, every AGENTS.md / conventions mention of the channel is omitted — zero boot cost for instances that do not want it. Decision is fixed at init time |
 
 `init` scaffolds the directory it is invoked from (or `--root`), never silently
@@ -88,6 +90,43 @@ file that was in the old baseline and is absent here as a deliberate deletion
 and does not bring it back (`deleted here — kept deleted` in its report); the
 rest of the group keeps updating. Copying the others back after removing the
 group would make them *yours* and take them out of upgrades for good.
+
+---
+
+## `team`
+
+Team mode — several people, each on their own clone, identified by their GitHub
+login. The whole picture: [team.md](team.md).
+
+```bash
+truss team enable [--as @login]   # switch an existing workspace to team mode (idempotent)
+truss team whoami [@login]        # show who truss thinks you are, or set it for this clone (git config --local)
+truss team link <name> <path>     # where a linked workspace lives on THIS machine
+truss team unlink <name>
+```
+
+`link` works in any workspace, team mode or not: `status` then shows the open
+requests addressed to you in that workspace's `state/links.md`.
+
+---
+
+## `ci`
+
+Optional GitHub Actions workflows, copied from `.truss/ci/` to `.github/workflows/`.
+
+```bash
+truss ci list
+truss ci add doctor merge
+truss ci remove merge
+```
+
+| Workflow | What it does |
+|---|---|
+| `doctor` | runs `truss doctor` on every push and pull request; red only on errors (exit 2) |
+| `merge` | merges a pull request from a branch of this repository once `doctor` reports no error; on errors it comments the findings and waits for the next push |
+
+`add` never overwrites a workflow that differs from its template, and `remove`
+deletes only one that still matches it.
 
 ---
 
@@ -364,6 +403,7 @@ truss unset clarify          # back to the host agent's own behavior
 | `auto-commit` | never · suggest · on |
 | `gate-advocate` | on · agentic |
 | `branch-guard` | strict |
+| `git-flow` | team — the team workspace's flow ([team.md](team.md)); `truss team enable` sets it |
 
 **No key has a default.** "No preference" is not a value — it is the absence of
 a row, and that is the state every key starts in. A fresh workspace therefore

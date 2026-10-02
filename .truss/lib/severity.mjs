@@ -11,7 +11,7 @@ export const SEV_LABEL = { E: 'error', W: 'warning', I: 'info' }
 // Check-family display names (id prefix → name).
 export const FAMILY_NAMES = {
   ST: 'Structure', BL: 'Block', RF: 'Reference', SY: 'State',
-  PH: 'Phase', CX: 'Context', HY: 'Hygiene',
+  PH: 'Phase', TM: 'Team', CX: 'Context', HY: 'Hygiene',
 }
 
 // ANSI colours per severity (terminal only).

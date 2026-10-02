@@ -1,0 +1,66 @@
+# truss-merge — written by `truss ci add merge` (Truss, D-115/D-116).
+# Merges every pull request opened from a branch of this repository as soon as
+# `truss doctor` reports no error (exit 0 or 1). On errors it comments the
+# findings and waits: push a fix to the same branch and it runs again.
+#
+# No human approval is required — this is the team's agreed flow, not a lock.
+# On a private repository with GitHub Free nothing stops a direct push to main
+# or a manual merge; this workflow is the path agents follow, not a barrier.
+# If the repository restricts workflow permissions to read-only, allow
+# "Read and write permissions" under Settings → Actions → General.
+name: truss-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: truss-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  merge:
+    if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: truss doctor
+        id: doctor
+        env:
+          TRUSS_NO_PRESENCE: '1'
+        run: |
+          set +e
+          node .truss/bin/truss.mjs doctor > doctor.txt 2>&1
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat doctor.txt
+          exit 0
+      - name: merge
+        if: steps.doctor.outputs.code != '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR" --squash --delete-branch --repo "$GITHUB_REPOSITORY"
+      - name: report errors
+        if: steps.doctor.outputs.code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo 'truss doctor found errors, so this pull request was not merged. Fix them and push to the same branch; the merge runs again.'
+            echo
+            echo '```'
+            tail -n 60 doctor.txt
+            echo '```'
+          } > comment.md
+          gh pr comment "$PR" --body-file comment.md --repo "$GITHUB_REPOSITORY"
+          exit 1

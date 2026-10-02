@@ -21,7 +21,7 @@ export const ENGINE_DIR = path.join(fileURLToPath(import.meta.url), '..', '..')
 /** Copy the engine subdirs init needs into <root>/.truss (curated, not the whole tree). */
 export async function copyEngine(root) {
   const dest = path.join(root, '.truss')
-  for (const sub of ['bin', 'lib', 'checks', 'prefs', 'prompts', 'baseline']) {
+  for (const sub of ['bin', 'lib', 'checks', 'prefs', 'prompts', 'baseline', 'ci', 'docs']) {
     await fs.cp(path.join(ENGINE_DIR, sub), path.join(dest, sub), { recursive: true })
   }
   try { await fs.cp(path.join(ENGINE_DIR, 'VERSION'), path.join(dest, 'VERSION')) } catch {}

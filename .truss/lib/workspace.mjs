@@ -223,6 +223,11 @@ export async function loadWorkspace(root) {
   // every D-NNN definition — one RF-02 per reference — the day it upgrades.
   // D-077/D-081: the old form stays supported and stays silent.
   managedRelPaths.add('state/decisions.md');
+  // Team mode (D-112/D-119): loaded whether or not the §2 table lists them —
+  // the presence of state/team.md IS the switch (D-077), so it must be seen
+  // before anyone has added its row.
+  managedRelPaths.add('state/team.md');
+  managedRelPaths.add('state/links.md');
   // Every file the schema names, whether or not the §2 table lists it. A class
   // whose file is never read is a class that is never checked — the same silent
   // pass ST-11 exists to prevent, just reached from the other side. A project
@@ -332,7 +337,9 @@ export async function loadWorkspace(root) {
   // because the map summarises such a directory instead of listing it.
   const classDirs = schema.classes.map(c => c.dir).filter(Boolean)
   const classDirMd = diskPaths.filter(p => p.endsWith('.md') && classDirs.some(d => p.startsWith(d + '/')))
-  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd, ...classDirMd]) {
+  // Personal focus files of team mode (D-117): state/current/<login>.md.
+  const focusMd = diskPaths.filter(p => /^state\/current\/[^/]+\.md$/.test(p))
+  for (const rel of [...mdFiles.filter(p => p.startsWith('context/')), ...archiveMd, ...classDirMd, ...focusMd]) {
     if (files.has(rel)) continue;
     const raw = await readFile(resolve(rel));
     if (!raw) continue;
