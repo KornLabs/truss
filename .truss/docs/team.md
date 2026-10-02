@@ -79,6 +79,13 @@ The merge workflow:
 
 If the repository allows workflows only read access, enable "Read and write permissions" under Settings → Actions → General.
 
+**No run after the first push?** Observed on 2026-10-02: workflows that arrived with the push that created the repository were listed as active but never triggered — not on later pushes, not on pull requests; a workflow added in a later commit ran at once. If that happens, re-add them in two pushes:
+
+```sh
+node .truss/bin/truss.mjs ci remove doctor merge && git commit -m "ci: re-register workflows" -- .github/workflows && git push
+node .truss/bin/truss.mjs ci add doctor merge && git add .github/workflows && git commit -m "ci: re-register workflows" -- .github/workflows && git push
+```
+
 `truss ci list` shows what is installed. `truss ci remove <name>` deletes a workflow only if it still matches its template.
 
 ## What a team cannot see: `state/links.md`
