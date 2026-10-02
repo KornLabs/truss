@@ -1,10 +1,11 @@
 # truss-doctor — written by `truss ci add doctor` (Truss, D-116).
-# Runs `truss doctor` on every push and pull request. Fails only on errors
+# Runs `truss doctor` on every push to main and every pull request. Fails only on errors
 # (exit 2); warnings stay visible in the log without turning the check red.
 name: truss-doctor
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -15,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -23,7 +26,10 @@ jobs:
           TRUSS_NO_PRESENCE: '1'
         run: |
           set +e
-          node .truss/bin/truss.mjs doctor
+          node .truss/bin/truss.mjs doctor > doctor.txt 2>&1
           code=$?
+          sed 's/^::/ ::/' doctor.txt
+          # Exit 1 is both "warnings" and "node crashed": only a printed report counts.
+          if ! grep -q '^truss doctor' doctor.txt; then exit 1; fi
           if [ "$code" -ge 2 ]; then exit 1; fi
           exit 0

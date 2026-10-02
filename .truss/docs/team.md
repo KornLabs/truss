@@ -36,7 +36,7 @@ Each clone says once who it is:
 node .truss/bin/truss.mjs team whoami @<your-login>    # stored in git config --local, never committed
 ```
 
-`truss status` then opens with `Team: you are @… — …`, names your focus file, and lists what the others committed since your last `status`. Git carries authorship: every agent commits under its person's git identity, so there is no `By:` field.
+`truss status` then opens with `Team: you are @… — …`, names your focus file, and lists what the others committed since the last `status` in this clone. "Others" means a git author email different from your `user.email`. The mark is per clone, so a second session in the same clone sees only what arrived after the first one looked. `status` never calls the network: if your login is only known to `gh`, run `team whoami` once. Git carries authorship: every agent commits under its person's git identity, so there is no `By:` field.
 
 ## Focus: one team file, one file per person
 
@@ -49,15 +49,17 @@ node .truss/bin/truss.mjs team whoami @<your-login>    # stored in git config --
   - `current:` in `state/phases.md`
   - the preferences and phase definitions
   - `state/team.md`
-  - `state/links.md`
+  - a link's `Repo:`, `Owner:` or `Holds:` in `state/links.md`
   - `VISION.md`
+
+  Requests and notes in `state/links.md` go straight to `main`. Their union merge only works in your local `git pull --rebase`; GitHub's server-side merge of a pull request does not apply it.
 - **Rebase conflicts:**
   - In a generated file, regenerate it (`truss render`, `truss map`) instead of merging it.
   - In an appended list, keep both sides.
   - When two clones took the same entry ID, renumber yours before you push. `doctor` reports a duplicate as RF-03.
   - When the conflict is a disagreement between people, ask.
 
-Any member may change a decision or the phase; there is no approval step. The others learn about it from the feed in `status`.
+Any member may change a decision; `current:` in `state/phases.md` changes only on a person's word, never on an agent's own initiative. There is no approval step. The others learn about it from the feed in `status`.
 
 ## Optional CI
 
@@ -67,6 +69,13 @@ node .truss/bin/truss.mjs ci add doctor merge
 
 - **`truss-doctor`** runs `doctor` on every push and pull request. It is red only on errors.
 - **`truss-merge`** merges a pull request from a branch of this repository as soon as `doctor` reports no error. On errors it comments the findings and waits for the next push. It exists because GitHub's own auto-merge is not available for private repositories on GitHub Free.
+
+The merge workflow:
+
+- checks the merge result (`main` plus the pull request), so an ID that another pull request already took on `main` shows up before the merge;
+- merges only when `doctor` printed its report with no error — a crashed or missing engine counts as an error;
+- does not re-check `main` after its own merge, because merges made with `GITHUB_TOKEN` trigger no further workflows;
+- cannot merge a pull request that changes `.github/workflows/`, because `GITHUB_TOKEN` may not write workflows. Merge such a pull request by hand.
 
 If the repository allows workflows only read access, enable "Read and write permissions" under Settings → Actions → General.
 

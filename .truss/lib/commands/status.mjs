@@ -478,7 +478,9 @@ async function teamLines(ctx, root) {
     const local = await localLinks(root)
     if (!teamMode && !linksFile && local.length === 0) return { lines: [], login: null }
 
-    const { login } = await resolveIdentity(root)
+    // No network here: a hanging `gh` must not stall every session start.
+    // The gh lookup happens in `team enable`, `team whoami` and `init --team`.
+    const { login } = await resolveIdentity(root, { allowNetwork: false })
     const isMe = (l) => !!login && !!l && l.replace(/^@/, '').toLowerCase() === login.toLowerCase()
     const out = []
 
@@ -491,7 +493,7 @@ async function teamLines(ctx, root) {
         out.push(m
           ? `  Team:    you are @${m.login} — ${m.name}${m.role ? ` · role: ${m.role}` : ''}${m.domains.length ? ` · domains: ${m.domains.join(', ')}` : ''}`
           : `  Team:    you are @${login} — not in ${TEAM_FILE} yet; add your line there`)
-        const focus = focusFileFor(login)
+        const focus = [...ctx.files.keys()].find(k => k.toLowerCase() === focusFileFor(login)) || focusFileFor(login)
         out.push(`           your focus: ${focus}${ctx.files.has(focus) ? '' : ' — not written yet; create it when you take up work'}`)
       }
       const feed = await othersSinceLastRun(root)

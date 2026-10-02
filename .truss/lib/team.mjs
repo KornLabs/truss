@@ -161,7 +161,11 @@ export function parseLinksFile(lines) {
     }
     if (!cur) continue
     const h3 = line.match(/^###\s+(.+?)\s*$/)
-    if (h3) { sub = h3[1].toLowerCase(); continue }
+    if (h3) {
+      const t = h3[1].toLowerCase()
+      sub = t.startsWith('request') ? 'requests' : t.startsWith('note') ? 'notes' : t
+      continue
+    }
     if (sub === null) {
       const f = line.match(/^(Repo|Owner|Holds)\s*:\s*(.*)$/i)
       if (f) cur[f[1].toLowerCase()] = f[2].trim() || null

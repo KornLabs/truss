@@ -91,6 +91,7 @@ export async function enableTeam(root, opts = {}) {
 
   const created = []
   const changed = []
+  const notes = []
 
   // state/team.md — written with the enabling member only; the others add
   // their own line (through a pull request: the file is a protected path).
@@ -110,15 +111,21 @@ export async function enableTeam(root, opts = {}) {
       '',
     ].join('\n'))
     created.push(TEAM_FILE)
+  } else if (!findMember(parseTeam(teamRaw.split(/\r?\n/)).members, login)) {
+    notes.push(`@${login} is not in ${TEAM_FILE} yet — add your line there (through a pull request: the file is a protected path).`)
   }
 
   // AGENTS.md: §1 sentence, §2 rows, §6 row — each added once.
-  let next = agents
+  // Keep the file's own line endings: the rows are written with \n and the
+  // whole text is re-joined with whatever the file used.
+  const eol = agents.includes('\r\n') ? '\r\n' : '\n'
+  const lf = agents.replace(/\r\n/g, '\n')
+  let next = lf
   next = addSection1Sentence(next)
   next = addSection2Rows(next)
   next = addSection6Row(next)
-  if (next !== agents) {
-    await fs.writeFile(agentsPath, next)
+  if (next !== lf) {
+    await fs.writeFile(agentsPath, eol === '\n' ? next : next.replace(/\n/g, '\r\n'))
     changed.push('AGENTS.md (§1, §2, §6)')
   }
 
@@ -129,8 +136,15 @@ export async function enableTeam(root, opts = {}) {
     if (!behavior) throw new TeamError(`truss team enable: no behaviour text for ${key}=${value} under .truss/prefs/ — is the engine complete?`)
     changes.push({ key, row: { key, value, behavior } })
   }
+  const prefsBefore = await fs.readFile(agentsPath, 'utf8')
   await writePrefRows(root, changes)
-  changed.push('AGENTS.md preferences (auto-commit=on, git-flow=team)')
+  if (await fs.readFile(agentsPath, 'utf8') !== prefsBefore) changed.push('AGENTS.md preferences (auto-commit=on, git-flow=team)')
+
+  // An explicit --as also tells THIS clone who it is; without it, `status`
+  // would keep resolving the gh account or nobody. Best effort — no git, no record.
+  if (opts.as) {
+    try { await setIdentity(root, login) } catch { notes.push(`could not record @${login} for this clone — run: node .truss/bin/truss.mjs team whoami @${login}`) }
+  }
 
   // .gitattributes — union merge for the append-only request lists.
   const gaPath = path.join(root, '.gitattributes')
@@ -152,7 +166,7 @@ export async function enableTeam(root, opts = {}) {
     if (after !== before) { await fs.writeFile(mapPath, after); changed.push('state/map.md') }
   } catch { /* no map in this workspace — nothing to keep in step */ }
 
-  return { login, created, changed }
+  return { login, created, changed, notes }
 }
 
 function addSection1Sentence(text) {
@@ -216,14 +230,22 @@ async function gitUserName(root) {
 async function runEnable(root, rest) {
   let as = null
   for (let i = 0; i < rest.length; i++) {
-    if (rest[i] === '--as') as = rest[++i] ?? null
-    else if (rest[i].startsWith('--as=')) as = rest[i].slice(5)
+    if (rest[i] === '--as') {
+      as = rest[++i]
+      if (!as || as.startsWith('-')) throw new TeamError('truss team enable: --as expects your GitHub login, e.g. --as @alex')
+    }
+    else if (rest[i].startsWith('--as=')) {
+      as = rest[i].slice(5)
+      if (!as) throw new TeamError('truss team enable: --as expects your GitHub login, e.g. --as @alex')
+    }
     else throw new TeamError(`truss team enable: unknown argument '${rest[i]}'`)
   }
   const r = await enableTeam(root, { as })
   console.log(`\ntruss team enable — team mode is on (you: @${r.login})\n`)
   for (const c of r.created) console.log(`  created  ${c}`)
   for (const c of r.changed) console.log(`  updated  ${c}`)
+  if (!r.created.length && !r.changed.length) console.log('  nothing to change — this workspace was already in team mode')
+  for (const n of r.notes) console.log(`  note     ${n}`)
   console.log('\nNext:')
   console.log(`  1. Complete your line in ${TEAM_FILE} (role, domains) and add the other members.`)
   console.log(`  2. Optional: node .truss/bin/truss.mjs ci add doctor merge  — the doctor check and the merge workflow.`)

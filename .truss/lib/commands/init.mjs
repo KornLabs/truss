@@ -831,11 +831,17 @@ function printReport(root, r) {
     ]);
     steps.push(["Run: node .truss/bin/truss.mjs doctor"]);
   }
-  steps.push([
-    "Agent preferences (subagents, ask-vs-infer, commit behavior) start off —",
-    "   your AI tool's own behavior applies. Set the ones you want with:",
-    "   node .truss/bin/truss.mjs set <key> <value>",
-  ]);
+  steps.push(r.team
+    ? [
+        "Team mode set auto-commit=on and git-flow=team; the other preferences start off —",
+        "   your AI tool's own behavior applies. Set the ones you want with:",
+        "   node .truss/bin/truss.mjs set <key> <value>",
+      ]
+    : [
+        "Agent preferences (subagents, ask-vs-infer, commit behavior) start off —",
+        "   your AI tool's own behavior applies. Set the ones you want with:",
+        "   node .truss/bin/truss.mjs set <key> <value>",
+      ]);
   steps.forEach((lines, i) => {
     L.push(`    ${i + 1}. ${lines[0]}`);
     for (const extra of lines.slice(1)) L.push(`    ${extra}`);

@@ -8,6 +8,10 @@
 # or a manual merge; this workflow is the path agents follow, not a barrier.
 # If the repository restricts workflow permissions to read-only, allow
 # "Read and write permissions" under Settings → Actions → General.
+# Limits: a merge made with GITHUB_TOKEN does not trigger other workflows, so
+# main is not re-checked after it (the check ran on the merge result instead);
+# and GITHUB_TOKEN cannot merge a pull request that changes .github/workflows/
+# — merge that one by hand.
 name: truss-merge
 
 on:
@@ -27,9 +31,12 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
+      # Default ref for pull_request = the merge result (refs/pull/N/merge):
+      # doctor sees main plus this PR, so an ID another PR already took on
+      # main shows up here (RF-03), not after the merge.
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -40,17 +47,21 @@ jobs:
         run: |
           set +e
           node .truss/bin/truss.mjs doctor > doctor.txt 2>&1
-          echo "code=$?" >> "$GITHUB_OUTPUT"
-          cat doctor.txt
+          code=$?
+          # Exit 1 is both "warnings" and "node crashed". Only a report that
+          # doctor actually printed counts; anything else is treated as an error.
+          if ! grep -q '^truss doctor' doctor.txt; then code=2; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          sed 's/^::/ ::/' doctor.txt
           exit 0
       - name: merge
-        if: steps.doctor.outputs.code != '2'
+        if: steps.doctor.outputs.code == '0' || steps.doctor.outputs.code == '1'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: gh pr merge "$PR" --squash --delete-branch --repo "$GITHUB_REPOSITORY"
       - name: report errors
-        if: steps.doctor.outputs.code == '2'
+        if: steps.doctor.outputs.code != '0' && steps.doctor.outputs.code != '1'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}

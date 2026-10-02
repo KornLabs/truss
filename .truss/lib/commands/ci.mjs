@@ -23,8 +23,10 @@ const WORKFLOW_DIR = '.github/workflows'
 
 const templateDir = () => path.join(fileURLToPath(import.meta.url), '..', '..', '..', 'ci')
 
+// Line endings normalised: with core.autocrlf a checked-out workflow carries
+// CRLF and would otherwise never match its template on Windows.
 async function readMaybe(p) {
-  try { return await fs.readFile(p, 'utf8') } catch { return null }
+  try { return (await fs.readFile(p, 'utf8')).replace(/\r\n/g, '\n') } catch { return null }
 }
 
 /** State of each template in a workspace: absent | installed | modified. */
@@ -59,7 +61,7 @@ export async function runCi(root, argv) {
   if (sub === 'add') {
     for (const n of pick(names)) {
       const dest = path.join(root, WORKFLOW_DIR, TEMPLATES[n])
-      const tpl = await fs.readFile(path.join(templateDir(), TEMPLATES[n]), 'utf8')
+      const tpl = await readMaybe(path.join(templateDir(), TEMPLATES[n]))
       const have = await readMaybe(dest)
       if (have === tpl) { console.log(`  unchanged  ${WORKFLOW_DIR}/${TEMPLATES[n]}`); continue }
       if (have !== null) { console.log(`  kept       ${WORKFLOW_DIR}/${TEMPLATES[n]} — it differs from the template; delete it first to take the template`); continue }
@@ -73,7 +75,7 @@ export async function runCi(root, argv) {
   if (sub === 'remove') {
     for (const n of pick(names)) {
       const dest = path.join(root, WORKFLOW_DIR, TEMPLATES[n])
-      const tpl = await fs.readFile(path.join(templateDir(), TEMPLATES[n]), 'utf8')
+      const tpl = await readMaybe(path.join(templateDir(), TEMPLATES[n]))
       const have = await readMaybe(dest)
       if (have === null) { console.log(`  absent     ${WORKFLOW_DIR}/${TEMPLATES[n]}`); continue }
       if (have !== tpl) { console.log(`  kept       ${WORKFLOW_DIR}/${TEMPLATES[n]} — edited by hand; delete it yourself if you mean to`); continue }

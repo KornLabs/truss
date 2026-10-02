@@ -95,6 +95,13 @@ describe('team parsers', () => {
     assert.match(msgs, /Owner must be one GitHub login/)
   })
 
+  it('parseLinksFile accepts a decorated Requests heading', () => {
+    const { links } = parseLinksFile([
+      '## b', 'Repo: x', 'Owner: @a', 'Holds: y', '### Requests (open first)', '- [ ] 2026-10-02 @a — z',
+    ])
+    assert.equal(links[0].requests.length, 1)
+  })
+
   it('focusFileProblems applies the current.md contract', () => {
     assert.deepEqual(focusFileProblems(['focus: x', 'next:', '  - a', 'blockers: none']), [])
     assert.match(focusFileProblems(['focus: x'])[0], /missing required keys: next, blockers/)
@@ -160,6 +167,32 @@ describe('init --team / team enable', () => {
     await quiet(() => runTeam(root, ['enable', '--as', '@alex']))
     assert.equal(await read(root, 'state/team.md'), '# Team\n\n- @sam — Sam\n')
     assert.deepEqual(teamIds(await runChecks(root)), [])
+  })
+
+  it('keeps CRLF line endings in AGENTS.md', async () => {
+    const root = await makeRoot()
+    await quiet(() => runInit(root, ['--name', 'X', '--lang', 'English']))
+    await write(root, 'AGENTS.md', (await read(root, 'AGENTS.md')).replace(/\r?\n/g, '\r\n'))
+    await enableTeam(root, { as: 'alex' })
+    const text = await read(root, 'AGENTS.md')
+    // The lines enable adds carry the file's CRLF. (The generated preferences
+    // block is rewritten by writeBlock, the same writer `truss set` uses.)
+    for (const row of [...SECTION2_ROWS, SECTION6_ROW]) assert.ok(text.includes(row + '\r\n'), row)
+    assert.match(text, /state\/current\/ — `truss status` names it\.\r\n/)
+  })
+
+  it('team enable --as without a value is an error, not a fallback', async () => {
+    const root = await teamRoot()
+    await assert.rejects(runTeam(root, ['enable', '--as']), /--as expects/)
+    await assert.rejects(runTeam(root, ['enable', '--as', '--x']), /--as expects/)
+  })
+
+  it('a second enable with someone not in the team says so', async () => {
+    const root = await teamRoot()
+    const r = await enableTeam(root, { as: 'bob' })
+    assert.deepEqual(r.created, [])
+    assert.deepEqual(r.changed, [])
+    assert.match(r.notes.join('\n'), /@bob is not in state\/team\.md/)
   })
 
   it('refuses --team with --findings off, and --as without --team', async () => {
@@ -262,7 +295,12 @@ describe('truss ci', () => {
     assert.deepEqual((await ciState(root)).map(s => s.state), ['installed', 'installed'])
     const merge = await read(root, '.github/workflows/truss-merge.yml')
     assert.match(merge, /gh pr merge "\$PR" --squash/)
-    assert.match(merge, /steps\.doctor\.outputs\.code != '2'/)
+    // Review fixes: merge only on a printed report with exit 0/1, check the
+    // merge ref (no head.sha), and never keep the write token in the checkout.
+    assert.match(merge, /grep -q '\^truss doctor' doctor\.txt/)
+    assert.match(merge, /steps\.doctor\.outputs\.code == '0' \|\| steps\.doctor\.outputs\.code == '1'/)
+    assert.doesNotMatch(merge, /head\.sha/)
+    assert.match(merge, /persist-credentials: false/)
 
     await write(root, '.github/workflows/truss-doctor.yml', 'edited\n')
     await quiet(() => runCi(root, ['remove', 'doctor', 'merge']))
@@ -270,6 +308,14 @@ describe('truss ci', () => {
     assert.equal(await exists(root, '.github/workflows/truss-merge.yml'), false)
     await quiet(() => runCi(root, ['add', 'doctor']))
     assert.equal(await read(root, '.github/workflows/truss-doctor.yml'), 'edited\n')
+  })
+
+  it('treats a CRLF checkout of the template as installed', async () => {
+    const root = await makeRoot()
+    await quiet(() => runCi(root, ['add', 'doctor']))
+    const p = '.github/workflows/truss-doctor.yml'
+    await write(root, p, (await read(root, p)).replace(/\n/g, '\r\n'))
+    assert.equal((await ciState(root))[0].state, 'installed')
   })
 
   it('rejects unknown workflow names and a missing name', async () => {
