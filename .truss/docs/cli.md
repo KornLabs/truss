@@ -125,7 +125,8 @@ truss ci remove merge
 | `doctor` | runs `truss doctor` on every push and pull request; red only on errors (exit 2) |
 | `merge` | merges a pull request from a branch of this repository once `doctor` reports no error; on errors it comments the findings and waits for the next push |
 
-`add` never overwrites a workflow that differs from its template, and `remove`
+`add` never overwrites a workflow that differs from its template unless you pass
+`--force` — the way to take a newer template after `truss upgrade` — and `remove`
 deletes only one that still matches it.
 
 ---

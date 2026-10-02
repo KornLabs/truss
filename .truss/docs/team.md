@@ -86,7 +86,7 @@ node .truss/bin/truss.mjs ci remove doctor merge && git commit -m "ci: re-regist
 node .truss/bin/truss.mjs ci add doctor merge && git add .github/workflows && git commit -m "ci: re-register workflows" -- .github/workflows && git push
 ```
 
-`truss ci list` shows what is installed. `truss ci remove <name>` deletes a workflow only if it still matches its template.
+After `truss upgrade`, `truss ci list` shows a workflow from the older Truss as `modified`; `truss ci add <name> --force` replaces it. `truss ci list` shows what is installed. `truss ci remove <name>` deletes a workflow only if it still matches its template.
 
 ## What a team cannot see: `state/links.md`
 

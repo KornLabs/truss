@@ -46,13 +46,13 @@ jobs:
           TRUSS_NO_PRESENCE: '1'
         run: |
           set +e
-          node .truss/bin/truss.mjs doctor > doctor.txt 2>&1
+          node .truss/bin/truss.mjs doctor > "$RUNNER_TEMP/doctor.txt" 2>&1
           code=$?
           # Exit 1 is both "warnings" and "node crashed". Only a report that
           # doctor actually printed counts; anything else is treated as an error.
-          if ! grep -q '^truss doctor' doctor.txt; then code=2; fi
+          if ! grep -q '^truss doctor' "$RUNNER_TEMP/doctor.txt"; then code=2; fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
-          sed 's/^::/ ::/' doctor.txt
+          sed 's/^::/ ::/' "$RUNNER_TEMP/doctor.txt"
           exit 0
       - name: merge
         if: steps.doctor.outputs.code == '0' || steps.doctor.outputs.code == '1'
@@ -70,8 +70,8 @@ jobs:
             echo 'truss doctor found errors, so this pull request was not merged. Fix them and push to the same branch; the merge runs again.'
             echo
             echo '```'
-            tail -n 60 doctor.txt
+            tail -n 60 "$RUNNER_TEMP/doctor.txt"
             echo '```'
-          } > comment.md
-          gh pr comment "$PR" --body-file comment.md --repo "$GITHUB_REPOSITORY"
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment "$PR" --body-file "$RUNNER_TEMP/comment.md" --repo "$GITHUB_REPOSITORY"
           exit 1

@@ -6,8 +6,9 @@
 //   merge   merges a pull request once doctor reports no error (D-115)
 //
 // The templates ship under .truss/ci/ and are copied to
-// .github/workflows/. `remove` deletes only a file that still matches its
-// template — an edited workflow is the human's, and is left alone.
+// .github/workflows/. `add` and `remove` leave a file that differs from its
+// template alone — an edited workflow is the human's. `add --force` replaces
+// it, which is how a workflow from an older Truss is updated.
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -50,7 +51,8 @@ function pick(names) {
 }
 
 export async function runCi(root, argv) {
-  const [sub, ...names] = argv
+  const force = argv.includes('--force')
+  const [sub, ...names] = argv.filter(a => a !== '--force')
   if (sub === 'list' || sub === undefined) {
     console.log('\ntruss ci — optional GitHub Actions workflows\n')
     for (const s of await ciState(root)) console.log(`  ${s.name.padEnd(7)} ${s.state.padEnd(10)} ${s.file}`)
@@ -64,10 +66,10 @@ export async function runCi(root, argv) {
       const tpl = await readMaybe(path.join(templateDir(), TEMPLATES[n]))
       const have = await readMaybe(dest)
       if (have === tpl) { console.log(`  unchanged  ${WORKFLOW_DIR}/${TEMPLATES[n]}`); continue }
-      if (have !== null) { console.log(`  kept       ${WORKFLOW_DIR}/${TEMPLATES[n]} — it differs from the template; delete it first to take the template`); continue }
+      if (have !== null && !force) { console.log(`  kept       ${WORKFLOW_DIR}/${TEMPLATES[n]} — it differs from the template (edited, or from an older Truss); --force replaces it`); continue }
       await fs.mkdir(path.dirname(dest), { recursive: true })
       await fs.writeFile(dest, tpl)
-      console.log(`  added      ${WORKFLOW_DIR}/${TEMPLATES[n]}`)
+      console.log(`  ${have === null ? 'added   ' : 'replaced'}   ${WORKFLOW_DIR}/${TEMPLATES[n]}`)
     }
     console.log('\n  Commit and push the workflow files; GitHub runs them from the next push on.')
     return
@@ -84,5 +86,5 @@ export async function runCi(root, argv) {
     }
     return
   }
-  throw new CiError('Usage: truss ci <list|add|remove> [doctor] [merge]')
+  throw new CiError('Usage: truss ci <list|add|remove> [doctor] [merge] [--force]')
 }

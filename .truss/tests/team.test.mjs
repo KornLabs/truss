@@ -297,7 +297,7 @@ describe('truss ci', () => {
     assert.match(merge, /gh pr merge "\$PR" --squash/)
     // Review fixes: merge only on a printed report with exit 0/1, check the
     // merge ref (no head.sha), and never keep the write token in the checkout.
-    assert.match(merge, /grep -q '\^truss doctor' doctor\.txt/)
+    assert.match(merge, /grep -q '\^truss doctor' "\$RUNNER_TEMP\/doctor\.txt"/)
     assert.match(merge, /steps\.doctor\.outputs\.code == '0' \|\| steps\.doctor\.outputs\.code == '1'/)
     assert.doesNotMatch(merge, /head\.sha/)
     assert.match(merge, /persist-credentials: false/)
@@ -308,6 +308,10 @@ describe('truss ci', () => {
     assert.equal(await exists(root, '.github/workflows/truss-merge.yml'), false)
     await quiet(() => runCi(root, ['add', 'doctor']))
     assert.equal(await read(root, '.github/workflows/truss-doctor.yml'), 'edited\n')
+    await quiet(() => runCi(root, ['add', 'doctor', '--force']))
+    assert.equal((await ciState(root))[0].state, 'installed')
+    // The report goes to the runner's temp dir, never into the workspace (ST-02).
+    assert.doesNotMatch(await read(root, '.github/workflows/truss-doctor.yml'), /> doctor\.txt/)
   })
 
   it('treats a CRLF checkout of the template as installed', async () => {

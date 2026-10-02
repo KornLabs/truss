@@ -26,10 +26,10 @@ jobs:
           TRUSS_NO_PRESENCE: '1'
         run: |
           set +e
-          node .truss/bin/truss.mjs doctor > doctor.txt 2>&1
+          node .truss/bin/truss.mjs doctor > "$RUNNER_TEMP/doctor.txt" 2>&1
           code=$?
-          sed 's/^::/ ::/' doctor.txt
+          sed 's/^::/ ::/' "$RUNNER_TEMP/doctor.txt"
           # Exit 1 is both "warnings" and "node crashed": only a printed report counts.
-          if ! grep -q '^truss doctor' doctor.txt; then exit 1; fi
+          if ! grep -q '^truss doctor' "$RUNNER_TEMP/doctor.txt"; then exit 1; fi
           if [ "$code" -ge 2 ]; then exit 1; fi
           exit 0

@@ -78,9 +78,9 @@ export const COMMAND_META = [
     flags: { '--as': { value: true } },
   },
   {
-    name: 'ci', display: 'ci <list|add|remove> [doctor|merge]',
+    name: 'ci', display: 'ci <list|add|remove> [doctor|merge] [--force]',
     summary: 'optional GitHub Actions: doctor check and the team merge workflow',
-    flags: {},
+    flags: { '--force': {} },
   },
   {
     name: 'upgrade', display: 'upgrade [flags]',
