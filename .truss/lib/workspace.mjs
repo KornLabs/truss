@@ -380,6 +380,7 @@ export async function loadWorkspace(root) {
     diskPaths,       // Array<string> — all rel paths found on disk (for ST-02)
     mdFiles,         // Array<string> — md files the map covers (for ST-07)
     ignore: { sources: ignore.sources, excluded: ignoreStats.excluded }, // for the visible report
+    isIgnored: ignore.isIgnored, // (relPath, isDir?) → boolean — the same predicate the walk used
     codeRoot,
     agentsMissing: !agentsRaw,
   };

@@ -138,6 +138,9 @@ export async function run(ctx) {
     if (row.onDemand) continue;  // on-demand paths may not exist yet
 
     for (const rel of row.paths) {
+      // A gitignored path is per clone by design (state/personal.md, D-123):
+      // a fresh clone and CI never have it, so its absence is not a fault.
+      if (ctx.isIgnored?.(rel.replace(/\/$/, ''), rel.endsWith('/'))) continue;
       const abs = path.join(root, rel);
       try {
         await fs.access(abs);

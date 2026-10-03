@@ -55,25 +55,34 @@ export async function runSync(root, argv) {
 
 /**
  * The whole sync, without printing. Exported for tests.
- * @returns {Promise<{attention:boolean, lines:string[], incoming:number, pushed:number, regenerated:string[], conflicts:string[]}>}
+ * @returns {Promise<{attention:boolean, inSync:boolean, lines:string[], incoming:number, pushed:number, regenerated:string[], conflicts:string[]}>}
  */
 export async function syncWorkspace(root, { push = true } = {}) {
   if (process.env.TRUSS_NO_GIT) throw new SyncError('truss sync: git is disabled (TRUSS_NO_GIT).')
   const inside = await git(root, ['rev-parse', '--is-inside-work-tree'])
   if (!inside.ok) throw new SyncError('truss sync: this is not a git checkout — nothing to sync.')
 
-  const out = { attention: false, lines: [], incoming: 0, pushed: 0, regenerated: [], conflicts: [] }
+  const out = { attention: false, inSync: false, lines: [], incoming: 0, pushed: 0, regenerated: [], conflicts: [] }
   const note = (s) => out.lines.push(s)
   const stop = (s) => { out.attention = true; note(s); return out }
+  const stashBefore = await stashRef(root)
+  let integrated = false   // upstream commits were rebased in during THIS run (or a resumed one)
 
   // A rebase left open by an earlier sync (or by hand): finish it first.
   let st = await syncState(root)
   if (st?.rebasing) {
-    const done = await continueRebase(root, out)
-    if (!done) return out
+    if (!(await continueRebase(root, out))) return out
+    if (await afterRebase(root, out, stashBefore)) return out
+    integrated = true
     st = await syncState(root)
   }
 
+  if (await gitPathExists(root, 'MERGE_HEAD')) {
+    return stop('a merge is in progress — finish it (`git commit`) or abort it (`git merge --abort`), then sync again.')
+  }
+  if ((await unmerged(root)).length) {
+    return stop(`unresolved conflict markers in ${(await unmerged(root)).join(', ')} — resolve and \`git add\` them, then sync again.`)
+  }
   if (!st?.branch) return stop('HEAD is detached — check out your branch (normally `main`), then sync again.')
 
   if (!st.upstream) {
@@ -81,7 +90,10 @@ export async function syncWorkspace(root, { push = true } = {}) {
     if (!remote.ok || !remote.stdout.trim()) return stop('no remote — this clone has nowhere to sync with.')
     if (!push) return stop(`branch ${st.branch} has no upstream; run sync without --no-push to publish it.`)
     const r = await git(root, ['push', '-u', 'origin', 'HEAD'], 120000)
-    if (!r.ok) return stop(`could not publish ${st.branch}: ${firstLine(r.stderr)}`)
+    if (!r.ok) {
+      return stop(`could not publish ${st.branch}: ${reason(r.stderr)}\n` +
+        `  If origin already has ${st.branch}: git branch --set-upstream-to=origin/${st.branch}, then sync again.`)
+    }
     note(`published ${st.branch} to origin and set it as upstream`)
     st = await syncState(root)
   }
@@ -89,60 +101,81 @@ export async function syncWorkspace(root, { push = true } = {}) {
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     const f = await git(root, ['fetch', '--quiet'], 120000)
     if (!f.ok) {
-      return stop(`fetch failed — offline, or no access to the remote: ${firstLine(f.stderr)}\n` +
+      return stop(`fetch failed — offline, or no access to the remote: ${reason(f.stderr)}\n` +
         '  Nothing was changed. If an agent sandbox blocks the network, allow it for git (see .truss/docs/team.md).')
     }
     st = await syncState(root)
     if (st.behind > 0) {
-      out.incoming += st.behind
+      const behind = st.behind
       const rb = await git(root, ['rebase', '--autostash', '@{u}'], 120000, { GIT_EDITOR: 'true' })
       if (!rb.ok) {
-        const now = await syncState(root)
-        if (!now?.rebasing) return stop(`rebase failed: ${firstLine(rb.stderr || rb.stdout)}`)
-        const done = await continueRebase(root, out)
-        if (!done) return out
+        if (!(await syncState(root))?.rebasing) return stop(`rebase failed, nothing changed: ${reason(rb.stderr || rb.stdout)}`)
+        if (!(await continueRebase(root, out))) return out
       }
-      if (/autostash.*conflict/i.test(rb.stdout + rb.stderr)) {
-        return stop('your uncommitted changes collide with what came in; they are kept in `git stash list` — re-apply them by hand (`git stash pop`) and resolve.')
-      }
+      if (await afterRebase(root, out, stashBefore)) return out
+      out.incoming += behind
+      integrated = true
     }
 
-    // Regenerate after a merge of both sides: a clean textual merge of two maps
-    // is not necessarily the map of the merged tree.
-    if (out.incoming > 0) await regenerateAndCommit(root, out)
+    // Regenerate after integrating the others' commits: a clean textual merge
+    // of two maps is not necessarily the map of the merged tree.
+    if (integrated) await regenerateAndCommit(root, out)
 
     st = await syncState(root)
     if (!push || st.ahead === 0) break
     const p = await git(root, ['push'], 120000)
     if (p.ok) { out.pushed += st.ahead; break }
     if (/rejected|fetch first|non-fast-forward/i.test(p.stderr) && round < MAX_ROUNDS) continue
-    return stop(`push refused: ${firstLine(p.stderr)}`)
+    return stop(`push refused: ${reason(p.stderr)}`)
   }
 
   st = await syncState(root)
   if (st.dirty > 0) note(`${st.dirty} uncommitted path${st.dirty === 1 ? '' : 's'} — commit what is yours (\`git commit -- <paths>\`), then sync again`)
-  if (!push && st.ahead > 0) note(`${st.ahead} local commit${st.ahead === 1 ? '' : 's'} not pushed (--no-push)`)
+  if (st.ahead > 0) note(`${st.ahead} local commit${st.ahead === 1 ? '' : 's'} not pushed${push ? '' : ' (--no-push)'}`)
   if (st.branch !== 'main' && st.branch !== 'master') note(`you are on ${st.branch}, not main — the team flow works on main`)
+  out.inSync = !out.attention && st.ahead === 0 && st.behind === 0
   return out
 }
 
 /**
+ * After a rebase finished: the autostash may not have come back cleanly.
+ * @returns {Promise<boolean>} true when the run must stop
+ */
+async function afterRebase(root, out, stashBefore) {
+  const files = await unmerged(root)
+  const stashNow = await stashRef(root)
+  if (!files.length && stashNow === stashBefore) return false
+  out.attention = true
+  out.conflicts = files
+  out.lines.push(
+    'your uncommitted changes collide with what came in' +
+    (files.length ? ` (conflict markers in ${files.join(', ')})` : '') + '.\n' +
+    '  Your commits are rebased; the uncommitted changes are kept in `git stash list` (stash@{0}).\n' +
+    '  Resolve the markers, or `git checkout -- <file> && git stash pop` and resolve there; never commit a file with markers.',
+  )
+  return true
+}
+
+/**
  * Drive an open rebase to its end, regenerating generated files on the way.
+ * Never skips a step that still carries changes: a failing `--continue` (a
+ * signing or hook failure, say) pauses the rebase with the commit intact.
  * @returns {Promise<boolean>} true when the rebase finished
  */
 async function continueRebase(root, out) {
   for (let i = 0; i < 200; i++) {
-    const u = await git(root, ['diff', '--name-only', '--diff-filter=U'])
-    const conflicted = (u.stdout || '').split('\n').map(s => s.trim()).filter(Boolean)
+    const conflicted = await unmerged(root)
     const generated = conflicted.filter(f => GENERATED.includes(f))
     const human = conflicted.filter(f => !GENERATED.includes(f))
     if (human.length) {
+      const stashed = await gitPathExists(root, 'rebase-merge/autostash') || await gitPathExists(root, 'rebase-apply/autostash')
       out.attention = true
       out.conflicts = human
       out.lines.push(
         `conflict in ${human.join(', ')} — the rebase is paused.\n` +
         '  Resolve each file (keep both sides of a list, renumber a taken ID, merge edits that do not contradict;\n' +
-        '  ask your human only when the two sides contradict), `git add` it, then run `truss sync` again.',
+        '  ask your human only when the two sides contradict), `git add` it, then run `truss sync` again.' +
+        (stashed ? '\n  Your uncommitted changes are stashed and come back when the rebase finishes.' : ''),
       )
       return false
     }
@@ -152,17 +185,35 @@ async function continueRebase(root, out) {
       for (const g of generated) if (!out.regenerated.includes(g)) out.regenerated.push(g)
     }
     const c = await git(root, ['-c', 'core.editor=true', 'rebase', '--continue'], 120000, { GIT_EDITOR: 'true' })
-    const st = await syncState(root)
-    if (!st?.rebasing) return true
-    if (!c.ok && !/conflict/i.test(c.stdout + c.stderr)) {
-      // Nothing to commit for this step (the regenerated file matched): skip it.
-      const s = await git(root, ['rebase', '--skip'], 120000, { GIT_EDITOR: 'true' })
-      if (!s.ok && !(await syncState(root))?.rebasing) return true
+    if (!(await syncState(root))?.rebasing) return true
+    if (c.ok || /conflict/i.test(c.stdout + c.stderr)) continue      // next step, or its conflicts
+    // --continue failed without a conflict. Skip only a step that is truly
+    // empty (index equals HEAD) — anything else is real work.
+    const empty = await git(root, ['diff', '--cached', '--quiet'])
+    if (!empty.ok) {
+      out.attention = true
+      out.lines.push(`rebase --continue failed: ${reason(c.stderr || c.stdout)}\n` +
+        '  Your commit is intact and the rebase is paused. Fix the cause (signing, hook), then run `truss sync` again.')
+      return false
     }
+    await git(root, ['rebase', '--skip'], 120000, { GIT_EDITOR: 'true' })
+    if (!(await syncState(root))?.rebasing) return true
   }
   out.attention = true
   out.lines.push('rebase did not finish — run `git status` and finish it by hand.')
   return false
+}
+
+const unmerged = async (root) =>
+  ((await git(root, ['diff', '--name-only', '--diff-filter=U'])).stdout || '').split('\n').map(x => x.trim()).filter(Boolean)
+
+const stashRef = async (root) => ((await git(root, ['rev-parse', '-q', '--verify', 'refs/stash'])).stdout || '').trim()
+
+async function gitPathExists(root, rel) {
+  const r = await git(root, ['rev-parse', '--git-path', rel])
+  if (!r.ok) return false
+  const p = r.stdout.trim()
+  try { await fs.access(path.isAbsolute(p) ? p : path.join(root, p)); return true } catch { return false }
 }
 
 /** Write the generated files listed (or all present) from the current tree. */
@@ -184,8 +235,10 @@ async function regenerateAndCommit(root, out) {
     try { await fs.access(path.join(root, rel)); present.push(rel) } catch { /* not kept here */ }
   }
   if (!present.length) return
-  // Another uncommitted file would leak into the map the commit publishes.
+  // Another uncommitted markdown file would leak into the map the commit
+  // publishes; other untracked files (.DS_Store, a PDF) do not reach it.
   const others = ((await git(root, ['status', '--porcelain'])).stdout || '').split('\n').filter(Boolean)
+    .filter(l => !l.startsWith('??') || /\.md$|\/$/.test(l.trim()))
     .map(l => l.slice(3).trim()).filter(f => !GENERATED.includes(f))
   if (others.length) {
     out.lines.push('generated files not regenerated: uncommitted work in the tree — run `truss render` / `truss map` after you commit it')
@@ -203,6 +256,7 @@ async function regenerateAndCommit(root, out) {
   if (!changed.length) return
   const c = await git(root, ['commit', '--quiet', '-m', 'chore: regenerate generated files after sync', '--', ...changed])
   if (c.ok) for (const g of changed) if (!out.regenerated.includes(g)) out.regenerated.push(g)
+  else out.lines.push(`regenerated ${changed.join(', ')} but could not commit: ${reason(c.stderr || c.stdout)} — commit them yourself`)
 }
 
 function printReport(r) {
@@ -210,13 +264,23 @@ function printReport(r) {
   if (r.incoming) console.log(`  pulled   ${r.incoming} commit${r.incoming === 1 ? '' : 's'} from the team`)
   if (r.regenerated.length) console.log(`  regenerated  ${r.regenerated.join(', ')}`)
   if (r.pushed) console.log(`  pushed   ${r.pushed} commit${r.pushed === 1 ? '' : 's'}`)
-  for (const l of r.lines) console.log(`  ${r.attention && l === r.lines[r.lines.length - 1] ? 'STOP' : 'note'}     ${l}`)
-  if (!r.attention && !r.incoming && !r.pushed && !r.regenerated.length) console.log('  already in sync')
-  else if (!r.attention) console.log('  in sync')
+  r.lines.forEach((l, i) => console.log(`  ${r.attention && i === r.lines.length - 1 ? 'STOP' : 'note'}     ${l}`))
+  if (r.inSync) console.log(r.incoming || r.pushed || r.regenerated.length ? '  in sync' : '  already in sync')
   console.log('')
 }
 
-const firstLine = (s) => (s || '').split('\n').map(l => l.trim()).filter(Boolean)[0] || '(no message)'
+/** The lines of git's stderr that say why — not the `To <url>` preamble. */
+function reason(text) {
+  const lines = (text || '').split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim())
+  const out = []
+  for (let i = 0; i < lines.length && out.length < 6; i++) {
+    if (/^\s*(error|fatal|hint: Updates were rejected)|^\s*!|^\s*remote:/i.test(lines[i])) {
+      out.push(lines[i].trim())
+      while (i + 1 < lines.length && /^\s/.test(lines[i + 1]) && out.length < 6) out.push(lines[++i].trim())
+    }
+  }
+  return (out.length ? out : lines.slice(0, 1).map(l => l.trim())).join(' · ') || '(no message)'
+}
 
 async function git(root, args, timeout = 30000, env = {}) {
   try {

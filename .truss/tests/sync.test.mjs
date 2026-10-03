@@ -138,6 +138,73 @@ describe('truss sync', () => {
     assert.equal((await syncState(b)).ahead, 0)
   })
 
+  it('never skips a commit whose --continue fails for another reason (signing)', async () => {
+    const { a, b } = await twoClones()
+    for (const [root, f] of [[a, 'context/alpha.md'], [b, 'context/important.md']]) {
+      await write(root, f, '# x\n')
+      await write(root, 'state/map.md', await generateMapContent(root))
+      await commitAll(root, f)
+    }
+    await syncWorkspace(a)
+    await git(b, 'config', 'commit.gpgsign', 'true')
+    await git(b, 'config', 'gpg.program', 'false')
+    const r = await syncWorkspace(b)
+    assert.equal(r.attention, true)
+    assert.match(r.lines.join('\n'), /commit is intact/)
+    // the work is still there: in the index of the paused rebase
+    assert.ok(await exists(b, 'context/important.md'))
+    // the rebase remembers its signing option; abort it, the commit must survive
+    await git(b, 'rebase', '--abort')
+    assert.match(await git(b, 'log', '--format=%s', '-1'), /context\/important\.md/)
+    await git(b, 'config', 'commit.gpgsign', 'false')
+    const done = await syncWorkspace(b)
+    assert.equal(done.attention, false, done.lines.join('\n'))
+    assert.match(await git(b, 'log', '--format=%s', '-3'), /context\/important\.md/)
+    assert.equal(await read(b, 'state/map.md'), await generateMapContent(b))
+  })
+
+  it('reports uncommitted changes that collide after a paused rebase, and keeps the stash', async () => {
+    const { a, b } = await twoClones()
+    await write(a, 'context/x.md', '# x\n\nv: 1\n')
+    await commitAll(a, 'x')
+    await syncWorkspace(a)
+    await syncWorkspace(b)
+    // a: edits x and the map; b: commits a map change, and leaves x dirty
+    await write(a, 'context/x.md', '# x\n\nv: 2\n')
+    await write(a, 'context/alpha.md', '# a\n')
+    await write(a, 'state/map.md', await generateMapContent(a))
+    await commitAll(a, 'a side')
+    await syncWorkspace(a)
+    await write(b, 'context/beta.md', '# b\n')
+    await write(b, 'state/map.md', await generateMapContent(b))
+    await git(b, 'add', '-A'); await git(b, 'commit', '-q', '-m', 'b side')
+    await write(b, 'context/x.md', '# x\n\nv: 3\n')
+    const r = await syncWorkspace(b)
+    assert.equal(r.attention, true)
+    assert.match(r.lines.join('\n'), /collide with what came in/)
+    assert.match(await git(b, 'stash', 'list'), /stash@\{0\}/)
+  })
+
+  it('regenerates the map when a resumed rebase finishes', async () => {
+    const { a, b } = await twoClones()
+    await write(a, 'context/shared.md', '# S\n\nv: 1\n')
+    await commitAll(a, 'base'); await syncWorkspace(a); await syncWorkspace(b)
+    await write(a, 'context/shared.md', '# S\n\nv: 2\n')
+    await write(a, 'context/alpha.md', '# a\n')
+    await write(a, 'state/map.md', await generateMapContent(a))
+    await commitAll(a, 'a'); await syncWorkspace(a)
+    await write(b, 'context/shared.md', '# S\n\nv: 3\n')
+    await write(b, 'context/beta.md', '# b\n')
+    await write(b, 'state/map.md', await generateMapContent(b))
+    await commitAll(b, 'b')
+    assert.equal((await syncWorkspace(b)).attention, true)
+    await write(b, 'context/shared.md', '# S\n\nv: 3\n')
+    await git(b, 'add', 'context/shared.md')
+    const r = await syncWorkspace(b)
+    assert.equal(r.attention, false, r.lines.join('\n'))
+    assert.equal(await read(b, 'state/map.md'), await generateMapContent(b))
+  })
+
   it('refuses outside a git checkout', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-sync-nogit-'))
     await assert.rejects(syncWorkspace(dir), SyncError)
@@ -185,6 +252,12 @@ describe('state/personal.md', () => {
     await quiet(() => runTeam(b, ['whoami', '@sam']))
     assert.match(await read(b, PERSONAL_FILE), /new to git/)
     assert.equal((await git(b, 'status', '--porcelain')).trim(), '')
+  })
+
+  it('a fresh clone without it passes doctor (gitignored table paths are per clone)', async () => {
+    const { b } = await twoClones()
+    const out = await node(b, 'doctor')
+    assert.doesNotMatch(out, /ST-01/)
   })
 
   it('status names the notes file and where the clone stands', async () => {
