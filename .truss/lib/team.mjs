@@ -35,6 +35,8 @@ export const TEAM_FILE = 'state/team.md'
 export const LINKS_FILE = 'state/links.md'
 export const FOCUS_DIR = 'state/current/'
 export const FINDINGS_FILE = 'state/truss-findings.md'
+// The human's own notes for the agent in THIS clone — gitignored, never shared.
+export const PERSONAL_FILE = 'state/personal.md'
 export const IDENTITY_CACHE = '.truss/out/identity.json'
 export const SEEN_CACHE = '.truss/out/team-seen.json'
 
@@ -377,6 +379,57 @@ export async function othersSinceLastRun(root) {
     commits.push({ author: (author || '?').trim(), paths: rest.map(s => s.trim()).filter(Boolean) })
   }
   return { commits }
+}
+
+/**
+ * Seed of state/personal.md. Not on demand: in team mode §1 names it, so it
+ * ships with the clone like the other §1 files and stays when emptied.
+ */
+export const PERSONAL_SEED = [
+  '# Personal',
+  '',
+  '> Notes about the human working in THIS clone: how they like to work, what they know and what they do not',
+  '> (e.g. "new to git — handle every git step yourself"). Gitignored — never committed, never seen by the team.',
+  '> Team-wide rules belong in state/profile.md. One imperative line each; a new line replaces the one it contradicts.',
+  '',
+].join('\n')
+
+/**
+ * Create state/personal.md from the seed when it is missing. Never overwrites.
+ * @returns {Promise<boolean>} true when the file was created
+ */
+export async function ensurePersonalFile(root) {
+  const p = path.join(root, PERSONAL_FILE)
+  try { await fs.access(p); return false } catch { /* absent */ }
+  await fs.mkdir(path.dirname(p), { recursive: true })
+  await fs.writeFile(p, PERSONAL_SEED)
+  return true
+}
+
+/**
+ * Where this clone stands against its upstream, from LOCAL refs only (no
+ * fetch): the numbers are as fresh as the last `truss sync` or `git fetch`.
+ * Never throws; null outside git.
+ * @returns {Promise<{branch:string|null, upstream:string|null, ahead:number, behind:number, dirty:number, rebasing:boolean}|null>}
+ */
+export async function syncState(root) {
+  const top = (await git(root, ['rev-parse', '--git-dir']))?.trim()
+  if (!top) return null
+  const gitDir = path.isAbsolute(top) ? top : path.join(root, top)
+  let rebasing = false
+  for (const d of ['rebase-merge', 'rebase-apply']) {
+    try { await fs.access(path.join(gitDir, d)); rebasing = true } catch { /* not this one */ }
+  }
+  const branch = (await git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']))?.trim() || null
+  const upstream = (await git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']))?.trim() || null
+  let ahead = 0, behind = 0
+  if (upstream) {
+    const counts = (await git(root, ['rev-list', '--left-right', '--count', 'HEAD...@{u}']))?.trim()
+    if (counts) [ahead, behind] = counts.split(/\s+/).map(Number)
+  }
+  const porcelain = (await git(root, ['status', '--porcelain'])) ?? ''
+  const dirty = porcelain.split('\n').filter(Boolean).length
+  return { branch, upstream, ahead, behind, dirty, rebasing }
 }
 
 /** Read and parse another workspace's state/links.md. Never throws. */

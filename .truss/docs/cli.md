@@ -100,7 +100,7 @@ login. The whole picture: [team.md](team.md).
 
 ```bash
 truss team enable [--as @login]   # switch an existing workspace to team mode (idempotent)
-truss team whoami [@login]        # show who truss thinks you are, or set it for this clone (git config --local)
+truss team whoami [@login]        # show who truss thinks you are, or set it for this clone (git config --local); creates state/personal.md
 truss team link <name> <path>     # where a linked workspace lives on THIS machine
 truss team unlink <name>
 ```
@@ -110,20 +110,38 @@ requests addressed to you in that workspace's `state/links.md`.
 
 ---
 
+## `sync`
+
+A team clone's git in one step ([team.md](team.md#git-flow-git-flowteam)): fetch, rebase
+your local commits onto the upstream (`--autostash`), regenerate `state/map.md` and
+`state/decisions-index.md` where both sides changed them, push — and retry when someone
+pushed in between.
+
+```bash
+truss sync              # at session start, after every commit, before reporting done
+truss sync --no-push    # pull and rebase only
+```
+
+It never commits for you. On a conflict in a file people write it stops with the
+rebase paused and names the files; resolve them, `git add`, and run it again.
+Exit 0 in sync · 1 needs attention (conflict, offline, push refused) · 2 no git here.
+
+---
+
 ## `ci`
 
 Optional GitHub Actions workflows, copied from `.truss/ci/` to `.github/workflows/`.
 
 ```bash
 truss ci list
-truss ci add doctor merge
+truss ci add doctor
 truss ci remove merge
 ```
 
 | Workflow | What it does |
 |---|---|
 | `doctor` | runs `truss doctor` on every push and pull request; red only on errors (exit 2) |
-| `merge` | merges a pull request from a branch of this repository once `doctor` reports no error; on errors it comments the findings and waits for the next push |
+| `merge` | for teams that use pull requests: merges one from a branch of this repository once `doctor` reports no error; on errors it comments the findings and waits for the next push |
 
 `add` never overwrites a workflow that differs from its template unless you pass
 `--force` — the way to take a newer template after `truss upgrade` — and `remove`

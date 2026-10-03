@@ -78,8 +78,13 @@ export const COMMAND_META = [
     flags: { '--as': { value: true } },
   },
   {
+    name: 'sync', display: 'sync [--no-push]',
+    summary: 'pull, rebase, regenerate generated files on a conflict, push — the team clone\'s git in one step',
+    flags: { '--no-push': {} },
+  },
+  {
     name: 'ci', display: 'ci <list|add|remove> [doctor|merge] [--force]',
-    summary: 'optional GitHub Actions: doctor check and the team merge workflow',
+    summary: 'optional GitHub Actions: doctor check, and a merge workflow for teams that use pull requests',
     flags: { '--force': {} },
   },
   {

@@ -178,7 +178,7 @@ describe('init --team / team enable', () => {
     // The lines enable adds carry the file's CRLF. (The generated preferences
     // block is rewritten by writeBlock, the same writer `truss set` uses.)
     for (const row of [...SECTION2_ROWS, SECTION6_ROW]) assert.ok(text.includes(row + '\r\n'), row)
-    assert.match(text, /state\/current\/ — `truss status` names it\.\r\n/)
+    assert.match(text, /state\/personal\.md, your human.s own notes \(this clone only\)\.\r\n/)
   })
 
   it('team enable --as without a value is an error, not a fallback', async () => {
@@ -340,6 +340,7 @@ describe('git-flow preference', () => {
     assert.deepEqual([...CATALOG_KEYS.get('git-flow')], ['team'])
     const root = await makeRoot()
     const text = await read(root, '.truss/prefs/git-flow/team.md')
-    assert.match(text, /git pull --rebase/)
+    assert.match(text, /truss.mjs sync/)
+    assert.doesNotMatch(text, /pull request with|gh pr create/)
   })
 })

@@ -15,7 +15,7 @@ import { measureBootContext, toTokens } from '../context-budget.mjs'
 import { formatTokens } from './map.mjs'
 import {
   TEAM_FILE, LINKS_FILE, isTeamMode, parseTeam, findMember, focusFileFor, parseLinksFile, openRequests,
-  resolveIdentity, localLinks, othersSinceLastRun, readLinkedLinks, htAddressees,
+  resolveIdentity, localLinks, othersSinceLastRun, readLinkedLinks, htAddressees, syncState, PERSONAL_FILE,
 } from '../team.mjs'
 
 const RECENT_COMMITS_MAX = 5
@@ -495,6 +495,22 @@ async function teamLines(ctx, root) {
           : `  Team:    you are @${login} — not in ${TEAM_FILE} yet; add your line there`)
         const focus = [...ctx.files.keys()].find(k => k.toLowerCase() === focusFileFor(login)) || focusFileFor(login)
         out.push(`           your focus: ${focus}${ctx.files.has(focus) ? '' : ' — not written yet; create it when you take up work'}`)
+        let personal = true
+        try { await fs.access(path.join(root, PERSONAL_FILE)) } catch { personal = false }
+        out.push(`           your notes: ${PERSONAL_FILE}${personal ? ' (this clone only)' : ' — missing; `truss team whoami @' + login + '` creates it'}`)
+      }
+      const st = await syncState(root)
+      if (st) {
+        const parts = []
+        if (st.rebasing) parts.push('a rebase is in progress')
+        if (st.ahead) parts.push(`${st.ahead} commit${st.ahead === 1 ? '' : 's'} not pushed`)
+        if (st.behind) parts.push(`${st.behind} new on origin`)
+        if (st.dirty) parts.push(`${st.dirty} uncommitted path${st.dirty === 1 ? '' : 's'}`)
+        if (st.branch && st.branch !== 'main' && st.branch !== 'master') parts.push(`on ${st.branch}, not main`)
+        if (!st.upstream && st.branch) parts.push('no upstream')
+        out.push(parts.length
+          ? `  Sync:    ${parts.join(' · ')} (as of the last fetch) — run: node .truss/bin/truss.mjs sync`
+          : '  Sync:    in step with origin as of the last fetch — `truss sync` at session start pulls what is new')
       }
       const feed = await othersSinceLastRun(root)
       if (feed && feed.commits.length) {

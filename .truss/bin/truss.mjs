@@ -664,7 +664,15 @@ async function renderPhaseInto(ctx) {
   const phaseDef = defs.get(currentId)
   const position = ordered.indexOf(currentId) + 1
   const total    = ordered.length
-  const lines    = renderPhaseBlock(phaseDef, currentId, position, total)
+  let lines      = renderPhaseBlock(phaseDef, currentId, position, total)
+  // Unchanged body → keep the old provenance line. A fresh timestamp on every
+  // render made AGENTS.md differ between clones that changed nothing, and in a
+  // team every such line is a rebase conflict waiting to happen.
+  const old = ctx.blocks?.get('phase')?.innerLines
+  if (old?.length && /^> Rendered \d{4}-\d{2}-\d{2}T\d{2}:\d{2} /.test(old[0]) &&
+      old.slice(1).join('\n') === lines.slice(1).join('\n')) {
+    lines = [old[0], ...lines.slice(1)]
+  }
 
   try {
     await writeBlock(agentsMdPath, 'phase', lines)
@@ -786,6 +794,10 @@ const HANDLERS = {
     const { runCi } = await import('../lib/commands/ci.mjs')
     return runCi(root, args)
   },
+  sync:      async (args) => {
+    const { runSync } = await import('../lib/commands/sync.mjs')
+    return runSync(root, args)
+  },
   // init targets the caller's cwd (or --root), never silently the engine's own
   // directory (D-024) — pass where the user actually stands.
   init:      (args) => runInit(root, args, process.cwd()),
@@ -795,7 +807,7 @@ const HANDLERS = {
 }
 
 // init/phase surface user-facing fatals as a throw → exit code 2.
-const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions', 'team', 'ci'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions', 'team', 'ci', 'sync'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); await exitFlushed(0)

@@ -153,11 +153,12 @@ Code sitting somewhere else in the workspace (a tracked submodule, say)? Point a
 
 ### A small team (optional)
 
-Truss is built for one person carrying a project. If two or three people share it, each on their own clone, team mode adds who is who (`state/team.md`, by GitHub login), one focus file per person, a feed of what the others changed, and `state/links.md` for repositories not everyone can see:
+Truss is built for one person carrying a project. If two or three people share it, each on their own clone, team mode adds who is who (`state/team.md`, by GitHub login), one focus file per person, private notes per clone, a feed of what the others changed, `truss sync` so everyone works on `main` without thinking about git, and `state/links.md` for repositories not everyone can see:
 
 ```bash
 node .truss/bin/truss.mjs init --team --as @<your-github-login>     # or, later: truss team enable
-node .truss/bin/truss.mjs ci add doctor merge                         # optional GitHub Actions
+node .truss/bin/truss.mjs sync                                       # the agent runs it; pull, rebase, push
+node .truss/bin/truss.mjs ci add doctor                               # optional GitHub Action
 ```
 
 Roles describe, they grant nothing: on a private GitHub Free repository the only thing that keeps work from someone is a repository they cannot access. Details and limits: [.truss/docs/team.md](.truss/docs/team.md).

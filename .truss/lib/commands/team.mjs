@@ -2,9 +2,11 @@
 //
 //   enable [--as @login]   switch this workspace to team mode (D-112): writes
 //                          state/team.md with your line, the §1/§2/§6 lines that
-//                          route to it, auto-commit=on + git-flow=team, and the
-//                          union-merge rule for state/links.md
+//                          route to it, auto-commit=on + git-flow=team, the
+//                          union-merge rule for state/links.md, and the
+//                          gitignored state/personal.md
 //   whoami [@login]        show who truss thinks you are, or set it for this clone
+//                          (and create this clone's state/personal.md)
 //   link <name> <path>     record where a linked workspace lives on THIS machine
 //   unlink <name>          forget that
 //
@@ -21,7 +23,7 @@ import { loadBehaviorText } from '../defaults.mjs'
 import { writePrefRows } from '../prefs-writer.mjs'
 import { generateMapContent } from './map.mjs'
 import {
-  TEAM_FILE, LINKS_FILE, FINDINGS_FILE,
+  TEAM_FILE, LINKS_FILE, FINDINGS_FILE, PERSONAL_FILE, ensurePersonalFile,
   normalizeLogin, resolveIdentity, setIdentity, parseTeam, findMember, focusFileFor,
   isLinkName, setLocalLink, removeLocalLink,
 } from '../team.mjs'
@@ -31,14 +33,18 @@ const execFileP = promisify(execFile)
 export class TeamError extends Error {}
 
 // The lines `enable` writes. Exported so tests and `init --team` agree with it.
-export const SECTION1_SENTENCE = ' In team mode, also your own focus file under state/current/ — `truss status` names it.'
+export const SECTION1_SENTENCE = ' In team mode, also your own focus file under state/current/ — `truss status` names it — and state/personal.md, your human\'s own notes (this clone only).'
+// The 1.2.0 wording, upgraded in place by `enable`.
+const SECTION1_SENTENCE_V1 = ' In team mode, also your own focus file under state/current/ — `truss status` names it.'
 export const SECTION2_ROWS = [
   '| state/team.md | H+A | team mode: one line per member — GitHub login, name, role, domains. Roles describe whom you work for and whose a domain is; they grant nothing |',
   '| state/current/ (on demand) | A | team mode: one focus file per member, `state/current/<login>.md` — same keys and limits as state/current.md; `truss status` names yours |',
+  '| state/personal.md | H+A | team mode: notes about the human in THIS clone — how they like to work, what they know and do not; gitignored, never shared. "Remember this" for one person goes here, for the team to state/profile.md |',
   '| state/links.md (on demand) | A | repositories and workspaces this one does not hold — owner, what lives there, requests to them, notes back. What a link holds is not yours to build here: add a request instead |',
 ]
 export const SECTION6_ROW = '| .truss/docs/team.md | working in a team workspace — identity, git flow, focus files, links, CI |'
 export const GITATTRIBUTES_LINE = `${LINKS_FILE} merge=union`
+export const GITIGNORE_LINE = PERSONAL_FILE
 
 export async function runTeam(root, argv) {
   const [sub, ...rest] = argv
@@ -94,7 +100,7 @@ export async function enableTeam(root, opts = {}) {
   const notes = []
 
   // state/team.md — written with the enabling member only; the others add
-  // their own line (through a pull request: the file is a protected path).
+  // their own line.
   const teamPath = path.join(root, TEAM_FILE)
   let teamRaw = null
   try { teamRaw = await fs.readFile(teamPath, 'utf8') } catch { /* absent */ }
@@ -112,7 +118,7 @@ export async function enableTeam(root, opts = {}) {
     ].join('\n'))
     created.push(TEAM_FILE)
   } else if (!findMember(parseTeam(teamRaw.split(/\r?\n/)).members, login)) {
-    notes.push(`@${login} is not in ${TEAM_FILE} yet — add your line there (through a pull request: the file is a protected path).`)
+    notes.push(`@${login} is not in ${TEAM_FILE} yet — add your line there.`)
   }
 
   // AGENTS.md: §1 sentence, §2 rows, §6 row — each added once.
@@ -146,6 +152,17 @@ export async function enableTeam(root, opts = {}) {
     try { await setIdentity(root, login) } catch { notes.push(`could not record @${login} for this clone — run: node .truss/bin/truss.mjs team whoami @${login}`) }
   }
 
+  // .gitignore — state/personal.md stays in each clone (D-123).
+  const giPath = path.join(root, '.gitignore')
+  let gi = ''
+  try { gi = await fs.readFile(giPath, 'utf8') } catch { /* absent */ }
+  if (!gi.split(/\r?\n/).some(l => l.trim() === GITIGNORE_LINE || l.trim() === `/${GITIGNORE_LINE}`)) {
+    const sep = gi && !gi.endsWith('\n') ? '\n' : ''
+    await fs.writeFile(giPath, `${gi}${sep}\n# Team mode: each person's own notes for the agent — never shared.\n${GITIGNORE_LINE}\n`)
+    ;(gi ? changed : created).push('.gitignore')
+  }
+  if (await ensurePersonalFile(root)) created.push(`${PERSONAL_FILE} (gitignored)`)
+
   // .gitattributes — union merge for the append-only request lists.
   const gaPath = path.join(root, '.gitattributes')
   let ga = ''
@@ -172,7 +189,14 @@ export async function enableTeam(root, opts = {}) {
 function addSection1Sentence(text) {
   // §2 rows carry the path too, so look at §1 only.
   const s1 = sectionRange(text, '1')
-  if (s1 && text.slice(s1.start, s1.end).includes('state/current/')) return text
+  if (s1) {
+    const body = text.slice(s1.start, s1.end)
+    if (body.includes(PERSONAL_FILE)) return text
+    if (body.includes(SECTION1_SENTENCE_V1.trim())) {
+      return text.slice(0, s1.start) + body.replace(SECTION1_SENTENCE_V1.trim(), SECTION1_SENTENCE.trim()) + text.slice(s1.end)
+    }
+    if (body.includes('state/current/')) return text
+  }
   const lines = text.split('\n')
   const i = lines.findIndex(l => /^2\.\s+`state\/current\.md`/.test(l))
   if (i === -1) return text
@@ -248,8 +272,9 @@ async function runEnable(root, rest) {
   for (const n of r.notes) console.log(`  note     ${n}`)
   console.log('\nNext:')
   console.log(`  1. Complete your line in ${TEAM_FILE} (role, domains) and add the other members.`)
-  console.log(`  2. Optional: node .truss/bin/truss.mjs ci add doctor merge  — the doctor check and the merge workflow.`)
-  console.log('  3. Commit and push. Each member clones, then runs: node .truss/bin/truss.mjs team whoami @<their-login>')
+  console.log(`  2. Optional: node .truss/bin/truss.mjs ci add doctor  — doctor on every push.`)
+  console.log('  3. node .truss/bin/truss.mjs sync — commits stay yours; sync pulls, rebases and pushes.')
+  console.log('  4. Each member clones, then runs: node .truss/bin/truss.mjs team whoami @<their-login>')
   console.log('  How the team works: .truss/docs/team.md\n')
 }
 
@@ -261,6 +286,9 @@ async function runWhoami(root, rest) {
     try { await setIdentity(root, login) }
     catch (err) { throw new TeamError(`truss team whoami: ${err.message}`) }
     console.log(`truss team whoami: this clone is @${login} (git config --local truss.user)`)
+    if (await isTeamWorkspace(root) && await ensurePersonalFile(root)) {
+      console.log(`  created ${PERSONAL_FILE} — your own notes for the agent; gitignored, never shared`)
+    }
     return
   }
   const id = await resolveIdentity(root)
@@ -279,6 +307,10 @@ async function runWhoami(root, rest) {
     console.log(`  member: ${member.name}${member.role ? ` · role: ${member.role}` : ''}${member.domains.length ? ` · domains: ${member.domains.join(', ')}` : ''}`)
     console.log(`  focus file: ${focusFileFor(id.login)}`)
   }
+}
+
+async function isTeamWorkspace(root) {
+  try { await fs.access(path.join(root, TEAM_FILE)); return true } catch { return false }
 }
 
 async function runLink(root, rest) {

@@ -13,9 +13,12 @@ node .truss/bin/truss.mjs team enable [--as @<your-login>]                      
 Both do the same thing, once (running `enable` again changes nothing):
 
 - they write `state/team.md` with your line;
-- they add the routing lines to AGENTS.md: §1 (your focus file), §2 (`state/team.md`, `state/current/`, `state/links.md`) and §6 (this document);
+- they add the routing lines to AGENTS.md: §1 (your focus file and your notes), §2 (`state/team.md`, `state/personal.md`, `state/current/`, `state/links.md`) and §6 (this document);
 - they set `auto-commit=on` and `git-flow=team`;
+- they add `state/personal.md` to `.gitignore` and create yours;
 - they add `state/links.md merge=union` to `.gitattributes`.
+
+A workspace switched on with 1.2.0 gets the new lines by running `team enable` again.
 
 A workspace is in team mode exactly when `state/team.md` exists. Team mode needs the findings channel (`state/truss-findings.md`), so `init --team --findings off` is refused.
 
@@ -36,7 +39,13 @@ Each clone says once who it is:
 node .truss/bin/truss.mjs team whoami @<your-login>    # stored in git config --local, never committed
 ```
 
+It also creates this clone's `state/personal.md`, if missing.
+
 `truss status` then opens with `Team: you are @… — …`, names your focus file, and lists what the others committed since the last `status` in this clone. "Others" means a git author email different from your `user.email`. The mark is per clone, so a second session in the same clone sees only what arrived after the first one looked. `status` never calls the network: if your login is only known to `gh`, run `team whoami` once. Git carries authorship: every agent commits under its person's git identity, so there is no `By:` field.
+
+## Your own notes — `state/personal.md`
+
+Each clone has one gitignored file the agent reads every session (§1): how its person likes to work, what they know and what they do not — "new to git, do every git step yourself", "short answers". It is never committed, so nobody else reads it, and it does not travel to a second machine. Team-wide rules stay in `state/profile.md`; "remember this" goes to `personal.md` when it is about this one person.
 
 ## Focus: one team file, one file per person
 
@@ -44,38 +53,42 @@ node .truss/bin/truss.mjs team whoami @<your-login>    # stored in git config --
 
 ## Git flow (`git-flow=team`)
 
-- Ordinary work goes straight to `main`: `git pull --rebase`, then push, after every logical unit (`auto-commit=on`).
-- These paths go through a pull request on a branch `team/<login>/<topic>`, so the others see them arrive:
-  - `current:` in `state/phases.md`
-  - the preferences and phase definitions
-  - `state/team.md`
-  - a link's `Repo:`, `Owner:` or `Holds:` in `state/links.md`
-  - `VISION.md`
+Everyone works on `main`. There are no personal branches and no pull requests, so nothing has to be merged back and forth.
 
-  Requests and notes in `state/links.md` go straight to `main`. Their union merge only works in your local `git pull --rebase`; GitHub's server-side merge of a pull request does not apply it.
-- **Rebase conflicts:**
-  - In a generated file, regenerate it (`truss render`, `truss map`) instead of merging it.
-  - In an appended list, keep both sides.
-  - When two clones took the same entry ID, renumber yours before you push. `doctor` reports a duplicate as RF-03.
-  - When the conflict is a disagreement between people, ask.
+```sh
+node .truss/bin/truss.mjs sync
+```
 
-Any member may change a decision; `current:` in `state/phases.md` changes only on a person's word, never on an agent's own initiative. There is no approval step. The others learn about it from the feed in `status`.
+The agent runs `sync` at session start, after every commit and before it reports done. It:
+
+1. fetches, then rebases your local commits onto what the others pushed (uncommitted work is carried along with `--autostash`);
+2. regenerates `state/map.md` and `state/decisions-index.md` when both sides changed them — a conflict there is never a disagreement;
+3. pushes, and retries when someone else pushed in the meantime.
+
+It never commits your work for you: the agent commits its own paths (`git commit -- <paths>`), then syncs. It stops, with the rebase paused, on a conflict in a file people write. The agent resolves it — keeps both sides of an appended list, renumbers an entry ID the other side already took, merges two edits that do not contradict — runs `git add`, and syncs again. It asks its person only when the two sides genuinely contradict each other. Exit code 0 means in sync, 1 means it needs attention.
+
+`truss status` shows where the clone stands from the last fetch (`Sync:` line): commits not pushed, new commits on origin, uncommitted paths, a paused rebase. An agent that sees anything there runs `sync` first.
+
+Any member may change anything, decisions included; `current:` in `state/phases.md` changes only on a person's word, never on an agent's own initiative. There is no approval step. The others learn about a change from the feed in `status`, and every change stays in `git log`.
+
+Agent sandboxes that block the network or writes to `.git/` (Codex by default) cannot sync. Allow `git` and `gh` once, permanently, or the work stays on one machine.
 
 ## Optional CI
 
 ```sh
-node .truss/bin/truss.mjs ci add doctor merge
+node .truss/bin/truss.mjs ci add doctor
 ```
 
 - **`truss-doctor`** runs `doctor` on every push and pull request. It is red only on errors.
-- **`truss-merge`** merges a pull request from a branch of this repository as soon as `doctor` reports no error. On errors it comments the findings and waits for the next push. It exists because GitHub's own auto-merge is not available for private repositories on GitHub Free.
+- **`truss-merge`** is for teams that do use pull requests (the team flow above does not need it). It merges a pull request from a branch of this repository as soon as `doctor` reports no error. On errors it comments the findings and waits for the next push. It exists because GitHub's own auto-merge is not available for private repositories on GitHub Free.
 
 The merge workflow:
 
 - checks the merge result (`main` plus the pull request), so an ID that another pull request already took on `main` shows up before the merge;
 - merges only when `doctor` printed its report with no error — a crashed or missing engine counts as an error;
 - does not re-check `main` after its own merge, because merges made with `GITHUB_TOKEN` trigger no further workflows;
-- cannot merge a pull request that changes `.github/workflows/`, because `GITHUB_TOKEN` may not write workflows. Merge such a pull request by hand.
+- cannot merge a pull request that changes `.github/workflows/`, because `GITHUB_TOKEN` may not write workflows. Merge such a pull request by hand;
+- stops when the pull request conflicts with `main`: rebase the branch and push again.
 
 If the repository allows workflows only read access, enable "Read and write permissions" under Settings → Actions → General.
 
@@ -119,7 +132,7 @@ node .truss/bin/truss.mjs team link team ~/src/team          # in the backend wo
 
 `status` then shows the open requests on both sides: under `Links:` in the shared workspace, and as `Linked: … open requests for you there` in the other.
 
-`merge=union` lets two people append requests at the same time without a conflict. Its one side effect: a request that was ticked off while someone appended right below it can survive twice, once open and once done. `doctor` (TM-04) names the duplicate; delete the stale copy.
+`merge=union` lets two people append requests at the same time without a conflict (in a local rebase — `sync` uses one; GitHub's server-side merge of a pull request ignores it). Its one side effect: a request that was ticked off while someone appended right below it can survive twice, once open and once done. `doctor` (TM-04) names the duplicate; delete the stale copy.
 
 `HUMAN-TODOS.md` entries may name their doer with an indented `For: @login` line. `status` shows yours first.
 
@@ -131,7 +144,7 @@ So, inside one shared repository:
 
 - any collaborator can push to `main` directly;
 - any collaborator can edit the workflows;
-- a local identity is a hint anyone can set; only the pull request author and `github.actor` are authenticated.
+- a local identity is a hint anyone can set; only the server knows who pushed (`github.actor`).
 
 Team mode makes changes visible and keeps the flow consistent. It does not stop a person. What must really stay with one person belongs in a repository only they can access.
 

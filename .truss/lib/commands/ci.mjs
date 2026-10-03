@@ -3,7 +3,7 @@
 // Optional GitHub Actions templates (D-116). Truss runs fully without them;
 // they are an addition for workspaces on GitHub:
 //   doctor  `truss doctor` on every push and pull request, red only on errors
-//   merge   merges a pull request once doctor reports no error (D-115)
+//   merge   for teams that use pull requests: merges one once doctor reports no error
 //
 // The templates ship under .truss/ci/ and are copied to
 // .github/workflows/. `add` and `remove` leave a file that differs from its
@@ -57,7 +57,7 @@ export async function runCi(root, argv) {
     console.log('\ntruss ci — optional GitHub Actions workflows\n')
     for (const s of await ciState(root)) console.log(`  ${s.name.padEnd(7)} ${s.state.padEnd(10)} ${s.file}`)
     console.log('\n  doctor  runs `truss doctor` on every push and pull request (red only on errors)')
-    console.log('  merge   merges a pull request once doctor reports no error — the team flow (.truss/docs/team.md)\n')
+    console.log('  merge   for teams that use pull requests: merges one once doctor reports no error (.truss/docs/team.md)\n')
     return
   }
   if (sub === 'add') {

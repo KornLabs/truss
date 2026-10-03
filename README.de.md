@@ -155,11 +155,12 @@ Liegt dein Code woanders im Workspace (etwa als getracktes Submodul)? Zeig statt
 
 ### Ein kleines Team (optional)
 
-Truss ist für eine Person gebaut, die ein Vorhaben trägt. Teilen es zwei oder drei Leute, jede mit eigenem Klon, ergänzt der Team-Modus, wer wer ist (`state/team.md`, per GitHub-Login), eine Fokusdatei je Person, einen Feed dessen, was die anderen geändert haben, und `state/links.md` für Repositories, die nicht alle sehen:
+Truss ist für eine Person gebaut, die ein Vorhaben trägt. Teilen es zwei oder drei Leute, jede mit eigenem Klon, ergänzt der Team-Modus, wer wer ist (`state/team.md`, per GitHub-Login), eine Fokusdatei je Person, private Notizen je Klon, einen Feed dessen, was die anderen geändert haben, `truss sync`, damit alle auf `main` arbeiten, ohne an Git zu denken, und `state/links.md` für Repositories, die nicht alle sehen:
 
 ```bash
 node .truss/bin/truss.mjs init --team --as @<dein-github-login>      # oder später: truss team enable
-node .truss/bin/truss.mjs ci add doctor merge                         # optionale GitHub Actions
+node .truss/bin/truss.mjs sync                                       # macht der Agent: pull, rebase, push
+node .truss/bin/truss.mjs ci add doctor                               # optionale GitHub Action
 ```
 
 Rollen beschreiben, sie berechtigen nichts: In einem privaten Repository auf GitHub Free hält nur ein Repository, auf das jemand keinen Zugriff hat, Arbeit von ihm fern. Details und Grenzen: [.truss/docs/team.md](.truss/docs/team.md).
