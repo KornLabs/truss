@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { runInit, parseInitArgs, stripFindings, InitError } from '../lib/commands/init.mjs'
 import { parsePhases, parseBlocks } from '../lib/md.mjs'
 import { renderNoPhasesBlock } from '../lib/render.mjs'
-import { makeRoot, runChecks, errorsOf, exists, read } from './helpers.mjs'
+import { makeRoot, runChecks, errorsOf, exists, read, ENGINE_DIR } from './helpers.mjs'
 
 async function phaseBlockOf(root) {
   const blocks = parseBlocks((await read(root, 'AGENTS.md')).split('\n'))
@@ -16,9 +16,10 @@ async function phaseBlockOf(root) {
 describe('parseInitArgs', () => {
   it('parses spaced and = forms', () => {
     assert.deepEqual(parseInitArgs(['--name', 'A', '--lang', 'English']),
-      { name: 'A', lang: 'English', overlay: false, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true, team: false, as: null })
+      { name: 'A', lang: 'English', overlay: false, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, globalCheck: true, findings: true, team: false, as: null })
     assert.deepEqual(parseInitArgs(['--name=A B', '--overlay']),
-      { name: 'A B', lang: null, overlay: true, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, findings: true, team: false, as: null })
+      { name: 'A B', lang: null, overlay: true, noPhases: false, codeRoot: null, adoptAgents: false, root: null, skills: null, globalCheck: true, findings: true, team: false, as: null })
+    assert.equal(parseInitArgs(['--no-global-check']).globalCheck, false)
   })
   it('rejects the retired --repo flag (D-059 — init never places the code)', () => {
     assert.throws(() => parseInitArgs(['--overlay', '--repo', '/p/code']), InitError)
@@ -41,7 +42,7 @@ describe('parseInitArgs', () => {
     assert.equal(parseInitArgs(['--adopt-agents']).adoptAgents, true)
   })
   it('parses skill selection', () => {
-    assert.equal(parseInitArgs(['--skills', 'superpowers,ecc']).skills, 'superpowers,ecc')
+    assert.equal(parseInitArgs(['--skills', 'superpowers,code']).skills, 'superpowers,code')
     assert.equal(parseInitArgs(['--skills=none']).skills, 'none')
     assert.equal(parseInitArgs(['--findings', 'off']).findings, false)
     assert.equal(parseInitArgs(['--findings=off']).findings, false)
@@ -130,16 +131,18 @@ describe('init (core)', () => {
       await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
     })
 
-    it('installs nothing when --skills is omitted (D-069 default) and records an empty selection', async () => {
+    it('installs the core group when --skills is omitted (D-129) and records it', async () => {
       const fs = await import('node:fs/promises')
       const path = await import('node:path')
       const root = await makeRoot('truss-init-skills-default-')
       const res = await runInit(root, ['--name', 'Default', '--lang', 'English'])
 
-      assert.deepEqual(res.skills, [])
-      await assert.rejects(fs.access(path.join(root, '.claude', 'skills')))
+      assert.deepEqual(res.skills, ['slop'])
+      await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'skills', 'slop-tells', 'SKILL.md')))
+      await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'marketing-seo-audit')))
       await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
-      assert.deepEqual(JSON.parse(await read(root, '.claude/.truss-skills.json')), { groups: [] })
+      await assert.rejects(fs.access(path.join(root, '.claude', 'settings.json')), 'no plugin group by default')
+      assert.deepEqual(JSON.parse(await read(root, '.claude/.truss-skills.json')), { groups: ['slop'] })
     })
 
     it('installs all groups with --skills all and selected groups on request', async () => {
@@ -148,14 +151,68 @@ describe('init (core)', () => {
       const allRoot = await makeRoot('truss-init-skills-all-')
       await runInit(allRoot, ['--name', 'All', '--lang', 'English', '--skills', 'all'])
       await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'marketing-seo-audit')))
-      await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'agents', 'ecc-architect.md')))
+      await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'code-api-design')))
+      const settings = JSON.parse(await read(allRoot, '.claude/settings.json'))
+      assert.equal(settings.enabledPlugins['superpowers@superpowers-marketplace'], true)
+      assert.equal(settings.enabledPlugins['impeccable@impeccable'], true)
+      assert.equal(settings.extraKnownMarketplaces.impeccable.source.repo, 'pbakaus/impeccable')
 
       const selectedRoot = await makeRoot('truss-init-skills-selected-')
-      await runInit(selectedRoot, ['--name', 'Selected', '--lang', 'English', '--skills', 'superpowers,ecc'])
-      await assert.doesNotReject(() => fs.access(path.join(selectedRoot, '.claude', 'skills', 'superpowers-brainstorming')))
-      await assert.doesNotReject(() => fs.access(path.join(selectedRoot, '.claude', 'agents', 'ecc-architect.md')))
-      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'skills', 'marketing-seo-audit')))
-      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'agents', 'anthropic-code-architect.md')))
+      await runInit(selectedRoot, ['--name', 'Selected', '--lang', 'English', '--skills', 'code'])
+      await assert.doesNotReject(() => fs.access(path.join(selectedRoot, '.claude', 'skills', 'code-webapp-testing', 'scripts', 'with_server.py')))
+      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'skills', 'slop-tells')), 'an explicit list replaces the core')
+      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'settings.json')))
+    })
+
+    // D-127: the same skill in ~/.claude/skills would load twice.
+    async function globalWith(entries) {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+      const os = await import('node:os')
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-global-claude-'))
+      for (const [name, frontmatterName, description = 'x'] of entries) {
+        await fs.mkdir(path.join(dir, 'skills', name), { recursive: true })
+        await fs.writeFile(path.join(dir, 'skills', name, 'SKILL.md'), `---\nname: ${frontmatterName}\ndescription: ${description}\n---\nbody\n`)
+      }
+      return dir
+    }
+    const baselineDescription = async (skill) => {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+      const text = await fs.readFile(path.join(ENGINE_DIR, 'baseline', '.claude', 'skills', skill, 'SKILL.md'), 'utf8')
+      return text.match(/^description: (.*)$/m)[1]
+    }
+
+    it('skips a core skill the user has globally under its upstream name and records why', async () => {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+      const saved = process.env.TRUSS_GLOBAL_CLAUDE_DIR
+      // stop-slop: the upstream name, same description → the same skill. my-diagrams:
+      // carries the baseline name itself. slop-prose's upstream name with another
+      // description is somebody else's skill and must not count.
+      process.env.TRUSS_GLOBAL_CLAUDE_DIR = await globalWith([
+        ['stop-slop', 'stop-slop', await baselineDescription('slop-tells')],
+        ['my-diagrams', 'slop-diagrams'],
+        ['no-ai-slop', 'no-ai-slop', 'an unrelated skill of the same name'],
+      ])
+      try {
+        const root = await makeRoot('truss-init-skills-global-')
+        const res = await runInit(root, ['--name', 'Global', '--lang', 'English'])
+        assert.deepEqual(res.skippedGlobal, { 'slop-diagrams': 'my-diagrams', 'slop-tells': 'stop-slop' })
+        await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'slop-tells')))
+        await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'slop-diagrams')))
+        await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'skills', 'slop-prose', 'SKILL.md')))
+        assert.deepEqual(JSON.parse(await read(root, '.claude/.truss-skills.json')), {
+          groups: ['slop'], skippedGlobal: { 'slop-diagrams': 'my-diagrams', 'slop-tells': 'stop-slop' },
+        })
+
+        const forced = await makeRoot('truss-init-skills-global-off-')
+        const off = await runInit(forced, ['--name', 'Forced', '--lang', 'English', '--no-global-check'])
+        assert.deepEqual(off.skippedGlobal, {})
+        await assert.doesNotReject(() => fs.access(path.join(forced, '.claude', 'skills', 'slop-tells', 'SKILL.md')))
+      } finally {
+        process.env.TRUSS_GLOBAL_CLAUDE_DIR = saved
+      }
     })
   })
 })

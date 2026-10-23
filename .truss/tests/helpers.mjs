@@ -14,6 +14,11 @@ import { CHECK_MODULES } from '../lib/run-checks.mjs'
 // Never prompt (no readline hang) and never shell out to git in tests.
 process.stdin.isTTY = false
 process.env.TRUSS_NO_GIT = '1'
+// Never read the developer's real ~/.claude (D-127): a skill installed there
+// would change what init installs and what doctor reports. A path that does
+// not exist means "nothing installed globally"; a test that needs a global
+// skill points this at a directory of its own.
+process.env.TRUSS_GLOBAL_CLAUDE_DIR = path.join(os.tmpdir(), `truss-no-global-claude-${process.pid}`)
 
 // This file lives at <repo>/.truss/tests/helpers.mjs → ENGINE_DIR = <repo>/.truss
 export const ENGINE_DIR = path.join(fileURLToPath(import.meta.url), '..', '..')

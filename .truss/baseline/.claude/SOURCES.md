@@ -1,135 +1,140 @@
-# Skill & Agent Sources
+# Skill Sources
 
-> Imported foreign content, not Truss code. Every file carries a header naming its
-> source, licence and import date; the licence texts are in `THIRD-PARTY-LICENSES.md`.
-> Re-imported in full on 2026-09-09 — `SKILL.md` **and** its `references/`, assets and
-> scripts, from each upstream's then-current state. `slop-scan` joined on 2026-09-10.
+> Imported foreign content, not Truss code. Every `SKILL.md` carries a header naming
+> its source, licence, upstream name and import date; the licence texts are in
+> `THIRD-PARTY-LICENSES.md`. Re-imported in full on 2026-10-23 — `SKILL.md` **and**
+> its `references/`, assets and scripts, from each upstream's then-current state.
 
-| Prefix | Repo | Licence | Contents |
-|---|---|---|---|
-| `marketing-*` | [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills) | MIT | 40 skills |
-| `composio-*` | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) | Apache-2.0 | 11 skills |
-| `superpowers-*` | [obra/superpowers](https://github.com/obra/superpowers) | MIT | 9 skills |
-| `ecc-*` | [affaan-m/ECC](https://github.com/affaan-m/ECC) | MIT | 9 skills, 6 agents |
-| `uiux-*` | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT | 7 skills |
-| `slop-*` | six sources, see below | MIT, Apache-2.0 | 7 skills |
-| `context7-*` | [upstash/context7](https://github.com/upstash/context7) | MIT | 4 skills, 1 agent |
+## Groups
 
-**Totals: 87 skills, 7 agents.**
+| Group | Installed | Skills | Source | Licence |
+|---|---|---|---|---|
+| `slop` | by `truss init` (core) | `slop-prose`, `slop-tells`, `slop-diagrams` | three repos, see below | MIT |
+| `code` | `truss skills add code` | `code-webapp-testing` | [anthropics/skills](https://github.com/anthropics/skills) | Apache-2.0 |
+| | | `code-changelog-generator` | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) | Apache-2.0 |
+| | | `code-api-design`, `code-database-migrations` | [affaan-m/ECC](https://github.com/affaan-m/ECC) | MIT |
+| `marketing` | `truss skills add marketing` | 52 `marketing-*` skills | [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills) | MIT |
+| `design` | `truss skills add design` | plugin `impeccable`, no files here | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | Apache-2.0 |
+| `superpowers` | `truss skills add superpowers` | plugin `superpowers`, no files here | [obra/superpowers](https://github.com/obra/superpowers) | MIT |
+
+**Totals: 59 skills, no agents.** `init` installs `slop` unless `--skills none` says
+otherwise; every other group is opt-in.
 
 **The prefix is the command.** In Claude Code a project skill is invoked by its
-directory name and an agent by its `name:` field, so every entry here carries the
-prefixed name in both places — `/slop-scan`, `/marketing-ads`, agent `ecc-planner`.
-That is also what keeps a baseline copy from colliding with the same skill installed
-globally from its upstream. The upstream name survives in the header line and in the
-table below.
+directory name, so every entry carries the prefixed name in its directory and in its
+frontmatter `name:` — `/slop-prose`, `/marketing-ads`. That keeps a baseline copy from
+colliding with the same skill installed globally under its upstream name. The upstream
+name survives in the header line.
 
-## The `slop-*` group
+## The core group `slop`
 
-One topical group instead of six singletons — `lib/skill-groups.mjs` groups by name
-prefix, so a lone skill would land in `misc`. Install with `truss skills add slop`.
-
-| Skill | Source | Licence | What it is |
+| Skill | Source | Upstream name | What it is |
 |---|---|---|---|
-| `slop-prose` | [petergyang/no-ai-slop](https://github.com/petergyang/no-ai-slop) | MIT | prose: edit or detect AI patterns while preserving the writer's voice; checks itself against `eval.md` |
-| `slop-tells` | [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) | MIT | prose: banned phrases, structures, before/after examples, 5-dimension score |
-| `slop-taste` | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | MIT | frontend: design read, three dials (variance/motion/density), design-system map |
-| `slop-hallmark` | [Nutlope/hallmark](https://github.com/Nutlope/hallmark) | MIT | landing pages: 21 themes, 21 macrostructures, ~57 slop gates, four verbs |
-| `slop-diagrams` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | MIT | 38 editorial diagram types as self-contained HTML + SVG |
-| `slop-ui` | [miqdadbadjuber/anti-slop](https://github.com/miqdadbadjuber/anti-slop) | MIT | UI, copy, accessibility, mobile and code comments: 38 rules in three hardness tiers |
-| `slop-scan` | [yetone/kill-ai-slop](https://github.com/yetone/kill-ai-slop) | Apache-2.0 | web code: a dependency-free scanner that reports 35 visual and copy tells with file and line |
-
-`slop-ui` carries its five companion skills nested under `skills/antislop-*/SKILL.md`,
-because its core routes to them by exactly those relative paths. Nested `SKILL.md`
-files sit at depth 2 and are not registered as separate skills by the host.
-
-`slop-scan` is the only one of the seven that **measures**: `scripts/scan.mjs` reads the
-project's own files and names each hit with a path and a line, using nothing but the Node
-standard library. Run it first — the other six then argue about findings that exist,
-instead of about a page nobody has read. Its `scripts/rules.ru.mjs` is upstream's example
-of a per-language copy-rule file and the template for adding another.
+| `slop-prose` | [petergyang/no-ai-slop](https://github.com/petergyang/no-ai-slop) | `no-ai-slop` | prose: edit or detect AI patterns while preserving the writer's voice; checks itself against `eval.md` |
+| `slop-tells` | [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) | `stop-slop` | prose: banned phrases, structures, before/after examples, 5-dimension score |
+| `slop-diagrams` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | `diagram-design` | editorial diagrams and charts as self-contained HTML + SVG, with draw.io, Mermaid and Excalidraw import |
 
 `slop-prose` and `slop-tells` disagree in one place on purpose: `slop-tells` cuts every
 adverb, `slop-prose` keeps the ones that carry meaning. Pick one per piece of writing;
 running both over the same draft produces the over-correction both warn about.
 
+Only the skill directory ships: `slop-prose` without upstream's Codex-only
+`agents/openai.yaml`, `slop-tells` without the repository's `README.md`, `CHANGELOG.md`
+and `LICENSE` (the licence text is in `THIRD-PARTY-LICENSES.md`).
+
+## Plugin groups
+
+`design` and `superpowers` are not copied. `truss skills add <group>` writes the
+upstream marketplace into `extraKnownMarketplaces` and the plugin into `enabledPlugins`
+of the workspace's `.claude/settings.json`; Claude Code installs and updates it from
+there. `truss skills remove <group>` takes both entries out again. Reasons, each
+specific to the copy it replaces:
+
+- **impeccable** starts a platform binary its launcher downloads on first run, and its
+  text addresses itself by the fixed path `.claude/skills/impeccable/` — a renamed
+  copy would break that path, and the install path here carries neither binaries nor
+  the executable bit.
+- **superpowers** moves fast (7.0.1 on 2026-10-23); a copy was stale within weeks.
+  Its `using-superpowers` skill tells the agent to reach for a skill before anything
+  else, which can compete with the session start that `AGENTS.md` prescribes.
+
+## Skills already installed globally
+
+Claude Code loads skills from `~/.claude/skills` **and** from the project. A skill
+present in both appears twice and costs its frontmatter twice. `truss init` and
+`truss skills add` therefore compare each skill they are about to install against
+`~/.claude/skills/*` (symlinks resolved) by name — the baseline name, or the upstream
+name above together with an identical `description:` — and plugin groups against
+`enabledPlugins` in `~/.claude/settings.json`.
+
+- **Solo workspace:** a match is skipped and recorded under `skippedGlobal` in
+  `.claude/.truss-skills.json`; `upgrade` leaves it out from then on.
+- **Team workspace** (`state/team.md` exists): installed anyway — teammates and cloud
+  sessions do not have your home directory. The match is reported, nothing more, and
+  `truss team enable` installs what an earlier solo setup skipped.
+- `--no-global-check` turns the comparison off.
+
+`doctor` reports a skill present in both places as `ST-12` (warning) with the command
+that removes the workspace copy.
+
 ## What these skills do to your project
 
 Documented upstream behaviour, repeated here so it is not a surprise:
 
-- `slop-hallmark` writes `.hallmark/log.json` into the project and requires a
-  `/* Hallmark · macrostructure: … */` stamp in generated CSS; `references/assets.md`
-  points generated markup at external CDNs (picsum.photos, api.svgl.app, fontshare).
-- `slop-diagrams` writes profile snapshots (`default.md`) into the project.
-- `uiux-design/scripts/{cip,logo,icon}/generate.py` read a global
-  `~/.claude/skills/.env` for an API key and call an external image API.
-- `uiux-ui-styling/scripts/shadcn_add.py` runs the shadcn CLI as a subprocess.
-- `superpowers-brainstorming/scripts/` starts a local server and deletes its own
-  session directory on stop.
-- `slop-scan` does almost none of it: `scripts/scan.mjs` imports `node:fs`,
-  `node:url` and `node:path` and nothing else, writes no file and opens no socket.
-  It reads and reports; any fix is applied by the agent, under the usual review.
-  Two exceptions, both opt-in and both upstream's design: the optional
-  `--rules=<path>` flag `import()`s that path, so it runs whatever module you point
-  it at, and `scripts/scan.test.mjs` spawns `node` to exercise the scanner.
-  `scripts/rules.ru.mjs` is Cyrillic on purpose — it is the Russian example rule
-  set, which is why a mixed-script scanner flags it.
+- `slop-diagrams` resolves a `.diagram-design` marker in the project, asks once to
+  customise its style guide and then edits its own `references/style-guide.md`; saved
+  profiles land in the project. `upgrade` treats the edited style guide like any other
+  file changed on both sides.
+- `code-webapp-testing/scripts/with_server.py` starts the servers you name as
+  subprocesses and waits on their ports.
+- `marketing-conversion-tracking/assets/` holds browser snippets and GTM recipes that
+  send events to Google, Meta, LinkedIn, TikTok and others — written for the user's
+  site, not run here. `scripts/*.py` only read and write local JSON.
+- Every `marketing-*` skill reads `.agents/product-marketing.md` (or
+  `.claude/product-marketing.md`) if the project has one.
+
+`skillspector --no-llm` was run on every new or changed skill. Its critical verdict on
+`marketing-conversion-tracking` rests on documentation it misreads — "never judge
+same-day numbers" as an anti-refusal statement, a `gtag.js` example as a hidden
+instruction, the words "access token" in Meta's CAPI notes as credential access.
 
 Truss needs none of this. Nothing runs until a skill is installed and invoked.
 
 ## Known gaps
 
 A skill ships **its own directory**. Anything it references outside that directory is
-an upstream-monorepo path and cannot resolve in a standalone install. That is the one
-rule behind both classes below, and it is why nothing is copied in to close a gap:
-reconstructing a layout upstream does not have would pull a chain of further sibling
-links behind it.
+an upstream-monorepo path and cannot resolve in a standalone install; nothing is
+copied in to close a gap.
 
-**Inside a skill's own directory — 9 targets, 11 occurrences, 4 skills.** This is the
-class the 2026-08-07 import broke; it stood at 167 before the repair. `slop-scan` adds
-none: every path its files name resolves inside its own directory.
+- **`marketing-*`, upstream sibling folders — 8 targets, 6 skills.** `copywriting`,
+  `marketing-loops` and `product-marketing` name a `references/*.md` that upstream
+  keeps in another skill's folder (`seo-audit`, `ai-seo`, `social`, `copywriting`,
+  `copy-editing`); `marketing-plan` and `social` name `skills/<name>/…` repository
+  paths. `lead-magnets` (`references/session-02.md`) and `ads`
+  (`conversion-tracking.md`) name files upstream does not have at all.
+- **`marketing-*`, repository root — 19 targets, 20 occurrences, 5 skills.** `ads`,
+  `ad-creative`, `offers` and `prospecting` link `../../<skill>/…`, a layout upstream
+  does not have either (its skills live under `skills/`). `link-building` links six
+  `../../tools/integrations/*.md`; `ad-creative` and `prospecting` name
+  `tools/clis/*.js`. Upstream's `tools/` tree holds executable SaaS CLI wrappers that
+  need third-party API keys — not imported.
+- **`slop-diagrams` — 46 script names.** Its `verify-*`, `test-verify-*`, `lint-*` and
+  `build-*-examples` scripts live in upstream's repository-level `scripts/`, and its
+  own text guards them as maintainer-checkout tooling. The six scripts an installed
+  skill uses (`export_*`, `*_extract`, `self_check`) ship.
 
-- `composio-skill-creator` (6) — `references/{api_docs,finance,mnda,policies,schema}.md`
-  and `scripts/rotate_pdf.py` exist nowhere in the upstream repository.
-- `marketing-attribution`, `-copywriting`, `-marketing-loops` (1 each) — one
-  `references/*.md` that upstream keeps in a sibling skill's folder.
-
-**Outside the skill's directory — 41 targets, 59 occurrences, 14 skills.**
-
-- Eleven `marketing-*` skills link `../../tools/REGISTRY.md` and
-  `../../tools/integrations/*.md` (43 occurrences). Upstream keeps a `tools/` tree at
-  its repository root, with 95 integration notes and 64 executable SaaS CLI wrappers.
-  Not imported: the wrappers need third-party API keys, which is what Truss exists
-  without, and the notes alone would leave `REGISTRY.md`'s own 64 links dead.
-- `marketing-ads` (6) and `marketing-offers` (1) link `../../ad-creative/SKILL.md`
-  and the like — repository-root paths where upstream keeps no such directory either
-  (its skills live under `skills/`). Broken upstream, not by this import.
-- `slop-hallmark` (2) links `../../docs/recipes.md` and `../../docs/study-examples.md`.
-- `superpowers-subagent-driven-development` (1) links
-  `../requesting-code-review/code-reviewer.md` — one of the five upstream superpowers
-  skills this baseline does not carry.
-
-**Not counted, with the reason.** `assets/design-tokens.json` (five `uiux-*` skills)
-and one example export path are files the skill writes into the *user's* project; its
-own text says so. `.agents/product-marketing.md`, which every `marketing-*` skill reads
-if the user's project has it. Three ADR filenames inside an example register that
-`ecc-architecture-decision-records` prints as documentation. And 16 of `slop-diagrams`'
-script references, guarded by its own "maintainer-checkout mode" and reported as not
-applicable in an installed skill.
-
-One more real consequence of leaving binaries out: `composio-artifacts-builder`'s
-`scripts/init-artifact.sh` expects `shadcn-components.tar.gz` next to it and stops with
-an error without it. The archive is binary, so the install path cannot carry it.
+Not counted: paths a skill writes into the user's project (`outputs/…`, `retros/…`,
+`competitor-profiles/…`), example code paths, and third-party script URLs.
 
 ## Update policy
 
-- Never edit imported files directly — patch upstream and re-import. The two named
-  exceptions are listed in `THIRD-PARTY-LICENSES.md`.
+- Never edit imported files directly — patch upstream and re-import.
 - Binary files (fonts, PDFs, archives) are **not** imported: the install path reads
-  every file as UTF-8 text, so a binary would arrive corrupted.
+  every file as UTF-8 text, so a binary would arrive corrupted. The 2026-10-23 import
+  contained none.
 - Upstream is re-checked on a schedule. The procedure, the due date and the
   candidate evaluation live in the development workspace, not here.
 - Excluded on licence grounds: `anthropics/claude-code` marketplace plugins
-  ("All rights reserved", removed 2026-09-09), `Imbad0202/academic-research-skills`
-  (CC BY-NC 4.0, non-commercial), `peteromallet/desloppify` (OSNL 0.2, fees on
-  redistribution), `peakoss/anti-slop` (AGPL-3.0, copyleft).
+  ("All rights reserved"), `Imbad0202/academic-research-skills` (CC BY-NC 4.0,
+  non-commercial), `peteromallet/desloppify` (OSNL 0.2, fees on redistribution),
+  `peakoss/anti-slop` (AGPL-3.0, copyleft).

@@ -11,12 +11,15 @@
 // ST-09  I  engine file(s) diverged from .truss/MANIFEST.sha256 (silent if absent)
 // ST-10  I/W decision index absent (I) or out of step with decisions.md (W)
 // ST-11  W  docs/schema.md holds a row the engine had to drop (that class stops being checked)
+// ST-12  W  a workspace skill or plugin is also installed globally — it loads twice (D-127)
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { ADAPTER_STUBS, STUB_PATTERNS, SUMMARY_DIRS } from '../lib/workspace.mjs'
 import { generateMapContent, mapComparisonKey } from '../lib/commands/map.mjs'
 import { verifyEngine } from '../lib/engine-manifest.mjs'
+import { globalClaudeDir, globalPluginEnabled, matchGlobal, readGlobalSkills, skillIdentity } from '../lib/global-skills.mjs'
+import { isTeamMode } from '../lib/team.mjs'
 import { renderIndex, parseDecisionSource, readDecisionSource, isLegacyIndex, INDEX_REL, SOURCE_REL, DECISIONS_DIR } from '../lib/decisions-index.mjs'
 
 // Declarative catalog of the checks this module implements (A2).
@@ -34,6 +37,7 @@ export const meta = [
   { id: 'ST-09', severity: 'I', title: 'Engine file differs from the release manifest', description: 'D-070: fires only when .truss/MANIFEST.sha256 exists — silent on instances or test workspaces without one' },
   { id: 'ST-10', severity: 'W', title: 'Decision index missing, out of step, or holding an entry it cannot address', description: 'D-075/D-081/D-087: info while the index has never been generated or is still in the pre-D-087 format (steps not taken, not defects); warning once it exists and disagrees with the source, or when a decision body sits where the index can never reach it — a stale or incomplete index lies to every session boot' },
   { id: 'ST-11', severity: 'W', title: 'docs/schema.md holds a row the engine cannot use', description: 'D-079: the entry classes are read from this file. Any row the engine drops switches RF-02, RF-03 and SY-03 off for that class in silence; a file that is not a Truss schema at all (no Class-headed table) is not reported, so an unrelated docs/schema.md stays green' },
+  { id: 'ST-12', severity: 'W', title: 'Skill or plugin installed both globally and in the workspace', description: 'D-127: Claude Code loads ~/.claude/skills and .claude/skills alike, so the same skill appears twice and costs its frontmatter twice. Silent in team mode, where the workspace copy is deliberate, and wherever ~/.claude has no skills (CI)' },
 ];
 
 // Top-level paths that were a valid §2 routing target before an engine change
@@ -519,5 +523,43 @@ export async function run(ctx) {
     }
   }
 
+  findings.push(...await checkGlobalDuplicates(ctx));
+
+  return findings;
+}
+
+// ── ST-12: the same skill in ~/.claude and in the workspace (D-127) ──────────
+// Matched like init and skills add do it (lib/global-skills.mjs), because a skill linked in from its own clone has
+// no source line and rarely the same bytes. Team mode keeps the copy on
+// purpose (members do not share this home directory), so the check is silent there.
+async function checkGlobalDuplicates(ctx) {
+  if (isTeamMode(ctx)) return [];
+  const findings = [];
+  const globalSkills = await readGlobalSkills();
+  const skillsDir = path.join(ctx.root, '.claude', 'skills');
+  let entries = [];
+  try { entries = await fs.readdir(skillsDir, { withFileTypes: true }); } catch { /* no project skills */ }
+  for (const entry of entries.filter(e => e.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!globalSkills.length) break;
+    const global = matchGlobal(await skillIdentity(path.join(skillsDir, entry.name)), globalSkills);
+    if (!global) continue;
+    findings.push({
+      id: 'ST-12', severity: 'W',
+      file: `.claude/skills/${entry.name}`,
+      message: `skill '${entry.name}' is also installed globally as '${global}' — the host loads both`,
+      fix: `Keep one. To drop the workspace copy: rm -r .claude/skills/${entry.name} — upgrade keeps a deleted baseline skill deleted.`,
+    });
+  }
+  let settings = null;
+  try { settings = JSON.parse(await fs.readFile(path.join(ctx.root, '.claude', 'settings.json'), 'utf8')); } catch { /* none */ }
+  for (const [key, on] of Object.entries(settings?.enabledPlugins ?? {})) {
+    if (on !== true || !(await globalPluginEnabled(key))) continue;
+    findings.push({
+      id: 'ST-12', severity: 'W',
+      file: '.claude/settings.json',
+      message: `plugin '${key}' is enabled here and in ${path.join(globalClaudeDir(), 'settings.json')}`,
+      fix: `Keep one. If it came from a Truss plugin group: node .truss/bin/truss.mjs skills remove <group>; otherwise drop the enabledPlugins entry.`,
+    });
+  }
   return findings;
 }

@@ -7,10 +7,10 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 import { applyTree } from '../lib/scaffold.mjs'
-import { buildExcludes, discoverGroups, droppedSelectedGroups, readSelectedGroups, SKILL_SELECTION_REL } from '../lib/skill-groups.mjs'
+import { buildExcludes, CORE_GROUPS, discoverGroups, droppedSelectedGroups, readSelectedGroups, SKILL_SELECTION_REL } from '../lib/skill-groups.mjs'
 import { runSkills } from '../lib/commands/skills.mjs'
 import { runInit } from '../lib/commands/init.mjs'
-import { makeRoot, exists } from './helpers.mjs'
+import { makeRoot, exists, runChecks, ENGINE_DIR } from './helpers.mjs'
 
 const execFileP = promisify(execFile)
 
@@ -50,7 +50,7 @@ async function buildSyntheticBaseline() {
     await fs.writeFile(path.join(agentsDir, name), `# ${name}\n`)
   }
 
-  // 'misc' bucket: a singleton-prefix skill and a no-dash skill both fall here.
+  // A lone prefix is a group of its own (D-126); only a dash-free name lands in misc.
   await fs.mkdir(path.join(skillsDir, 'solo-skill'), { recursive: true })
   await fs.writeFile(path.join(skillsDir, 'solo-skill', 'SKILL.md'), '# solo-skill\n')
   await fs.mkdir(path.join(skillsDir, 'nodash'), { recursive: true })
@@ -60,18 +60,19 @@ async function buildSyntheticBaseline() {
 }
 
 describe('skill groups', () => {
-  it('groups assets by shared name prefix, sorted alphabetically, with misc as the catch-all', async () => {
+  it('groups assets by name prefix, adds the plugin groups, sorted alphabetically', async () => {
     const baselineDir = await buildSyntheticBaseline()
     const groups = await discoverGroups(baselineDir)
 
-    assert.deepEqual([...groups.keys()], ['alpha', 'misc', 'zeta'])
+    assert.deepEqual([...groups.keys()], ['alpha', 'design', 'misc', 'solo', 'superpowers', 'zeta'])
     assert.deepEqual(groups.get('alpha').skills, ['alpha-one', 'alpha-two'])
     assert.deepEqual(groups.get('alpha').agents, ['alpha-helper.md'])
     assert.deepEqual(groups.get('zeta').skills, [])
     assert.deepEqual(groups.get('zeta').agents, ['zeta-one.md', 'zeta-two.md'])
-    // singleton prefix ('solo') and a dash-free name both fall into misc
-    assert.deepEqual(groups.get('misc').skills, ['nodash', 'solo-skill'])
-    assert.deepEqual(groups.get('misc').agents, [])
+    assert.deepEqual(groups.get('solo').skills, ['solo-skill'])
+    assert.deepEqual(groups.get('misc').skills, ['nodash'])
+    assert.deepEqual(groups.get('design').skills, [])
+    assert.equal(groups.get('design').plugin.key, 'impeccable@impeccable')
   })
 
   it('builds excludes for every unselected skill and agent path', async () => {
@@ -80,6 +81,8 @@ describe('skill groups', () => {
     const excludes = buildExcludes(groups, new Set(['alpha']))
 
     assert.equal(excludes.has('.claude/skills/solo-skill'), true)
+    assert.equal(buildExcludes(groups, new Set(['alpha']), { 'alpha-two': 'x' }).has('.claude/skills/alpha-two'), true,
+      'a skill skipped for a global copy is excluded even inside a selected group')
     assert.equal(excludes.has('.claude/skills/nodash'), true)
     assert.equal(excludes.has('.claude/agents/zeta-one.md'), true)
     assert.equal(excludes.has('.claude/agents/zeta-two.md'), true)
@@ -97,10 +100,11 @@ describe('skill groups', () => {
     assert.ok(groups.size >= 1, 'expected the shipped baseline to discover at least one group')
     for (const [group, assets] of groups) {
       assert.ok(
-        assets.skills.length + assets.agents.length > 0,
-        `group '${group}' should have at least one skill or agent`,
+        assets.plugin || assets.skills.length + assets.agents.length > 0,
+        `group '${group}' should have at least one skill or agent, or be a plugin group`,
       )
     }
+    for (const core of CORE_GROUPS) assert.ok(groups.has(core), `core group '${core}' must ship`)
   })
 })
 
@@ -130,8 +134,9 @@ describe('skills command', () => {
 
     const listed = await runCli(root, ['skills', 'list'])
     assert.equal(listed.code, 0)
-    assert.match(listed.stdout, /Group\s+Skills\s+Agents\s+Installed/)
-    assert.match(listed.stdout, /context7\s+4\s+1\s+—/)
+    assert.match(listed.stdout, /Group\s+Skills\s+Kind\s+Installed/)
+    assert.match(listed.stdout, /code\s+4\s+opt-in\s+—/)
+    assert.match(listed.stdout, /superpowers\s+—\s+plugin\s+—/)
 
     const help = await runCli(root, ['skills', 'list', '--help'])
     assert.equal(help.code, 0)
@@ -143,43 +148,39 @@ describe('skills command', () => {
     await runInit(root, ['--name', 'Skills', '--lang', 'English', '--skills', 'none'])
 
     const before = await runSkills(root, ['list'])
-    assert.equal(before.find(row => row.group === 'context7').installed, false)
+    assert.equal(before.find(row => row.group === 'code').installed, false)
 
-    await runSkills(root, ['add', 'context7'])
-    assert.equal(await exists(root, '.claude/skills/context7-context7-cli/SKILL.md'), true)
-    assert.equal(await exists(root, '.claude/agents/context7-docs-researcher.md'), true)
-    assert.equal(await exists(root, '.claude/skills/ecc-api-design/SKILL.md'), false)
+    await runSkills(root, ['add', 'code'])
+    assert.equal(await exists(root, '.claude/skills/code-api-design/SKILL.md'), true)
+    assert.equal(await exists(root, '.claude/skills/marketing-ads/SKILL.md'), false)
     assert.deepEqual(
       JSON.parse(await fs.readFile(path.join(root, '.claude', '.truss-skills.json'), 'utf8')),
-      { groups: ['context7'] },
+      { groups: ['code'] },
     )
 
     const after = await runSkills(root, ['list'])
-    assert.equal(after.find(row => row.group === 'context7').installed, true)
+    assert.equal(after.find(row => row.group === 'code').installed, true)
 
-    await runSkills(root, ['remove', 'context7'])
-    assert.equal(await exists(root, '.claude/skills/context7-context7-cli'), false)
-    assert.equal(await exists(root, '.claude/agents/context7-docs-researcher.md'), false)
+    await runSkills(root, ['remove', 'code'])
+    assert.equal(await exists(root, '.claude/skills/code-api-design'), false)
     assert.equal(await exists(root, '.claude', 'SOURCES.md'), true)
   })
 
   it('preserves pre-existing or modified assets when removing a group', async () => {
     const root = await makeRoot('truss-skills-preserve-')
     await runInit(root, ['--name', 'Preserve', '--lang', 'English', '--skills', 'none'])
-    const customAgent = path.join(root, '.claude', 'agents', 'context7-docs-researcher.md')
-    await fs.mkdir(path.dirname(customAgent), { recursive: true })
-    await fs.writeFile(customAgent, '# Custom agent\n')
+    const custom = path.join(root, '.claude', 'skills', 'code-api-design', 'SKILL.md')
+    await fs.mkdir(path.dirname(custom), { recursive: true })
+    await fs.writeFile(custom, '# Custom skill\n')
 
-    await runSkills(root, ['add', 'context7'])
-    const modifiedSkill = path.join(
-      root, '.claude', 'skills', 'context7-context7-cli', 'SKILL.md',
-    )
+    await runSkills(root, ['add', 'code'])
+    const modifiedSkill = path.join(root, '.claude', 'skills', 'code-changelog-generator', 'SKILL.md')
     await fs.appendFile(modifiedSkill, '\nCustom addition.\n')
 
-    const result = await runSkills(root, ['remove', 'context7'])
+    const result = await runSkills(root, ['remove', 'code'])
     assert.equal(result.preserved.length, 2)
-    assert.equal(await exists(root, '.claude/skills/context7-context7-cli'), true)
-    assert.equal(await fs.readFile(customAgent, 'utf8'), '# Custom agent\n')
+    assert.equal(await exists(root, '.claude/skills/code-changelog-generator'), true)
+    assert.equal(await fs.readFile(custom, 'utf8'), '# Custom skill\n')
   })
 })
 
@@ -226,5 +227,135 @@ describe('droppedSelectedGroups', () => {
       await fs.writeFile(path.join(root, SKILL_SELECTION_REL), 'not json at all')
       assert.deepEqual(await droppedSelectedGroups(root, groupsWith('slop')), [])
     } finally { await fs.rm(root, { recursive: true, force: true }) }
+  })
+})
+
+// ── Plugin groups (D-126): a switch in .claude/settings.json, no files ───────
+describe('plugin groups', () => {
+  it('enables and disables the plugin without touching the rest of settings.json', async () => {
+    const root = await makeRoot('truss-skills-plugin-')
+    await runInit(root, ['--name', 'Plugin', '--lang', 'English', '--skills', 'none'])
+    const settingsPath = path.join(root, '.claude', 'settings.json')
+    await fs.writeFile(settingsPath, `${JSON.stringify({ model: 'opus', enabledPlugins: { 'other@elsewhere': true } }, null, 2)}\n`)
+
+    await runSkills(root, ['add', 'superpowers'])
+    let settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'))
+    assert.equal(settings.model, 'opus')
+    assert.equal(settings.enabledPlugins['other@elsewhere'], true)
+    assert.equal(settings.enabledPlugins['superpowers@superpowers-marketplace'], true)
+    assert.deepEqual(settings.extraKnownMarketplaces['superpowers-marketplace'],
+      { source: { source: 'github', repo: 'obra/superpowers-marketplace' } })
+    assert.equal(await exists(root, '.claude/skills'), false, 'a plugin group copies nothing')
+    assert.equal((await runSkills(root, ['list'])).find(row => row.group === 'superpowers').installed, true)
+
+    await runSkills(root, ['remove', 'superpowers'])
+    settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'))
+    assert.deepEqual(settings, { model: 'opus', enabledPlugins: { 'other@elsewhere': true } })
+  })
+
+  it('removes a settings.json it leaves empty, and refuses to rewrite one that is not JSON', async () => {
+    const root = await makeRoot('truss-skills-plugin-empty-')
+    await runInit(root, ['--name', 'Plugin', '--lang', 'English', '--skills', 'none'])
+    await runSkills(root, ['add', 'design'])
+    assert.equal(await exists(root, '.claude/settings.json'), true)
+    await runSkills(root, ['remove', 'design'])
+    assert.equal(await exists(root, '.claude/settings.json'), false)
+
+    await fs.writeFile(path.join(root, '.claude', 'settings.json'), '{ not json')
+    await assert.rejects(runSkills(root, ['add', 'design']), /not valid JSON/)
+    assert.equal(await fs.readFile(path.join(root, '.claude', 'settings.json'), 'utf8'), '{ not json')
+  })
+})
+
+// ── Skills the user already has globally (D-127) ─────────────────────────────
+describe('global skills', () => {
+  async function withGlobal(fn) {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-global-claude-'))
+    const real = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-global-real-'))
+    // Linked in from a clone, the way a personal skill repo installs it: no
+    // source header, a different version, reached through a symlink.
+    const description = (await fs.readFile(path.join(ENGINE_DIR, 'baseline', '.claude', 'skills', 'code-api-design', 'SKILL.md'), 'utf8'))
+      .match(/^description: (.*)$/m)[1]
+    await fs.mkdir(path.join(real, 'api-design'))
+    await fs.writeFile(path.join(real, 'api-design', 'SKILL.md'), `---\nname: api-design\ndescription: ${description}\n---\nother body\n`)
+    // Same upstream name as code-changelog-generator, different description: not the same skill.
+    await fs.mkdir(path.join(real, 'changelog-generator'))
+    await fs.writeFile(path.join(real, 'changelog-generator', 'SKILL.md'), '---\nname: changelog-generator\ndescription: my own\n---\nx\n')
+    await fs.mkdir(path.join(dir, 'skills'), { recursive: true })
+    await fs.symlink(path.join(real, 'api-design'), path.join(dir, 'skills', 'api-design'))
+    await fs.symlink(path.join(real, 'changelog-generator'), path.join(dir, 'skills', 'changelog-generator'))
+    await fs.writeFile(path.join(dir, 'settings.json'), JSON.stringify({ enabledPlugins: { 'impeccable@impeccable': true } }))
+    const saved = process.env.TRUSS_GLOBAL_CLAUDE_DIR
+    process.env.TRUSS_GLOBAL_CLAUDE_DIR = dir
+    try { await fn(dir) } finally { process.env.TRUSS_GLOBAL_CLAUDE_DIR = saved }
+  }
+
+  it('skips a global skill and plugin on add, and records the skill for upgrade', async () => {
+    await withGlobal(async () => {
+      const root = await makeRoot('truss-skills-global-')
+      await runInit(root, ['--name', 'Global', '--lang', 'English', '--skills', 'none'])
+      const added = await runSkills(root, ['add', 'code'])
+      assert.deepEqual(added.global, { 'code-api-design': 'api-design' })
+      assert.equal(await exists(root, '.claude/skills/code-api-design'), false)
+      assert.equal(await exists(root, '.claude/skills/code-database-migrations/SKILL.md'), true)
+      assert.deepEqual(JSON.parse(await fs.readFile(path.join(root, SKILL_SELECTION_REL), 'utf8')),
+        { groups: ['code'], skippedGlobal: { 'code-api-design': 'api-design' } })
+      assert.equal((await runSkills(root, ['list'])).find(row => row.group === 'code').installed, true)
+
+      await runSkills(root, ['add', 'design'])
+      assert.equal(await exists(root, '.claude/settings.json'), false, 'globally enabled plugin is not enabled twice')
+      assert.equal((await runSkills(root, ['list'])).find(row => row.group === 'design').installed, true,
+        'a plugin covered globally counts as installed, so upgrade does not nag about it')
+
+      // --no-global-check installs it after all and drops the record.
+      await runSkills(root, ['add', 'code', '--no-global-check'])
+      assert.equal(await exists(root, '.claude/skills/code-api-design/SKILL.md'), true)
+      assert.deepEqual(JSON.parse(await fs.readFile(path.join(root, SKILL_SELECTION_REL), 'utf8')), { groups: ['code', 'design'] })
+
+      // doctor names the pair now that both exist.
+      const findings = await runChecks(root)
+      const st12 = findings.filter(f => f.id === 'ST-12')
+      assert.equal(st12.length, 1)
+      assert.equal(st12[0].file, '.claude/skills/code-api-design')
+      assert.match(st12[0].fix, /rm -r \.claude\/skills\/code-api-design/)
+    })
+  })
+
+  it('installs anyway in a team workspace and keeps doctor quiet there', async () => {
+    await withGlobal(async () => {
+      const root = await makeRoot('truss-skills-global-team-')
+      await runInit(root, ['--name', 'Team', '--lang', 'English', '--skills', 'none'])
+      await fs.writeFile(path.join(root, 'state', 'team.md'), '# Team\n')
+      const added = await runSkills(root, ['add', 'code'])
+      assert.deepEqual(added.global, {})
+      assert.equal(await exists(root, '.claude/skills/code-api-design/SKILL.md'), true)
+      await runSkills(root, ['add', 'design'])
+      assert.equal(await exists(root, '.claude/settings.json'), true)
+      assert.deepEqual((await runChecks(root)).filter(f => f.id === 'ST-12'), [], 'ST-12 is silent in team mode')
+    })
+  })
+
+  it('reports a plugin enabled both here and globally as ST-12', async () => {
+    await withGlobal(async () => {
+      const root = await makeRoot('truss-skills-global-plugin-')
+      await runInit(root, ['--name', 'Both', '--lang', 'English', '--skills', 'none'])
+      await runSkills(root, ['add', 'design', '--no-global-check'])
+      const st12 = (await runChecks(root)).filter(f => f.id === 'ST-12')
+      assert.equal(st12.length, 1)
+      assert.equal(st12[0].file, '.claude/settings.json')
+    })
+  })
+
+  it('installs the skipped skills when the workspace becomes a team workspace', async () => {
+    await withGlobal(async () => {
+      const root = await makeRoot('truss-skills-global-to-team-')
+      await runInit(root, ['--name', 'Later team', '--lang', 'English', '--skills', 'code'])
+      assert.equal(await exists(root, '.claude/skills/code-api-design'), false)
+      const { enableTeam } = await import('../lib/commands/team.mjs')
+      const res = await enableTeam(root, { as: '@alex' })
+      assert.equal(await exists(root, '.claude/skills/code-api-design/SKILL.md'), true)
+      assert.match(res.notes.join('\n'), /code-api-design/)
+      assert.deepEqual(JSON.parse(await fs.readFile(path.join(root, SKILL_SELECTION_REL), 'utf8')), { groups: ['code'] })
+    })
   })
 })

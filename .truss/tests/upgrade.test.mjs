@@ -62,6 +62,13 @@ async function fixture() {
   await t('docs/fresh.md', 'brand new\n')
   // dropped from the baseline → kept as the project's
   await b('docs/dropped.md', 'was baseline\n'); await m('docs/dropped.md', 'was baseline\n')
+  // an installed baseline skill dropped from the baseline: unchanged → removed (D-128), edited → kept
+  await b('.claude/skills/old-one/SKILL.md', 'shipped\n'); await m('.claude/skills/old-one/SKILL.md', 'shipped\n')
+  await b('.claude/skills/old-two/SKILL.md', 'shipped\n'); await m('.claude/skills/old-two/SKILL.md', 'edited\n')
+  await b('.claude/agents/old-agent.md', 'agent\n');       await m('.claude/agents/old-agent.md', 'agent\n')
+  // a dropped skill with one edited file and one untouched: kept whole
+  await b('.claude/skills/old-three/SKILL.md', 'shipped\n'); await m('.claude/skills/old-three/SKILL.md', 'shipped\n')
+  await b('.claude/skills/old-three/ref.md', 'ref\n');       await m('.claude/skills/old-three/ref.md', 'my notes\n')
   // deleted locally → not resurrected
   await b('docs/gone.md', 'old\n');         await t('docs/gone.md', 'new\n')
   // binary changed on both sides → never fed to a line merge
@@ -179,6 +186,11 @@ describe('planBaseline', () => {
     assert.equal(by['docs/fresh.md'], 'write')
     assert.equal(by['docs/dropped.md'], 'skip')
     assert.equal(by['docs/gone.md'], 'skip')
+    assert.equal(by['.claude/skills/old-one/SKILL.md'], 'remove')
+    assert.equal(by['.claude/skills/old-two/SKILL.md'], 'skip', 'an edited copy is the project\'s')
+    assert.equal(by['.claude/agents/old-agent.md'], 'remove')
+    assert.equal(by['.claude/skills/old-three/SKILL.md'], 'skip', 'one edited file keeps the whole skill')
+    assert.equal(by['.claude/skills/old-three/ref.md'], 'skip')
     // The line is the only place the per-file opt-out is visible; it must read
     // as a respected choice, not as an upstream change that failed (forge TF-004).
     assert.match(plan.find(p => p.rel === 'docs/gone.md').note, /deleted here — kept deleted/)
@@ -213,6 +225,27 @@ describe('runUpgrade', () => {
       result.plan.some(entry => entry.rel === '.claude/skills/marketing-new/SKILL.md'),
       false,
     )
+  })
+
+  it('leaves out a skill skipped for a global copy, and names a selected plugin group that is off', async () => {
+    const ws = await makeRoot('truss-upgrade-skills-skipped-')
+    await runInit(ws, ['--name', 'Skipped', '--lang', 'English', '--skills', 'code'])
+    await fs.rm(path.join(ws, '.claude/skills/code-api-design'), { recursive: true })
+    await fs.writeFile(path.join(ws, '.claude/.truss-skills.json'),
+      `${JSON.stringify({ groups: ['code', 'superpowers'], skippedGlobal: { 'code-api-design': 'api-design' } })}\n`)
+    await fs.writeFile(path.join(ws, '.truss/VERSION'), '0.0.1\n')
+
+    const next = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-upgrade-skills-skipped-next-'))
+    await fs.cp(path.join(ENGINE_DIR, 'baseline'), path.join(next, '.truss/baseline'), { recursive: true })
+    await fs.writeFile(path.join(next, '.truss/VERSION'), '0.0.2\n')
+    await write(next, '.truss/baseline/.claude/skills/code-api-design/extra.md', 'new in this version\n')
+
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    try { await runUpgrade(next, ['--root', ws]) } finally { console.log = log }
+    assert.equal(await exists(ws, '.claude/skills/code-api-design'), false, 'not even a new file of a skipped skill lands')
+    assert.match(logs.join('\n'), /pending\s+superpowers/)
   })
 
   // D-069's safety rests on a coupling, not on the line above: `init` MUST write
@@ -277,6 +310,13 @@ describe('runUpgrade', () => {
     assert.equal(await read(ws, 'docs/dropped.md'), 'was baseline\n')
     assert.equal(await exists(ws, 'docs/gone.md'), false)
     assert.equal(await exists(ws, 'state/current.md.truss-merge'), false, 'seed files get no side file either')
+
+    // dropped baseline skills (D-128): the unchanged copy goes with its emptied
+    // directories, the edited one stays, and so does .claude/skills itself
+    assert.equal(await exists(ws, '.claude/skills/old-one'), false)
+    assert.equal(await read(ws, '.claude/skills/old-two/SKILL.md'), 'edited\n')
+    assert.equal(await exists(ws, '.claude/agents'), false, 'an emptied agents directory goes too')
+    assert.equal(planOf(r)['.claude/skills/old-one/SKILL.md'], 'removed')
 
     // applied
     assert.equal(await read(ws, 'docs/take.md'), 'new\n')

@@ -73,12 +73,15 @@ import {
 } from "../code-root.mjs";
 import {
   buildExcludes,
+  CORE_GROUPS,
   discoverGroups,
   selectedGroupsFor,
   selectionContent,
   SKILL_SELECTION_REL,
   SkillSelectionError,
 } from "../skill-groups.mjs";
+import { globalPluginEnabled, resolveGlobalSkips } from "../global-skills.mjs";
+import { checkSettingsEditable, enablePlugin, PluginSettingsError } from "../skill-plugins.mjs";
 
 const execFileP = promisify(execFile);
 
@@ -108,6 +111,7 @@ export function parseInitArgs(argv) {
     adoptAgents: false,
     root: null,
     skills: null,
+    globalCheck: true,
     findings: true,
     team: false,
     as: null,
@@ -129,6 +133,7 @@ export function parseInitArgs(argv) {
     else if (a === "--as") opts.as = value("--as");
     else if (a.startsWith("--as=")) opts.as = a.slice("--as=".length);
     else if (a === "--no-phases") opts.noPhases = true;
+    else if (a === "--no-global-check") opts.globalCheck = false;
     else if (a === "--adopt-agents") opts.adoptAgents = true;
     else if (a === "--name") opts.name = value("--name");
     else if (a === "--lang") opts.lang = value("--lang");
@@ -148,7 +153,7 @@ export function parseInitArgs(argv) {
     else if (a.startsWith("--skills=")) opts.skills = a.slice("--skills=".length);
     else
       throw new InitError(
-        `init: unknown argument '${a}'. Flags: --name --lang --overlay --no-phases --code-root --adopt-agents --root --skills --findings --team --as`,
+        `init: unknown argument '${a}'. Flags: --name --lang --overlay --no-phases --code-root --adopt-agents --root --skills --no-global-check --findings --team --as`,
       );
   }
   // D-114: a team workspace records friction with Truss — the channel is not optional there.
@@ -195,25 +200,28 @@ async function resolveInteractive(opts, groups) {
       if (o === "y" || o === "yes") opts.overlay = true;
     }
     if (opts.skills === null) {
-      console.log("\nOpt into baseline skill groups? They load into every session (enter number, comma-separated, or 'a' for all; default 'n' for none):\n");
+      const core = CORE_GROUPS.filter(group => groups.has(group));
+      console.log(`\nBaseline skill groups — they load into every session. Enter numbers (comma-separated), 'a' for all, 'n' for none; Enter keeps the core (${core.join(", ") || "none"}):\n`);
       const ordered = [...groups];
       for (const [index, [group, assets]] of ordered.entries()) {
-        const agents = assets.agents.length
-          ? `, ${assets.agents.length} agent${assets.agents.length === 1 ? "" : "s"}`
-          : "";
+        const what = assets.plugin
+          ? `Claude Code plugin ${assets.plugin.key.split("@")[0]}`
+          : `${assets.skills.length} skill${assets.skills.length === 1 ? "" : "s"}`;
         const examples = assets.skills
           .slice(0, 3)
           .map(name => name.slice(name.indexOf("-") + 1).replaceAll("-", " "))
           .join(", ");
-        console.log(` ${index + 1}. ${group} — ${assets.skills.length} skills${agents}${examples ? ` (${examples}${assets.skills.length > 3 ? ", …" : ""})` : ""}`);
+        const core = CORE_GROUPS.includes(group) ? " [core]" : "";
+        console.log(` ${index + 1}. ${group}${core} — ${what}${examples ? ` (${examples}${assets.skills.length > 3 ? ", …" : ""})` : ""}`);
       }
-      const choice = (await rl.question("\nChoice [n]: ")).trim().toLowerCase() || "n";
-      if (choice === "a") opts.skills = "all";
+      const choice = (await rl.question("\nChoice [core]: ")).trim().toLowerCase();
+      if (choice === "") opts.skills = core.length ? core.join(",") : "none";
+      else if (choice === "a") opts.skills = "all";
       else if (choice === "n") opts.skills = "none";
       else {
         const numbers = choice.split(",").map(value => Number(value.trim()));
         if (!numbers.every(number => Number.isInteger(number) && number >= 1 && number <= ordered.length)) {
-          throw new InitError("init: skill selection must be 'a', 'n', or valid group numbers.");
+          throw new InitError("init: skill selection must be empty, 'a', 'n', or valid group numbers.");
         }
         opts.skills = [...new Set(numbers)].map(number => ordered[number - 1][0]).join(",");
       }
@@ -459,13 +467,29 @@ export async function runInit(root, argv, invokedCwd = null) {
     if (err instanceof SkillSelectionError) throw new InitError(`init: ${err.message}`);
     throw err;
   }
-  const skillExcludes = buildExcludes(groups, selectedGroups);
+  // D-127: a skill the user already has in ~/.claude/skills would load twice.
+  // Solo: leave it out and record why. Team (--team): install it anyway.
+  const selectedSkills = [...selectedGroups].flatMap(group => groups.get(group).skills);
+  const { skipped: skippedGlobal, alsoGlobal } = await resolveGlobalSkips(
+    baselineDir, selectedSkills, { team: opts.team, check: opts.globalCheck },
+  );
+  const skillExcludes = buildExcludes(groups, selectedGroups, skippedGlobal);
   // --no-phases (U4): the baseline ships its own state/phases.md, so it must be
   // excluded from the tree copy as well — otherwise applyTree would write back
   // the very file this flag is about not having.
   const treeExcludes = new Set(skillExcludes);
   if (opts.noPhases) treeExcludes.add("state/phases.md");
-  const skillSelection = selectionContent(groups, selectedGroups);
+  const skillSelection = selectionContent(groups, selectedGroups, skippedGlobal);
+  // A plugin group edits .claude/settings.json after the tree is written; an
+  // overlay may bring one we cannot edit — refuse now, before the first write.
+  if ([...selectedGroups].some(group => groups.get(group).plugin)) {
+    try {
+      await checkSettingsEditable(root);
+    } catch (err) {
+      if (err instanceof PluginSettingsError) throw new InitError(`init: ${err.message}`);
+      throw err;
+    }
+  }
   // Team mode: know who is enabling it BEFORE anything is written, so a
   // missing identity never leaves a half-initialised workspace behind.
   let teamLogin = null;
@@ -518,8 +542,8 @@ export async function runInit(root, argv, invokedCwd = null) {
     );
   }
   const agentsPlan = await prepareAgents(root, baselineDir, opts.adoptAgents, opts.findings);
-  // After prepareAgents, deliberately. Since D-069 every init writes a skill
-  // selection file, so on a re-run this guard would otherwise fire first and
+  // After prepareAgents, deliberately. Since D-069 every init short of
+  // `--skills all` writes a skill selection file, so on a re-run this guard would otherwise fire first and
   // report a skills conflict for what is really an already-initialised
   // workspace — the diagnosis the human needs comes from prepareAgents.
   if (skillSelection !== null && await exists(path.join(root, SKILL_SELECTION_REL))) {
@@ -748,6 +772,22 @@ export async function runInit(root, argv, invokedCwd = null) {
     }
   }
 
+  // 6c. Plugin groups (D-126) ship no files; they are a switch in .claude/settings.json.
+  const pluginsGlobal = [];
+  for (const group of selectedGroups) {
+    const plugin = groups.get(group).plugin;
+    if (!plugin) continue;
+    if (opts.globalCheck && !opts.team && await globalPluginEnabled(plugin.key)) {
+      pluginsGlobal.push(group);
+      continue;
+    }
+    try {
+      await enablePlugin(root, plugin);
+    } catch (err) {
+      throw new InitError(`init: the workspace is initialised, but enabling the ${group} plugin failed — ${err.message}\n  Fix the cause, then run: node .truss/bin/truss.mjs skills add ${group}`);
+    }
+  }
+
   const codeRootReady = codeRoot
     ? await exists(path.join(root, ...codeRoot.split("/")))
     : false;
@@ -764,6 +804,9 @@ export async function runInit(root, argv, invokedCwd = null) {
     codeRoot,
     codeRootReady,
     skills: [...selectedGroups],
+    skippedGlobal,
+    alsoGlobal,
+    pluginsGlobal,
     findings: opts.findings ? "on" : "off",
     team: teamLogin,
     currentPhase: currentId ?? "(none — no phase model)",
@@ -792,9 +835,16 @@ function printReport(root, r) {
   if (r.team) L.push(`  Team mode:              on (you: @${r.team}) — fill in state/team.md; .truss/docs/team.md`);
   L.push(`  Git:                    ${r.git}`);
   L.push(`  Skills:                 ${r.skills.length ? r.skills.join(", ") : "none"}`);
-  if (!r.skills.length) {
-    L.push(`    (node .truss/bin/truss.mjs skills list to see them, ... skills add <group> to install)`);
+  for (const [skill, global] of Object.entries(r.skippedGlobal ?? {})) {
+    L.push(`    skipped ${skill} — installed globally as ${global} (recorded in .claude/.truss-skills.json)`);
   }
+  for (const [skill, global] of Object.entries(r.alsoGlobal ?? {})) {
+    L.push(`    note: ${skill} is also installed globally as ${global} — kept, team members do not share your home directory`);
+  }
+  for (const group of r.pluginsGlobal ?? []) {
+    L.push(`    skipped plugin ${group} — already enabled globally`);
+  }
+  L.push(`    (node .truss/bin/truss.mjs skills list to see all groups, ... skills add <group> to install one)`);
   if (r.codeRoot) L.push(`  Code root:              ${r.codeRoot}/`);
   if (r.conflicts.length) {
     L.push("");

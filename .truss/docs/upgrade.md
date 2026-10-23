@@ -80,7 +80,15 @@ workspace was scaffolded from, at the version you installed. So for each file:
 | the merge is clean but the result is structurally invalid (e.g. `package.json`) | treated as a conflict, not written |
 | the file is binary | reported; never fed to a line merge |
 | new file in this version | created |
-| the file left the baseline | kept as yours — never deleted |
+| the file left the baseline | kept as yours — never deleted, with the one exception in the next row |
+| an installed baseline skill or agent left the baseline | removed if unchanged, together with directories that leave empty; an edited copy is kept as yours |
+| a skill is recorded as skipped for a global copy (`skippedGlobal`) | left out, as if its group were not selected |
+
+A dropped skill is removed as a whole or not at all: if any of its files was edited,
+every file of it stays. The report also lists, under **Plugin groups**, a plugin
+group the selection names but neither this workspace nor (outside team mode) your
+global settings enable — `superpowers` was copied files before; one
+`truss skills add superpowers` switches it on.
 | you had deleted the file | not resurrected; the upstream change is reported, not applied |
 | a write fails (permissions, disk) | that one file is reported as `FAILED`; the rest of the run continues |
 

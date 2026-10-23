@@ -247,7 +247,8 @@ Init flags:
   --lang <lang>     primary language for agent output (e.g. English)
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
   --code-root <dir> select one existing in-workspace code root (overlay only)
-  --skills <groups> none (default), all, or comma-separated baseline groups
+  --skills <groups> core groups (default), none, all, or comma-separated groups
+  --no-global-check install skills even when ~/.claude/skills already has them
   --no-phases       scaffold without state/phases.md (no gates, no exit criteria)
   --team [--as @me] team mode: state/team.md, auto-commit=on, git-flow=team (needs the findings channel)
 

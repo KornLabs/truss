@@ -4,7 +4,7 @@ description: "When the user wants multiple expert perspectives on a marketing qu
 metadata:
   version: 1.0.0
 ---
-<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: coreyhaines31/marketingskills (MIT) - imported 2026-10-23 - upstream name `marketing-council`, moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Marketing Council
 

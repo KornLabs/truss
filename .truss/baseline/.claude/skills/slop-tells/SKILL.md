@@ -5,7 +5,7 @@ metadata:
   trigger: Writing prose, editing drafts, reviewing content for AI patterns
   author: Hardik Pandya (https://hvpandya.com)
 ---
-<!-- Source: hardikpandya/stop-slop (MIT) - imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: hardikpandya/stop-slop (MIT) - imported 2026-10-23 - upstream name `stop-slop`, moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Stop Slop
 

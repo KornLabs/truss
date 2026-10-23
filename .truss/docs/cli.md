@@ -35,7 +35,8 @@ truss init --name "My Project" --lang English
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
-| `--skills <selection>` | install `none` (default), `all` groups, or comma-separated group IDs such as `superpowers,ecc`. In a TTY without this option, init offers an interactive group choice, defaulting to none. The skills are optional because their frontmatter alone is context your host agent loads into every session — around 8.7k tokens for the full set, which Truss cannot see or budget. Add them later with `truss skills add <group>`. `.claude/SOURCES.md` is always installed as provenance |
+| `--skills <selection>` | install the core group (default: `slop`), `none`, `all`, or comma-separated group IDs such as `code,marketing` — an explicit list replaces the core. In a TTY without this option, init offers an interactive group choice; Enter keeps the core. Every installed skill's frontmatter is context your host agent loads into every session, which Truss cannot see or budget, so everything beyond the core is opt-in. Add groups later with `truss skills add <group>`. `.claude/SOURCES.md` is always installed as provenance |
+| `--no-global-check` | install selected skills even when `~/.claude/skills` already has them (see `skills` below) |
 | `--team` | team mode ([team.md](team.md)): writes `state/team.md` with your line, routes AGENTS.md to it, sets `auto-commit=on` and `git-flow=team`. Requires the findings channel, so `--findings off` is refused. Your login comes from `--as`, `TRUSS_USER`, git config or `gh`; init stops before writing anything if none is known |
 | `--as <@login>` | (with `--team`) your GitHub login |
 | `--findings <on\|off>` | collect agent findings about Truss itself in `state/truss-findings.md` (default `on`). With `off`, every AGENTS.md / conventions mention of the channel is omitted — zero boot cost for instances that do not want it. Decision is fixed at init time |
@@ -65,31 +66,56 @@ stays human-only) — see [concepts.md §5](concepts.md#5-phases).
 
 ## `skills`
 
-List, add, or remove baseline skill groups after initialization. Groups are
-discovered from the `.claude/skills/` directories and `.claude/agents/` files in
-the installed baseline; no separate catalog is maintained.
+List, add, or remove baseline skill groups after initialization. Copied groups
+are discovered from the `.claude/skills/` directories of the installed baseline;
+no separate catalog is maintained. `.claude/SOURCES.md` names every group and
+its source.
 
 ```bash
 truss skills list
-truss skills add context7
+truss skills add code
+truss skills add design
 truss skills remove marketing
 truss skills add all
 ```
 
-`add` never overwrites an existing skill or agent. `remove` deletes only
-unchanged baseline assets from the selected group, including that group's
-agents; existing or modified files are preserved. A restricted selection is
-stored in `.claude/.truss-skills.json` so future upgrades do not reinstall
-opted-out groups; the file is absent only when every group is enabled. A default
-`init` installs no group, so a fresh workspace carries it with an empty list —
-that is what keeps a later `upgrade` from installing all of them behind you.
+`list` shows each group's kind: `core` (installed by `init`), `opt-in`, or
+`plugin`. A **plugin group** (`design`, `superpowers`) copies nothing: `add`
+registers the upstream marketplace under `extraKnownMarketplaces` and enables the
+plugin under `enabledPlugins` in `.claude/settings.json`, and Claude Code installs
+and updates it from there; `remove` takes both entries out and leaves the rest of
+the file alone.
 
-**Opting out of one skill** inside a group you keep — because you carry it
-globally already, say — is done by deleting its directory. `upgrade` treats a
-file that was in the old baseline and is absent here as a deliberate deletion
-and does not bring it back (`deleted here — kept deleted` in its report); the
-rest of the group keeps updating. Copying the others back after removing the
-group would make them *yours* and take them out of upgrades for good.
+`add` never overwrites an existing skill. `remove` deletes only unchanged
+baseline skills of the selected group; existing or modified files are preserved.
+The selection is stored in `.claude/.truss-skills.json` so future upgrades do
+not reinstall opted-out groups; the file is absent only when every group is
+enabled and nothing was skipped, which is why every `init` short of `--skills all`
+writes it.
+
+**Skills you already have globally.** Claude Code loads `~/.claude/skills` and
+the project's `.claude/skills` alike, so one skill in both places loads twice.
+`init` and `add` compare each skill against `~/.claude/skills` (symlinks followed;
+`CLAUDE_CONFIG_DIR` is honoured): a global skill matches by its directory or
+`name:` when that equals the baseline name, or equals the upstream name in the
+source header *and* the `description:` is the same — a short upstream name such
+as `video` alone is not enough. Each plugin group is compared against
+`enabledPlugins` in `~/.claude/settings.json`. In a solo workspace a match is
+skipped and recorded under `skippedGlobal` in `.claude/.truss-skills.json`, and
+`upgrade` leaves it out from then on; a globally enabled plugin counts as
+installed. In a team workspace (`state/team.md` exists) everything is installed,
+because teammates and cloud sessions do not share your home directory, and
+`team enable` installs what an earlier solo setup skipped. `--no-global-check`
+installs regardless. `upgrade` does not run the comparison for skills a new
+version adds; `doctor` reports any skill or plugin present in both places as
+`ST-12` (silent in team mode), with the command that removes the workspace copy.
+
+**Opting out of one skill** inside a group you keep is done by deleting its
+directory. `upgrade` treats a file that was in the old baseline and is absent here
+as a deliberate deletion and does not bring it back (`deleted here — kept deleted`
+in its report); the rest of the group keeps updating. Copying the others back
+after removing the group would make them *yours* and take them out of upgrades
+for good.
 
 ---
 
@@ -179,7 +205,8 @@ it scaffolded the workspace from, so the old baseline, the new baseline and your
 file are all on disk. Per file — unchanged upstream is skipped, unmodified
 locally is taken from the new baseline, non-overlapping changes are merged, and
 a genuine conflict lands in `<file>.truss-merge` with your file untouched. Files
-that left the baseline are kept as yours; files you deleted are not resurrected.
+that left the baseline are kept as yours, except unchanged copies of skills the
+baseline dropped; files you deleted are not resurrected.
 
 The baseline's **seed** files — `state/*`, `VISION.md`, `README.md` — are never
 written, only reported: `init` writes them once and after that they are project

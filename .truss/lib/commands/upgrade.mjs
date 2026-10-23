@@ -59,7 +59,10 @@ import { promisify } from 'node:util'
 import { parseBlocks } from '../md.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
 import { isGitCheckout } from '../git.mjs'
-import { buildExcludes, discoverGroups, droppedSelectedGroups, readSelectedGroups } from '../skill-groups.mjs'
+import { buildExcludes, discoverGroups, droppedSelectedGroups, readSelectedGroups, readSkippedGlobal, selectionNames } from '../skill-groups.mjs'
+import { pluginEnabled } from '../skill-plugins.mjs'
+import { globalPluginEnabled } from '../global-skills.mjs'
+import { TEAM_FILE } from '../team.mjs'
 import { verifyEngine } from '../engine-manifest.mjs'
 
 const execFileP = promisify(execFile)
@@ -83,6 +86,11 @@ const NOT_SCAFFOLDED = ['overlay/']
 
 const startsWithAny = (rel, prefixes) =>
   prefixes.some((p) => (p.endsWith('/') ? rel.startsWith(p) : rel === p))
+
+// Installed copies of baseline skills and agents. When the baseline drops one,
+// an unchanged copy is removed rather than kept (D-128): it is ours, not the
+// project's, and a copy nobody updates any more is a stale skill in every session.
+const CLAUDE_ASSET_DIRS = ['.claude/skills/', '.claude/agents/']
 
 const isExcluded = (rel, prefixes) =>
   prefixes?.has(rel) || [...(prefixes ?? [])].some(prefix => rel.startsWith(`${prefix}/`))
@@ -182,7 +190,7 @@ async function walkRel(dir, rel = '') {
  * anything. Pure enough to drive both --dry-run and the real run.
  *
  * @returns {Promise<Array<{rel:string, action:string, note:string}>>}
- *   action ∈ write | merge | report | skip
+ *   action ∈ write | merge | report | skip | remove
  */
 export async function planBaseline(target, baseDir, theirsDir, { exclude = null } = {}) {
   const rels = [...new Set([...await walkRel(baseDir), ...await walkRel(theirsDir)])]
@@ -199,8 +207,15 @@ export async function planBaseline(target, baseDir, theirsDir, { exclude = null 
 
     if (theirs === null) {
       // Dropped from the baseline (e.g. the state files that became on-demand in
-      // D-028). An existing copy is the project's now — never delete it.
-      if (mine !== null) plan.push({ rel, action: 'skip', note: 'no longer part of the baseline — kept as yours' })
+      // D-028). An existing copy is the project's now — never delete it. The one
+      // exception is an installed skill or agent still byte-identical to what we
+      // shipped (D-128); an edited one stays.
+      if (mine === null) continue
+      if (startsWithAny(rel, CLAUDE_ASSET_DIRS) && base !== null && sameBytes(mine, base)) {
+        plan.push({ rel, action: 'remove', note: 'dropped from the baseline, unchanged here — removed' })
+      } else {
+        plan.push({ rel, action: 'skip', note: 'no longer part of the baseline — kept as yours' })
+      }
       continue
     }
     if (sameBytes(base, theirs)) continue                           // upstream unchanged — the bulk
@@ -237,8 +252,20 @@ export async function planBaseline(target, baseDir, theirsDir, { exclude = null 
     }
     plan.push({ rel, action: 'merge', note: 'changed on both sides' })
   }
+  // A dropped skill goes as a whole or not at all: one edited file keeps the
+  // directory, or the edit would sit in a skill without its SKILL.md.
+  const kept = new Set(plan.filter((p) => p.action === 'skip' && startsWithAny(p.rel, CLAUDE_ASSET_DIRS)).map((p) => skillDirOf(p.rel)))
+  for (const p of plan) {
+    if (p.action === 'remove' && kept.has(skillDirOf(p.rel))) {
+      p.action = 'skip'
+      p.note = 'no longer part of the baseline — kept as yours, another file of this skill was edited'
+    }
+  }
   return plan
 }
+
+/** `.claude/skills/<name>` for any file inside it; an agent file is its own unit. */
+const skillDirOf = (rel) => rel.startsWith('.claude/skills/') ? rel.split('/').slice(0, 3).join('/') : rel
 
 // ── Applying ─────────────────────────────────────────────────────────────────
 
@@ -333,6 +360,13 @@ async function applyPlan(target, plan, baseDir, theirsDir) {
       const abs = path.join(target, p.rel)
       // One failed file must not abandon the run half-applied with a bare errno.
       try {
+        if (p.action === 'remove') {
+          await assertInsideWorkspace(target, abs)
+          await fs.unlink(abs)
+          await pruneEmptyDirs(target, path.dirname(p.rel))
+          p.action = 'removed'
+          continue
+        }
         if (p.action === 'write') {
           const symlink = await writeWorkspaceFile(target, abs, await fs.readFile(path.join(theirsDir, p.rel)))
           p.action = 'written'
@@ -369,6 +403,19 @@ async function applyPlan(target, plan, baseDir, theirsDir) {
     }
   } finally {
     if (tmpDir) await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/**
+ * Remove directories a removal left empty, up to and excluding `.claude/skills`
+ * (it holds the project's own skills too); `.claude/agents` goes once empty,
+ * since the baseline no longer ships agents.
+ */
+async function pruneEmptyDirs(target, relDir) {
+  let dir = relDir
+  while (dir.startsWith('.claude/skills/') || dir === '.claude/agents' || dir.startsWith('.claude/agents/')) {
+    try { await fs.rmdir(path.join(target, dir)) } catch { return }
+    dir = path.posix.dirname(dir)
   }
 }
 
@@ -478,10 +525,11 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       target,
       path.join(oldEngine, 'baseline'),
       theirsDir,
-      { exclude: buildExcludes(groups, selected) },
+      { exclude: buildExcludes(groups, selected, await readSkippedGlobal(target)) },
     )
     printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence,
-      staleGroups, groups, legacyDecisionLog: await hasLegacyDecisionLog(target) })
+      staleGroups, groups, pluginsPending: await pluginsPending(target, groups),
+      legacyDecisionLog: await hasLegacyDecisionLog(target) })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
   }
 
@@ -568,13 +616,14 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
     target,
     baseDir,
     theirsDir,
-    { exclude: buildExcludes(groups, selected) },
+    { exclude: buildExcludes(groups, selected, await readSkippedGlobal(target)) },
   )
   await applyPlan(target, plan, baseDir, theirsDir)
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 
   const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan, engineDivergence, staleGroups }
-  printReport({ ...result, dryRun: false, staleGroups, groups, legacyDecisionLog: await hasLegacyDecisionLog(target) })
+  printReport({ ...result, dryRun: false, staleGroups, groups, pluginsPending: await pluginsPending(target, groups),
+    legacyDecisionLog: await hasLegacyDecisionLog(target) })
   // A run that still needs a human must not look like a clean one to a script.
   if (plan.some((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))) {
     process.exitCode = EXIT_NEEDS_ATTENTION
@@ -584,9 +633,27 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
 
 // ── Report ───────────────────────────────────────────────────────────────────
 
+/**
+ * Plugin groups the selection file names but the workspace has not switched on —
+ * `superpowers` was a copied group before D-126. Only explicit names count: a
+ * missing selection file means "all groups" and must not nag about every plugin.
+ */
+async function pluginsPending(target, groups) {
+  const pending = []
+  const team = await readBuf(path.join(target, TEAM_FILE)) !== null
+  for (const name of await selectionNames(target)) {
+    const plugin = groups.get(name)?.plugin
+    if (!plugin || await pluginEnabled(target, plugin)) continue
+    if (!team && await globalPluginEnabled(plugin.key)) continue      // covered globally (D-127)
+    pending.push(name)
+  }
+  return pending
+}
+
 const ACTION_LABEL = {
   write: 'would write', written: 'updated', merge: 'would merge', merged: 'merged',
   conflict: 'CONFLICT', manual: 'manual', failed: 'FAILED', report: 'review', skip: 'skipped',
+  remove: 'would remove', removed: 'removed',
 }
 
 const ENGINE_SAMPLE_LIMIT = 8
@@ -665,7 +732,7 @@ function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
   return lines
 }
 
-function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups }) {
+function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups, pluginsPending }) {
   const L = []
   L.push('')
   L.push(dryRun ? `  truss upgrade — dry run: ${from} → ${to}` : `  truss upgrade — ${from} → ${to}`)
@@ -708,6 +775,13 @@ function printReport({ target, from, to, plan, backup, customRestored, gitignore
     }
     if (known) L.push(`    ${''.padEnd(11)} ${''.padEnd(26)} available now: ${known}`)
     L.push(`    ${''.padEnd(11)} ${''.padEnd(26)} pick one with: node .truss/bin/truss.mjs skills add <group>`)
+    L.push('')
+  }
+  if (pluginsPending?.length) {
+    L.push('  Plugin groups:')
+    for (const name of pluginsPending) {
+      L.push(`    pending     ${name.padEnd(26)} now a Claude Code plugin, not copied files — switch it on: node .truss/bin/truss.mjs skills add ${name}`)
+    }
     L.push('')
   }
 

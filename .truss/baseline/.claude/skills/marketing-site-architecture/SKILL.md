@@ -1,10 +1,10 @@
 ---
 name: marketing-site-architecture
-description: When the user wants to plan, map, or restructure their website's page hierarchy, navigation, URL structure, or internal linking. Also use when the user mentions "sitemap," "site map," "visual sitemap," "site structure," "page hierarchy," "information architecture," "IA," "navigation design," "URL structure," "breadcrumbs," "internal linking strategy," "website planning," "what pages do I need," "how should I organize my site," or "site navigation." Use this whenever someone is planning what pages a website should have and how they connect. NOT for XML sitemaps (that's technical SEO — see seo-audit). For SEO audits, see seo-audit. For structured data, see schema.
+description: When the user wants to plan, map, or restructure their website's page hierarchy, navigation, URL structure, or internal linking. Also use when the user mentions "sitemap," "site map," "visual sitemap," "site structure," "page hierarchy," "information architecture," "IA," "navigation design," "URL structure," "breadcrumbs," "internal linking strategy," "website planning," "what pages do I need," "how should I organize my site," "site navigation," "which website builder should I use," "migrate my website," or "add a blog to my existing site." Use this whenever someone is planning what pages a website should have, how they connect, and where to build them. NOT for XML sitemaps (that's technical SEO — see seo-audit). For SEO audits, see seo-audit. For structured data, see schema.
 metadata:
-  version: 2.0.0
+  version: 2.1.0
 ---
-<!-- Source: coreyhaines31/marketingskills (MIT) - re-imported 2026-09-09 - moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
+<!-- Source: coreyhaines31/marketingskills (MIT) - imported 2026-10-23 - upstream name `site-architecture`, moved and renamed for this baseline, frontmatter `name` set to the directory name; body unchanged. Licence text: .claude/THIRD-PARTY-LICENSES.md -->
 
 # Site Architecture
 
@@ -26,6 +26,7 @@ Gather this context (ask if not provided):
 - New site or restructuring an existing one?
 - If restructuring: what's broken? (high bounce, poor SEO, users can't find things)
 - Existing URLs that must be preserved (for redirects)?
+- What platform is it on, and is a platform change on the table? (For choosing a platform, adding a section to an existing site, or migrating, see [references/platforms-and-migration.md](references/platforms-and-migration.md).)
 
 ### 3. Site Type
 - SaaS marketing site
@@ -356,3 +357,4 @@ Mermaid diagram showing page relationships and navigation zones. Use `graph TD` 
 - **cro**: For optimizing individual pages for conversion
 - **schema**: For implementing breadcrumb and site navigation structured data
 - **competitors**: For comparison page frameworks and URL patterns
+- **launch**: For site go-live QA after a build or migration

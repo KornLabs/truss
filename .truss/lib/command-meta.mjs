@@ -63,14 +63,14 @@ export const COMMAND_META = [
       '--name': { value: true }, '--lang': { value: true },
       '--overlay': {}, '--no-phases': {}, '--code-root': { value: true },
       '--adopt-agents': {}, '--root': { value: true },
-      '--skills': { value: true }, '--findings': { value: true },
+      '--skills': { value: true }, '--no-global-check': {}, '--findings': { value: true },
       '--team': {}, '--as': { value: true },
     },
   },
   {
-    name: 'skills', display: 'skills <list|add|remove> [group]',
+    name: 'skills', display: 'skills <list|add|remove> [group] [--no-global-check]',
     summary: 'manage baseline skill groups',
-    flags: {},
+    flags: { '--no-global-check': {} },
   },
   {
     name: 'team', display: 'team <enable [--as @me]|whoami|link|unlink>',

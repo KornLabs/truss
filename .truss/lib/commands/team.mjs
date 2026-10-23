@@ -22,6 +22,7 @@ import { loadWorkspace } from '../workspace.mjs'
 import { loadBehaviorText } from '../defaults.mjs'
 import { writePrefRows } from '../prefs-writer.mjs'
 import { generateMapContent } from './map.mjs'
+import { restoreSkippedGlobal } from './skills.mjs'
 import {
   TEAM_FILE, LINKS_FILE, FINDINGS_FILE, PERSONAL_FILE, ensurePersonalFile,
   normalizeLogin, resolveIdentity, setIdentity, parseTeam, findMember, focusFileFor,
@@ -182,6 +183,11 @@ export async function enableTeam(root, opts = {}) {
     const after = await generateMapContent(root)
     if (after !== before) { await fs.writeFile(mapPath, after); changed.push('state/map.md') }
   } catch { /* no map in this workspace — nothing to keep in step */ }
+
+  // D-127: a solo workspace may have left out skills its owner has globally.
+  // Teammates do not have them, so the team workspace carries them after all.
+  const restored = await restoreSkippedGlobal(root)
+  if (restored.length) notes.push(`installed ${restored.join(', ')} — skipped earlier because you have them globally; the team needs its own copy`)
 
   return { login, created, changed, notes }
 }
