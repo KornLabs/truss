@@ -238,7 +238,7 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | `set <key> <value>` | eine Agenten-Präferenz ändern |
 | `unset <key>` | eine Agenten-Präferenz entfernen — keine Vorgabe mehr |
 | `update` | wenn `status` eine neue Truss-Version meldet — zeigt alle Release-Notes seit deiner Version und was sie hier ändern würde; `--install` hebt an, `--skip` lehnt ab ([upgrade.md](.truss/docs/upgrade.md)) |
-| `upgrade` | nur für eine Engine älter als 1.5.0, die noch kein `update` kennt — aus einem Klon des neuen Release ([upgrade.md](.truss/docs/upgrade.md)) |
+| `upgrade` | nur für eine Engine, die noch kein `update` kennt (1.4 und älter) — aus einem Klon des neuen Release ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Dokumentation
 

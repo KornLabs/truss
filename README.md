@@ -236,7 +236,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | `set <key> <value>` | change an agent preference |
 | `unset <key>` | remove an agent preference — no directive at all |
 | `update` | when `status` says a new Truss version is out — shows every release note since yours and what it would change here; `--install` upgrades, `--skip` declines ([upgrade.md](.truss/docs/upgrade.md)) |
-| `upgrade` | only for an engine older than 1.5.0, which has no `update` — run from a clone of the new release ([upgrade.md](.truss/docs/upgrade.md)) |
+| `upgrade` | only for an engine that has no `update` yet (1.4 and older) — run from a clone of the new release ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Documentation
 
