@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { applyTree, writeFileSafe } from '../scaffold.mjs'
 import {
-  CORE_GROUPS,
+  describeGroups,
   discoverGroups,
   readSelectedGroups,
   readSkippedGlobal,
@@ -155,19 +155,16 @@ async function removeGroup(root, baselineDir, assets) {
   return result
 }
 
-function kindOf(group, assets) {
-  if (assets.plugin) return 'plugin'
-  return CORE_GROUPS.includes(group) ? 'core' : 'opt-in'
-}
-
 function printList(rows) {
   const cells = rows.map(row => [
     row.group,
     row.plugin ? '—' : String(row.skills),
+    row.plugin ? '—' : `~${row.tokens}`,
     row.kind,
     row.installed ? (row.global ? `✓ (${row.global} global)` : '✓') : '—',
+    row.info,
   ])
-  const header = ['Group', 'Skills', 'Kind', 'Installed']
+  const header = ['Group', 'Skills', 'Tokens', 'Kind', 'Installed', 'For']
   const widths = header.map((title, index) => Math.max(title.length, ...cells.map(cell => cell[index].length)))
   const line = cell => cell.map((value, index) => index === cell.length - 1 ? value : value.padEnd(widths[index])).join(' ')
   console.log(line(header))
@@ -194,16 +191,16 @@ export async function runSkills(root, argv) {
   const team = await exists(path.join(root, TEAM_FILE))
 
   if (subcommand === 'list' && positional.length === 1) {
-    const rows = await Promise.all([...groups].map(async ([group, assets]) => ({
-      group,
-      kind: kindOf(group, assets),
-      plugin: Boolean(assets.plugin),
-      skills: assets.skills.length,
-      agents: assets.agents.length,
-      global: assets.skills.filter(skill => skippedGlobal[skill]).length,
-      installed: await isInstalled(root, assets, skippedGlobal, team),
+    const described = await describeGroups(baselineDir, groups)
+    const rows = await Promise.all(described.map(async (row) => ({
+      ...row,
+      plugin: row.kind === 'plugin',
+      agents: groups.get(row.group).agents.length,
+      global: groups.get(row.group).skills.filter(skill => skippedGlobal[skill]).length,
+      installed: await isInstalled(root, groups.get(row.group), skippedGlobal, team),
     })))
     printList(rows)
+    console.log(`\nEach installed skill's name and description load into every session (Tokens). Add: skills add <group>.`)
     return rows
   }
   if (!['add', 'remove'].includes(subcommand) || !selection || positional.length !== 2) {

@@ -88,7 +88,9 @@ A dropped skill is removed as a whole or not at all: if any of its files was edi
 every file of it stays. The report also lists, under **Plugin groups**, a plugin
 group the selection names but neither this workspace nor (outside team mode) your
 global settings enable — `superpowers` was copied files before; one
-`truss skills add superpowers` switches it on.
+`truss skills add superpowers` switches it on. A selected group a later baseline split up
+— `marketing` became seven groups — is listed under **Skill selection** with its
+successors; add the ones the project needs.
 | you had deleted the file | not resurrected; the upstream change is reported, not applied |
 | a write fails (permissions, disk) | that one file is reported as `FAILED`; the rest of the run continues |
 

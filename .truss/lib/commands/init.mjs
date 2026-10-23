@@ -74,7 +74,9 @@ import {
 import {
   buildExcludes,
   CORE_GROUPS,
+  describeGroups,
   discoverGroups,
+  formatGroupRows,
   selectedGroupsFor,
   selectionContent,
   SKILL_SELECTION_REL,
@@ -178,8 +180,19 @@ export function parseInitArgs(argv) {
   return opts;
 }
 
+// Shown before the group list. The same facts the report repeats, so the choice
+// can be made here without reading SOURCES.md or the docs.
+const SKILLS_INTRO = `
+Skills — instructions your AI tool (Claude Code) picks up when a task matches.
+Every installed skill's name and description load into EVERY session, so
+install what this project needs, not everything. Groups can be added or
+removed later: node .truss/bin/truss.mjs skills add|remove <group>.
+Skills you already have in ~/.claude/skills are skipped, not installed twice
+(in team mode they are installed anyway — teammates do not share your home).
+`;
+
 /** Fill missing answers interactively when stdin is a TTY; otherwise leave them. */
-async function resolveInteractive(opts, groups) {
+async function resolveInteractive(opts, groups, baselineDir) {
   if (opts.name && opts.lang && opts.skills !== null) return;
   if (!process.stdin.isTTY) return;
   const rl = readline.createInterface({
@@ -201,29 +214,20 @@ async function resolveInteractive(opts, groups) {
     }
     if (opts.skills === null) {
       const core = CORE_GROUPS.filter(group => groups.has(group));
-      console.log(`\nBaseline skill groups — they load into every session. Enter numbers (comma-separated), 'a' for all, 'n' for none; Enter keeps the core (${core.join(", ") || "none"}):\n`);
-      const ordered = [...groups];
-      for (const [index, [group, assets]] of ordered.entries()) {
-        const what = assets.plugin
-          ? `Claude Code plugin ${assets.plugin.key.split("@")[0]}`
-          : `${assets.skills.length} skill${assets.skills.length === 1 ? "" : "s"}`;
-        const examples = assets.skills
-          .slice(0, 3)
-          .map(name => name.slice(name.indexOf("-") + 1).replaceAll("-", " "))
-          .join(", ");
-        const core = CORE_GROUPS.includes(group) ? " [core]" : "";
-        console.log(` ${index + 1}. ${group}${core} — ${what}${examples ? ` (${examples}${assets.skills.length > 3 ? ", …" : ""})` : ""}`);
-      }
-      const choice = (await rl.question("\nChoice [core]: ")).trim().toLowerCase();
+      console.log(SKILLS_INTRO);
+      const rows = await describeGroups(baselineDir, groups);
+      for (const line of formatGroupRows(rows, { indent: "", number: true })) console.log(line);
+      console.log(`\nEnter numbers (comma-separated), 'a' for all, 'n' for none. Enter keeps the core: ${core.join(", ") || "none"}.`);
+      const choice = (await rl.question(`Choice [${core.join(",") || "n"}]: `)).trim().toLowerCase();
       if (choice === "") opts.skills = core.length ? core.join(",") : "none";
       else if (choice === "a") opts.skills = "all";
       else if (choice === "n") opts.skills = "none";
       else {
         const numbers = choice.split(",").map(value => Number(value.trim()));
-        if (!numbers.every(number => Number.isInteger(number) && number >= 1 && number <= ordered.length)) {
+        if (!numbers.every(number => Number.isInteger(number) && number >= 1 && number <= rows.length)) {
           throw new InitError("init: skill selection must be empty, 'a', 'n', or valid group numbers.");
         }
-        opts.skills = [...new Set(numbers)].map(number => ordered[number - 1][0]).join(",");
+        opts.skills = [...new Set(numbers)].map(number => rows[number - 1].group).join(",");
       }
     }
   } finally {
@@ -454,7 +458,7 @@ export async function runInit(root, argv, invokedCwd = null) {
     );
   }
   const groups = await discoverGroups(baselineDir);
-  await resolveInteractive(opts, groups);
+  await resolveInteractive(opts, groups, baselineDir);
   if (!opts.name || !opts.lang) {
     throw new InitError(
       "init: --name and --lang are required (or run in a TTY to answer interactively).",
@@ -804,6 +808,7 @@ export async function runInit(root, argv, invokedCwd = null) {
     codeRoot,
     codeRootReady,
     skills: [...selectedGroups],
+    groupRows: await describeGroups(baselineDir, groups),
     skippedGlobal,
     alsoGlobal,
     pluginsGlobal,
@@ -844,7 +849,14 @@ function printReport(root, r) {
   for (const group of r.pluginsGlobal ?? []) {
     L.push(`    skipped plugin ${group} — already enabled globally`);
   }
-  L.push(`    (node .truss/bin/truss.mjs skills list to see all groups, ... skills add <group> to install one)`);
+  const others = (r.groupRows ?? []).filter(row => !r.skills.includes(row.group));
+  if (others.length) {
+    // Written for whoever reads this next — often an agent deciding what the
+    // project needs. Each line says what the group is for and what it costs.
+    L.push(`    Not installed — add any time with: node .truss/bin/truss.mjs skills add <group>`);
+    for (const line of formatGroupRows(others, { indent: "    " })) L.push(line);
+    L.push(`    Each installed skill's name and description load into every session; pick by what the project does.`);
+  }
   if (r.codeRoot) L.push(`  Code root:              ${r.codeRoot}/`);
   if (r.conflicts.length) {
     L.push("");

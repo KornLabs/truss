@@ -59,7 +59,7 @@ import { promisify } from 'node:util'
 import { parseBlocks } from '../md.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
 import { isGitCheckout } from '../git.mjs'
-import { buildExcludes, discoverGroups, droppedSelectedGroups, readSelectedGroups, readSkippedGlobal, selectionNames } from '../skill-groups.mjs'
+import { buildExcludes, discoverGroups, droppedSelectedGroups, GROUP_SUCCESSORS, readSelectedGroups, readSkippedGlobal, selectionNames } from '../skill-groups.mjs'
 import { pluginEnabled } from '../skill-plugins.mjs'
 import { globalPluginEnabled } from '../global-skills.mjs'
 import { TEAM_FILE } from '../team.mjs'
@@ -771,7 +771,10 @@ function printReport({ target, from, to, plan, backup, customRestored, gitignore
     const known = groups ? [...groups.keys()].join(', ') : ''
     L.push('  Skill selection:')
     for (const name of staleGroups) {
-      L.push(`    gone        ${name.padEnd(26)} this baseline has no such group — nothing was installed for it`)
+      const successors = (GROUP_SUCCESSORS[name] ?? []).filter((group) => groups?.has(group))
+      L.push(successors.length
+        ? `    split       ${name.padEnd(26)} now ${successors.join(', ')} — add the ones this project needs`
+        : `    gone        ${name.padEnd(26)} this baseline has no such group — nothing was installed for it`)
     }
     if (known) L.push(`    ${''.padEnd(11)} ${''.padEnd(26)} available now: ${known}`)
     L.push(`    ${''.padEnd(11)} ${''.padEnd(26)} pick one with: node .truss/bin/truss.mjs skills add <group>`)

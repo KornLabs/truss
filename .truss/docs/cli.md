@@ -35,7 +35,7 @@ truss init --name "My Project" --lang English
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
 | `--adopt-agents` | preserve a marker-free existing `AGENTS.md` as a preamble and append the Truss router; without this flag init refuses before writing |
 | `--root <path>` | explicit workspace target; defaults to the directory you run init from. A target other than the engine's own directory must carry its own `.truss/` engine at the same `VERSION`, otherwise init aborts before writing |
-| `--skills <selection>` | install the core group (default: `slop`), `none`, `all`, or comma-separated group IDs such as `code,marketing` — an explicit list replaces the core. In a TTY without this option, init offers an interactive group choice; Enter keeps the core. Every installed skill's frontmatter is context your host agent loads into every session, which Truss cannot see or budget, so everything beyond the core is opt-in. Add groups later with `truss skills add <group>`. `.claude/SOURCES.md` is always installed as provenance |
+| `--skills <selection>` | install the core group (default: `slop`), `none`, `all`, or comma-separated group IDs such as `code,strategy,seo` — an explicit list replaces the core. In a TTY without this option, init offers an interactive group choice; Enter keeps the core. Every installed skill's frontmatter is context your host agent loads into every session, which Truss cannot see or budget, so everything beyond the core is opt-in. Add groups later with `truss skills add <group>`. `.claude/SOURCES.md` is always installed as provenance |
 | `--no-global-check` | install selected skills even when `~/.claude/skills` already has them (see `skills` below) |
 | `--team` | team mode ([team.md](team.md)): writes `state/team.md` with your line, routes AGENTS.md to it, sets `auto-commit=on` and `git-flow=team`. Requires the findings channel, so `--findings off` is refused. Your login comes from `--as`, `TRUSS_USER`, git config or `gh`; init stops before writing anything if none is known |
 | `--as <@login>` | (with `--team`) your GitHub login |
@@ -75,11 +75,11 @@ its source.
 truss skills list
 truss skills add code
 truss skills add design
-truss skills remove marketing
+truss skills remove seo
 truss skills add all
 ```
 
-`list` shows each group's kind: `core` (installed by `init`), `opt-in`, or
+`list` shows each group's purpose, its approximate context cost in every session, and its kind: `core` (installed by `init`), `opt-in`, or
 `plugin`. A **plugin group** (`design`, `superpowers`) copies nothing: `add`
 registers the upstream marketplace under `extraKnownMarketplaces` and enables the
 plugin under `enabledPlugins` in `.claude/settings.json`, and Claude Code installs

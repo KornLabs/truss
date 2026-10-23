@@ -12,17 +12,54 @@
 | `slop` | by `truss init` (core) | `slop-prose`, `slop-tells`, `slop-diagrams` | three repos, see below | MIT |
 | `code` | `truss skills add code` | `code-webapp-testing` | [anthropics/skills](https://github.com/anthropics/skills) | Apache-2.0 |
 | | | `code-changelog-generator` | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) | Apache-2.0 |
-| | | `code-api-design`, `code-database-migrations` | [affaan-m/ECC](https://github.com/affaan-m/ECC) | MIT |
-| `marketing` | `truss skills add marketing` | 52 `marketing-*` skills | [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills) | MIT |
+| | | `code-api-design`, `code-database-migrations`, `code-e2e-testing`, `code-deployment-patterns`, `code-postgres-patterns`, `code-error-handling` | [affaan-m/ECC](https://github.com/affaan-m/ECC) | MIT |
+| `strategy` | `truss skills add strategy` | 12 skills | [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills), see below | MIT |
+| `seo` | `truss skills add seo` | 9 skills | 〃 | MIT |
+| `content` | `truss skills add content` | 8 skills | 〃 | MIT |
+| `paid` | `truss skills add paid` | 8 skills | 〃 | MIT |
+| `conversion` | `truss skills add conversion` | 6 skills | 〃 | MIT |
+| `growth` | `truss skills add growth` | 6 skills | 〃 | MIT |
+| `sales` | `truss skills add sales` | 3 skills | 〃 | MIT |
 | `design` | `truss skills add design` | plugin `impeccable`, no files here | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | Apache-2.0 |
 | `superpowers` | `truss skills add superpowers` | plugin `superpowers`, no files here | [obra/superpowers](https://github.com/obra/superpowers) | MIT |
 
-**Totals: 59 skills, no agents.** `init` installs `slop` unless `--skills none` says
-otherwise; every other group is opt-in.
+**Totals: 63 skills, no agents.** `init` installs `slop` unless `--skills none` says
+otherwise; every other group is opt-in. `truss skills list` and the `init` dialog show
+each group's purpose and what it costs in every session (`lib/skill-groups.mjs`,
+`GROUP_INFO`).
+
+## The seven marketing groups
+
+coreyhaines31/marketingskills ships 52 skills that cross-reference each other by
+upstream name ("for ad creative, see ad-creative"). As one group they cost about 9k
+tokens in every session, so they are split along the categories upstream's own README
+uses. Skills the README does not categorise are placed by topic.
+
+| Group | Upstream skills |
+|---|---|
+| `strategy` | product-marketing, marketing-ideas, marketing-plan, marketing-psychology, marketing-council, marketing-loops, customer-research, competitor-profiling, content-strategy, pricing, offers, launch |
+| `seo` | seo-audit, ai-seo, link-building, programmatic-seo, site-architecture, competitors, schema, aso, directory-submissions |
+| `content` | copywriting, copy-editing, cold-email, emails, social, image, video, sms |
+| `paid` | ads, ad-creative, events, analytics, conversion-tracking, ab-testing, attribution, influencer-marketing |
+| `conversion` | cro, signup, onboarding, popups, paywalls, churn-prevention |
+| `growth` | co-marketing, free-tools, referrals, lead-magnets, community-marketing, public-relations |
+| `sales` | revops, sales-enablement, prospecting |
+
+Names are `<group>-<upstream>`; an upstream `marketing-` prefix is dropped
+(`strategy-ideas`), and an upstream name that already starts with the group is kept
+as it is (`seo-audit`, `sales-enablement`). `strategy-product-marketing` writes
+`.agents/product-marketing.md`, which every other marketing skill reads when it
+exists. A cross-reference to a skill in a group you did not install points at nothing;
+the skill still works, with less context.
+
+`docker-patterns` from ECC was evaluated for `code` and left out: about a third of it
+documents ECC's own installer harness (`docker/plugin-setup/compose.yaml`, Codex sign-in
+inside the container), which does not exist outside ECC. `code-deployment-patterns`
+covers Dockerfiles and health checks.
 
 **The prefix is the command.** In Claude Code a project skill is invoked by its
 directory name, so every entry carries the prefixed name in its directory and in its
-frontmatter `name:` — `/slop-prose`, `/marketing-ads`. That keeps a baseline copy from
+frontmatter `name:` — `/slop-prose`, `/paid-ads`. That keeps a baseline copy from
 colliding with the same skill installed globally under its upstream name. The upstream
 name survives in the header line.
 
@@ -87,14 +124,14 @@ Documented upstream behaviour, repeated here so it is not a surprise:
   file changed on both sides.
 - `code-webapp-testing/scripts/with_server.py` starts the servers you name as
   subprocesses and waits on their ports.
-- `marketing-conversion-tracking/assets/` holds browser snippets and GTM recipes that
+- `paid-conversion-tracking/assets/` holds browser snippets and GTM recipes that
   send events to Google, Meta, LinkedIn, TikTok and others — written for the user's
   site, not run here. `scripts/*.py` only read and write local JSON.
-- Every `marketing-*` skill reads `.agents/product-marketing.md` (or
+- Every marketing skill reads `.agents/product-marketing.md` (or
   `.claude/product-marketing.md`) if the project has one.
 
 `skillspector --no-llm` was run on every new or changed skill. Its critical verdict on
-`marketing-conversion-tracking` rests on documentation it misreads — "never judge
+`paid-conversion-tracking` rests on documentation it misreads — "never judge
 same-day numbers" as an anti-refusal statement, a `gtag.js` example as a hidden
 instruction, the words "access token" in Meta's CAPI notes as credential access.
 
@@ -106,18 +143,21 @@ A skill ships **its own directory**. Anything it references outside that directo
 an upstream-monorepo path and cannot resolve in a standalone install; nothing is
 copied in to close a gap.
 
-- **`marketing-*`, upstream sibling folders — 8 targets, 6 skills.** `copywriting`,
-  `marketing-loops` and `product-marketing` name a `references/*.md` that upstream
+- **Marketing skills, upstream sibling folders — 8 targets, 6 skills.** `copywriting`,
+  `marketing-loops` and `product-marketing` (upstream names) name a `references/*.md` that upstream
   keeps in another skill's folder (`seo-audit`, `ai-seo`, `social`, `copywriting`,
   `copy-editing`); `marketing-plan` and `social` name `skills/<name>/…` repository
   paths. `lead-magnets` (`references/session-02.md`) and `ads`
   (`conversion-tracking.md`) name files upstream does not have at all.
-- **`marketing-*`, repository root — 19 targets, 20 occurrences, 5 skills.** `ads`,
+- **Marketing skills, repository root — 19 targets, 20 occurrences, 5 skills.** `ads`,
   `ad-creative`, `offers` and `prospecting` link `../../<skill>/…`, a layout upstream
   does not have either (its skills live under `skills/`). `link-building` links six
   `../../tools/integrations/*.md`; `ad-creative` and `prospecting` name
   `tools/clis/*.js`. Upstream's `tools/` tree holds executable SaaS CLI wrappers that
   need third-party API keys — not imported.
+- **`code-postgres-patterns`** names an ECC agent (`database-reviewer`) and two ECC
+  skills (`clickhouse-io`, `backend-patterns`) under "Related" that this baseline does
+  not ship.
 - **`slop-diagrams` — 46 script names.** Its `verify-*`, `test-verify-*`, `lint-*` and
   `build-*-examples` scripts live in upstream's repository-level `scripts/`, and its
   own text guards them as maintainer-checkout tooling. The six scripts an installed

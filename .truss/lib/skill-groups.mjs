@@ -3,12 +3,69 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { writeFileAtomic } from './scaffold.mjs'
+import { toTokens, wordCount } from './context-budget.mjs'
 
 export const SKILL_SELECTION_REL = '.claude/.truss-skills.json'
 export class SkillSelectionError extends Error {}
 
 /** Installed by `init` unless `--skills` says otherwise (D-129). Every other group is opt-in. */
 export const CORE_GROUPS = ['slop']
+
+/**
+ * What each group is for, in one line — shown by `init`'s dialog and report and
+ * by `skills list`, so a human and an agent can choose without opening SOURCES.md.
+ * A group missing here still works; it is just shown without a purpose.
+ */
+export const GROUP_INFO = {
+  slop: 'clear, human prose and editorial diagrams — the core, useful in any project',
+  code: 'software work: API design, migrations, Postgres, error handling, E2E and web-app testing, deployment, changelogs',
+  strategy: 'marketing groundwork: product context (read by every marketing group), positioning, pricing, offers, launch, plans',
+  seo: 'being found: SEO and AI-search audits, programmatic pages, schema, site architecture, app stores, directories',
+  content: 'writing that sells: page copy, editing, lifecycle and cold email, social, SMS, image and video',
+  paid: 'paid acquisition and measurement: ads, ad creative, analytics, conversion tracking, attribution, A/B tests',
+  conversion: 'turning visitors into users: page CRO, signup, onboarding, popups, paywalls, churn',
+  growth: 'growth loops: referrals, co-marketing, free tools, lead magnets, community, PR',
+  sales: 'B2B sales: RevOps, sales collateral, prospecting',
+  design: 'Claude Code plugin impeccable: frontend design, critique and polish (no files here)',
+  superpowers: 'Claude Code plugin superpowers: TDD, debugging, planning, code review (no files here)',
+}
+
+/**
+ * How the dialog, the init report and `skills list` order and head the groups:
+ * related groups stand together, the core first. A group not listed here goes
+ * last, under no heading.
+ */
+export const GROUP_SECTIONS = [
+  { title: 'Core — installed by default', groups: ['slop'] },
+  { title: 'Software', groups: ['code'] },
+  { title: 'Marketing — seven groups; start with strategy, its product context feeds the others', groups: ['strategy', 'seo', 'content', 'paid', 'conversion', 'growth', 'sales'] },
+  { title: 'Claude Code plugins — switched on in .claude/settings.json, nothing copied', groups: ['design', 'superpowers'] },
+]
+
+/**
+ * Groups a later baseline replaced, and what took their place — `upgrade` names
+ * the successors instead of a bare "gone" (D-130).
+ */
+export const GROUP_SUCCESSORS = {
+  marketing: ['strategy', 'seo', 'content', 'paid', 'conversion', 'growth', 'sales'],
+}
+
+/**
+ * Approximate context a group costs in EVERY session: the host loads each
+ * skill's `name:` and `description:`. A plugin group's cost is the plugin's own.
+ * @returns {Promise<number|null>} tokens, or null for a plugin group
+ */
+export async function groupTokens(baselineDir, assets) {
+  if (assets.plugin) return null
+  let words = 0
+  for (const skill of assets.skills) {
+    let text = ''
+    try { text = await fs.readFile(path.join(baselineDir, '.claude', 'skills', skill, 'SKILL.md'), 'utf8') } catch { continue }
+    const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? ''
+    words += wordCount(fm.split(/\r?\n/).filter(line => /^(name|description):/.test(line)).join(' '))
+  }
+  return toTokens(words)
+}
 
 /**
  * Groups that ship no files: `skills add` enables the upstream Claude Code plugin
@@ -209,4 +266,54 @@ export async function writeSelectedGroups(root, groups, selected, skipped = {}) 
     return
   }
   await writeFileAtomic(configPath, content)
+}
+
+/**
+ * One row per group for the dialog, the init report and `skills list`.
+ * @returns {Promise<Array<{group:string, kind:string, skills:number, tokens:number|null, info:string}>>}
+ */
+export async function describeGroups(baselineDir, groups) {
+  const order = GROUP_SECTIONS.flatMap(section => section.groups.map(group => [group, section.title]))
+  const sectionOf = new Map(order)
+  const rank = (group) => {
+    const index = order.findIndex(([name]) => name === group)
+    return index === -1 ? order.length : index
+  }
+  const rows = []
+  for (const [group, assets] of [...groups].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))) {
+    rows.push({
+      group,
+      section: sectionOf.get(group) ?? '',
+      kind: assets.plugin ? 'plugin' : CORE_GROUPS.includes(group) ? 'core' : 'opt-in',
+      skills: assets.skills.length,
+      tokens: await groupTokens(baselineDir, assets),
+      info: GROUP_INFO[group] ?? '',
+    })
+  }
+  return rows
+}
+
+/** `8 skills, ~450 tokens` or `plugin` — the size column of a group row. */
+export const groupSize = (row) =>
+  row.kind === 'plugin' ? 'plugin' : `${row.skills} skill${row.skills === 1 ? '' : 's'}, ~${row.tokens} tokens`
+
+/**
+ * Render group rows as aligned lines under their section headings.
+ * `number` prefixes each row with its 1-based position (the dialog's choice key).
+ */
+export function formatGroupRows(rows, { indent = '  ', number = false } = {}) {
+  const label = (row) => `${row.group}${row.kind === 'core' ? ' [core]' : ''}`
+  const width = Math.max(...rows.map(row => label(row).length))
+  const sizeWidth = Math.max(...rows.map(row => groupSize(row).length))
+  const lines = []
+  let section = null
+  for (const [index, row] of rows.entries()) {
+    if (row.section !== section) {
+      section = row.section
+      if (section) lines.push(`${indent}${section}`)
+    }
+    const key = number ? `${String(index + 1).padStart(2)}. ` : '- '
+    lines.push(`${indent}  ${key}${label(row).padEnd(width)}  ${groupSize(row).padEnd(sizeWidth)}  ${row.info}`)
+  }
+  return lines
 }

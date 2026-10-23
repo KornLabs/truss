@@ -117,7 +117,7 @@ SOFTWARE.
 
 ---
 
-## affaan-m/ECC — MIT (`code-api-design`, `code-database-migrations`)
+## affaan-m/ECC — MIT (`code-api-design`, `code-database-migrations`, `code-e2e-testing`, `code-deployment-patterns`, `code-postgres-patterns`, `code-error-handling`)
 
 Imported 2026-10-23 from <https://github.com/affaan-m/ECC>, commit `90606c8`.
 
@@ -148,7 +148,7 @@ SOFTWARE.
 
 ---
 
-## coreyhaines31/marketingskills — MIT (`marketing-*`)
+## coreyhaines31/marketingskills — MIT (`strategy-*`, `seo-*`, `content-*`, `paid-*`, `conversion-*`, `growth-*`, `sales-*`)
 
 Imported 2026-10-23 from <https://github.com/coreyhaines31/marketingskills>, commit `e85f3cb`.
 

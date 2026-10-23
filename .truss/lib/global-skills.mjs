@@ -88,8 +88,11 @@ export async function readGlobalSkills(claudeDir = globalClaudeDir()) {
 
 /** The global skill that stands in for this one, or null. */
 export function matchGlobal(identity, globalSkills) {
+  // A baseline name that IS the upstream name (`seo-audit`) is no more
+  // distinctive than the upstream name, so it needs the description too.
+  const own = [...identity.names].filter(name => name !== identity.upstream)
   return globalSkills.find(global =>
-    [...global.names].some(name => identity.names.has(name)) ||
+    own.some(name => global.names.has(name)) ||
     (identity.upstream && global.names.has(identity.upstream) &&
       identity.description !== null && global.description === identity.description),
   )?.dir ?? null

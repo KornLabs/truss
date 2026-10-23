@@ -232,7 +232,7 @@ describe('runUpgrade', () => {
     await runInit(ws, ['--name', 'Skipped', '--lang', 'English', '--skills', 'code'])
     await fs.rm(path.join(ws, '.claude/skills/code-api-design'), { recursive: true })
     await fs.writeFile(path.join(ws, '.claude/.truss-skills.json'),
-      `${JSON.stringify({ groups: ['code', 'superpowers'], skippedGlobal: { 'code-api-design': 'api-design' } })}\n`)
+      `${JSON.stringify({ groups: ['code', 'marketing', 'superpowers'], skippedGlobal: { 'code-api-design': 'api-design' } })}\n`)
     await fs.writeFile(path.join(ws, '.truss/VERSION'), '0.0.1\n')
 
     const next = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-upgrade-skills-skipped-next-'))
@@ -246,6 +246,7 @@ describe('runUpgrade', () => {
     try { await runUpgrade(next, ['--root', ws]) } finally { console.log = log }
     assert.equal(await exists(ws, '.claude/skills/code-api-design'), false, 'not even a new file of a skipped skill lands')
     assert.match(logs.join('\n'), /pending\s+superpowers/)
+    assert.match(logs.join('\n'), /split\s+marketing\s+now strategy, seo, content, paid, conversion, growth, sales/)
   })
 
   // D-069's safety rests on a coupling, not on the line above: `init` MUST write

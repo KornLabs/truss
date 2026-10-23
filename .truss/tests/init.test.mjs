@@ -139,7 +139,7 @@ describe('init (core)', () => {
 
       assert.deepEqual(res.skills, ['slop'])
       await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'skills', 'slop-tells', 'SKILL.md')))
-      await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'marketing-seo-audit')))
+      await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'seo-audit')))
       await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
       await assert.rejects(fs.access(path.join(root, '.claude', 'settings.json')), 'no plugin group by default')
       assert.deepEqual(JSON.parse(await read(root, '.claude/.truss-skills.json')), { groups: ['slop'] })
@@ -150,7 +150,7 @@ describe('init (core)', () => {
       const path = await import('node:path')
       const allRoot = await makeRoot('truss-init-skills-all-')
       await runInit(allRoot, ['--name', 'All', '--lang', 'English', '--skills', 'all'])
-      await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'marketing-seo-audit')))
+      await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'seo-audit')))
       await assert.doesNotReject(() => fs.access(path.join(allRoot, '.claude', 'skills', 'code-api-design')))
       const settings = JSON.parse(await read(allRoot, '.claude/settings.json'))
       assert.equal(settings.enabledPlugins['superpowers@superpowers-marketplace'], true)

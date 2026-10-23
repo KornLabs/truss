@@ -134,9 +134,9 @@ describe('skills command', () => {
 
     const listed = await runCli(root, ['skills', 'list'])
     assert.equal(listed.code, 0)
-    assert.match(listed.stdout, /Group\s+Skills\s+Kind\s+Installed/)
-    assert.match(listed.stdout, /code\s+4\s+opt-in\s+—/)
-    assert.match(listed.stdout, /superpowers\s+—\s+plugin\s+—/)
+    assert.match(listed.stdout, /Group\s+Skills\s+Tokens\s+Kind\s+Installed\s+For/)
+    assert.match(listed.stdout, /code\s+8\s+~\d+\s+opt-in\s+—\s+software work/)
+    assert.match(listed.stdout, /superpowers\s+—\s+—\s+plugin\s+—\s+Claude Code plugin superpowers/)
 
     const help = await runCli(root, ['skills', 'list', '--help'])
     assert.equal(help.code, 0)
@@ -152,7 +152,7 @@ describe('skills command', () => {
 
     await runSkills(root, ['add', 'code'])
     assert.equal(await exists(root, '.claude/skills/code-api-design/SKILL.md'), true)
-    assert.equal(await exists(root, '.claude/skills/marketing-ads/SKILL.md'), false)
+    assert.equal(await exists(root, '.claude/skills/paid-ads/SKILL.md'), false)
     assert.deepEqual(
       JSON.parse(await fs.readFile(path.join(root, '.claude', '.truss-skills.json'), 'utf8')),
       { groups: ['code'] },
@@ -357,5 +357,45 @@ describe('global skills', () => {
       assert.match(res.notes.join('\n'), /code-api-design/)
       assert.deepEqual(JSON.parse(await fs.readFile(path.join(root, SKILL_SELECTION_REL), 'utf8')), { groups: ['code'] })
     })
+  })
+})
+
+// ── Group descriptions (D-130): every shipped group says what it is for ─────
+describe('group descriptions', () => {
+  it('describes every group the shipped baseline discovers, with its context cost', async () => {
+    const { describeGroups, GROUP_INFO } = await import('../lib/skill-groups.mjs')
+    const baselineDir = path.join(ENGINE_DIR, 'baseline')
+    const rows = await describeGroups(baselineDir, await discoverGroups(baselineDir))
+    for (const row of rows) {
+      assert.ok(GROUP_INFO[row.group], `group '${row.group}' needs a GROUP_INFO line — init shows it`)
+      if (row.kind === 'plugin') assert.equal(row.tokens, null)
+      else assert.ok(row.tokens > 0, `${row.group} costs something`)
+    }
+    assert.deepEqual(rows.filter(row => row.kind === 'core').map(row => row.group), CORE_GROUPS)
+  })
+
+  it('lists what is not installed, with purpose and cost, in the init report', async () => {
+    const root = await makeRoot('truss-skills-report-')
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    try { await runInit(root, ['--name', 'Report', '--lang', 'English']) } finally { console.log = log }
+    const out = logs.join('\n')
+    assert.match(out, /Not installed — add any time with: node \.truss\/bin\/truss\.mjs skills add <group>/)
+    assert.match(out, /seo\s+9 skills, ~\d+ tokens\s+being found/)
+    assert.match(out, /design\s+plugin\s+Claude Code plugin impeccable/)
+    assert.doesNotMatch(out, /^\s+slop\s+3 skills/m, 'the installed core is not offered again')
+  })
+})
+
+describe('matchGlobal', () => {
+  it('needs the same description when the baseline name is the upstream name', async () => {
+    const { matchGlobal } = await import('../lib/global-skills.mjs')
+    const ours = { names: new Set(['seo-audit']), upstream: 'seo-audit', description: 'audit SEO' }
+    assert.equal(matchGlobal(ours, [{ dir: 'seo-audit', names: new Set(['seo-audit']), description: 'my own thing' }]), null)
+    assert.equal(matchGlobal(ours, [{ dir: 'seo-audit', names: new Set(['seo-audit']), description: 'audit SEO' }]), 'seo-audit')
+    const prefixed = { names: new Set(['paid-ads']), upstream: 'ads', description: 'x' }
+    assert.equal(matchGlobal(prefixed, [{ dir: 'mine', names: new Set(['paid-ads']), description: 'y' }]), 'mine',
+      'a distinctive baseline name matches on its own')
   })
 })
