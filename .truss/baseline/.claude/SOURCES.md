@@ -129,6 +129,9 @@ Not counted: paths a skill writes into the user's project (`outputs/…`, `retro
 ## Update policy
 
 - Never edit imported files directly — patch upstream and re-import.
+- Line endings are LF throughout: the repository's `.gitattributes` normalises them,
+  so seven `slop-diagrams` example pages that upstream ships with CRLF differ from it
+  in that and nothing else.
 - Binary files (fonts, PDFs, archives) are **not** imported: the install path reads
   every file as UTF-8 text, so a binary would arrive corrupted. The 2026-10-23 import
   contained none.
