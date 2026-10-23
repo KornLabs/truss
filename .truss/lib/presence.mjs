@@ -25,6 +25,18 @@
 // agent keeps its record, which is correct: it IS still present. A killed agent
 // loses its record at the next read by anyone.
 //
+// LIVE IS NOT THE SAME AS ACTIVE (D-131)
+// A desktop host keeps a finished conversation open for days, so its process —
+// and with it the record — stays alive long after the work stopped. The field
+// report (TF-009) counted three "live" sessions that had been idle for 16 hours.
+// So a living record is only ACTIVE while its last truss call is younger than
+// ENDED_AFTER_MS; past that it is ENDED: not counted, not reported, but kept —
+// its next truss call makes it active again with its journal intact. Every truss
+// command refreshes the mark (`touchPresence`), not only `status`. A record
+// silent for FORGET_AFTER_MS is deleted. The price is known and accepted: a
+// session that works for hours without calling truss looks exactly like an
+// abandoned one, and no tool-agnostic signal can tell them apart.
+//
 // THE LIVENESS PREDICATE (order matters — modelled on Emacs src/filelock.c)
 //   1. foreign host          → do not count it, do not delete it. A shared or
 //                              synced directory cannot be judged from here.
@@ -100,6 +112,18 @@ const MAX_ANCESTRY_DEPTH = 8
 const START_RECHECK_MAX = 8
 
 const CURRENT_VERSION = 1
+
+/** No truss call for this long and a living session counts as ended (D-131). */
+export const ENDED_AFTER_MS = 4 * 3600_000
+
+/** No truss call for this long and the record is deleted outright. */
+export const FORGET_AFTER_MS = 7 * 24 * 3600_000
+
+/** Milliseconds since this record's last truss call (`active` or `seen`, whichever is later), or null. */
+export function idleMs(rec, now = Date.now()) {
+  const last = Math.max(Date.parse(rec?.seen ?? '') || 0, Date.parse(rec?.active ?? '') || 0)
+  return last ? Math.max(0, now - last) : null
+}
 
 /** Environment markers that name the agent host. Order is not significant — first hit wins. */
 const TOOL_ENV = [
@@ -208,12 +232,14 @@ const recordPath = (root, pid) => path.join(root, PRESENCE_REL_DIR, `${safeHost(
  * is no command anyone could forget to run. Never throws: a presence layer that
  * can break `truss status` would be worse than no presence layer.
  *
- * @returns {Promise<{live: object[], foreignHost: number, pruned: number}>}
- *   `live` excludes records from other hosts (they cannot be judged from here).
+ * @returns {Promise<{live: object[], ended: object[], foreignHost: number, pruned: number}>}
+ *   `live` excludes records from other hosts (they cannot be judged from here)
+ *   and ended ones — a living process whose last truss call is older than
+ *   ENDED_AFTER_MS (D-131). The caller's own record is always live.
  */
 export async function readPresence(root, self = null) {
   const dir = path.join(root, PRESENCE_REL_DIR)
-  const out = { live: [], foreignHost: 0, pruned: 0 }
+  const out = { live: [], ended: [], foreignHost: 0, pruned: 0 }
   let names
   try { names = await fs.readdir(dir) } catch { return out }
 
@@ -252,9 +278,53 @@ export async function readPresence(root, self = null) {
       const now = await startTime(rec.pid)
       if (now && now !== rec.start) { await drop(full); continue }
     }
+    // Step 7 — alive, but is anyone working there? (D-131)
+    const idle = idleMs(rec)
+    if (idle !== null && idle > FORGET_AFTER_MS) { await drop(full); continue }
+    if (idle !== null && idle > ENDED_AFTER_MS) { out.ended.push(rec); continue }
     out.live.push(rec)
   }
   return out
+}
+
+/**
+ * Mark this session active: every truss command calls this, so "last activity"
+ * means the last truss call of any kind, not only the last `status` (D-131).
+ *
+ * Only `active` changes. `seen` and the snapshot stay, because the journal reads
+ * them as "your last run that looked at the tree" — moving them would make it
+ * report changes against a snapshot nobody took. A session with no record yet
+ * gets none here; `status` and `doctor` create it with a real snapshot.
+ *
+ * Never throws, and does nothing at all when there is no presence directory.
+ */
+export async function touchPresence(root) {
+  if (process.env.TRUSS_NO_PRESENCE) return false
+  try {
+    await fs.access(path.join(root, PRESENCE_REL_DIR))
+    const self = await hostProcess()
+    if (!self) return false
+    const file = recordPath(root, self.pid)
+    const rec = JSON.parse(await fs.readFile(file, 'utf8'))
+    rec.active = new Date().toISOString()
+    const tmp = `${file}.${process.pid}.tmp`
+    await fs.writeFile(tmp, JSON.stringify(rec) + '\n', 'utf8')
+    await fs.rename(tmp, file)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Every session record of this tree, judged — for `truss sessions`. Reading
+ * prunes, exactly as everywhere else.
+ * @returns {Promise<{self: object|null, live: object[], ended: object[], foreignHost: number, pruned: number}>}
+ */
+export async function listSessions(root) {
+  const self = process.env.TRUSS_NO_PRESENCE ? null : await hostProcess().catch(() => null)
+  const res = await readPresence(root, self)
+  return { self, ...res }
 }
 
 /**
@@ -358,7 +428,7 @@ export async function observe(root, { head = null, dirty = [] } = {}) {
   try {
     const self = await hostProcess()
     const core = await coreSnapshot(root)
-    const { live, foreignHost } = await readPresence(root, self)
+    const { live, ended, foreignHost } = await readPresence(root, self)
     const previous = self ? live.find(r => r.pid === self.pid) ?? null : null
     const diff = journalDiff(previous, { head, dirty, core })
     await writePresence(root, self, { head, dirty, core, previous })
@@ -366,6 +436,7 @@ export async function observe(root, { head = null, dirty = [] } = {}) {
     return {
       sessions: self ? others.length + 1 : null,
       others,
+      ended: ended.length,
       diff,
       identity: !!self,
       foreignHost,
@@ -403,9 +474,10 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
     // open for days; its record stays (it IS present), but a session that has
     // not called truss for hours is not the one about to commit over your work.
     const who = obs.others
-      .map(r => `${r.tool || r.comm || 'session'}(${r.pid})${ageOf(r.started)}${idleOf(r.seen)}`)
+      .map(r => `${r.tool || r.comm || 'session'}(${r.pid})${ageOf(r.started)}${idleOf(r)}`)
       .join(', ')
-    lines.push(`${obs.sessions} sessions live in this tree — also: ${who}`)
+    const ended = obs.ended ? ` (+${obs.ended} ended, no truss call for ${ENDED_AFTER_MS / 3600_000} h — truss sessions)` : ''
+    lines.push(`${obs.sessions} sessions live in this tree — also: ${who}${ended}`)
   }
 
   const { preexisting, appeared, coreChanged, headMoved, minutes } = obs.diff
@@ -453,7 +525,7 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
 }
 
 /** "2h10" / "12min" — cheap, and null when unparseable. */
-function spanOf(iso) {
+export function spanOf(iso) {
   const t = Date.parse(iso ?? '')
   if (!Number.isFinite(t)) return null
   const min = Math.max(0, Math.round((Date.now() - t) / 60000))
@@ -469,11 +541,11 @@ function ageOf(iso) {
 /** Below this, a session is simply between two truss calls; above it, say so. */
 const IDLE_SHOWN_AFTER_MS = 30 * 60_000
 
-/** ", idle 16h12" — time since the session's LAST truss call, once it is long. */
-function idleOf(iso) {
-  const t = Date.parse(iso ?? '')
-  if (!Number.isFinite(t) || Date.now() - t < IDLE_SHOWN_AFTER_MS) return ''
-  return `, idle ${spanOf(iso)}`
+/** ", idle 2h10" — time since the session's LAST truss call, once it is long. */
+function idleOf(rec) {
+  const idle = idleMs(rec)
+  if (idle === null || idle < IDLE_SHOWN_AFTER_MS) return ''
+  return `, idle ${spanOf(new Date(Date.now() - idle).toISOString())}`
 }
 
 /**

@@ -36,7 +36,7 @@ const REQUIRED_KEYS = ['purpose', 'behavior', 'exit']
 // never go red for a line it wrote correctly under the previous version.
 // Precedent: RETIRED_KEYS in lib/prefs.mjs, reported by BL-03 (checks/bl.mjs).
 const RETIRED_KEYS = new Map([
-  ['prompts', 'the prompt library left the engine; put your own prompts in `.truss/prompts/custom/` and open them by hand'],
+  ['prompts', 'the prompt library left the engine; put your own prompts in `prompts/` and open them by hand'],
 ])
 
 // Two parsers reject a phase key: lib/md.mjs drops keys its own list does not

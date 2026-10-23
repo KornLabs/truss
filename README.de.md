@@ -234,6 +234,7 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | `init` | einmal, um den Workspace zu scaffolden |
 | `doctor` | Agenten führen ihn routinemäßig aus; du, wenn du neugierig bist |
 | `status` | ein Fünf-Zeilen-Snapshot im Terminal |
+| `sessions` | wenn mehrere Agenten im Baum arbeiten — welche Sessions noch aktiv sind |
 | `set <key> <value>` | eine Agenten-Präferenz ändern |
 | `unset <key>` | eine Agenten-Präferenz entfernen — keine Vorgabe mehr |
 | `upgrade` | wenn eine neue Truss-Version da ist — aus der neuen Engine heraus ausgeführt, merged sie die Änderungen in deinen Workspace und lässt deinen State in Ruhe ([upgrade.md](.truss/docs/upgrade.md)) |
@@ -247,7 +248,6 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | ein bestehendes Projekt auf eine neuere Truss-Version heben |
 | [.truss/docs/team.md](.truss/docs/team.md) | Team-Modus — mehrere Personen, ein Workspace (optional) |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | wie die Engine gebaut ist (Contributors) |
-| [.truss/prompts/README.md](.truss/prompts/README.md) | wo deine eigenen Prompts liegen |
 
 ## Contributing
 

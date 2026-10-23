@@ -206,8 +206,7 @@ and values is in [cli.md](cli.md#set).
 
 ## 8. Prompts
 
-Truss ships **no** prompt library. `prompts/custom/<id>.md` is where you put your own, and you open them yourself — no command reads that directory and no check verifies it. Earlier versions shipped ten library prompts plus three engine rituals; they were removed because they loaded every fresh instance with pre-made method knowledge. Two survive as engine rituals under [`docs/rituals/`](rituals/): `cleanup.md`, the controlled-forgetting procedure that `CX-01` and `SY-09` name in their `fix:` text, and `upgrade.md`, the standing instruction for the judgment half of an upgrade. A `fix:` string a check prints is a supported contract, so it must keep pointing at a file that exists. Details:
-[prompts/README.md](../prompts/README.md).
+Truss ships **no** prompt library. Your own prompts live in the workspace, one per file in `prompts/<id>.md` (AGENTS.md §2) — never inside `.truss/`, which is the engine and is replaced on every upgrade (`ST-13` warns about a leftover `.truss/prompts/`). You open them yourself; no command reads that directory and nothing loads it into a session. Earlier versions shipped ten library prompts plus three engine rituals; they were removed because they loaded every fresh instance with pre-made method knowledge. Two survive as engine rituals under [`docs/rituals/`](rituals/): `cleanup.md`, the controlled-forgetting procedure that `CX-01` and `SY-09` name in their `fix:` text, and `upgrade.md`, the standing instruction for the judgment half of an upgrade. A `fix:` string a check prints is a supported contract, so it must keep pointing at a file that exists.
 
 ---
 

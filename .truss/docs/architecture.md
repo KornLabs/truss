@@ -32,7 +32,6 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 ├── docs/                # product documentation (concepts, cli, architecture)
 ├── baseline/            # the pristine workspace skeleton `init` scaffolds from
 ├── phase-profiles/      # ready-made phase lists to copy over state/phases.md (not installed)
-├── prompts/             # where your own prompts go under custom/ (see its README)
 ├── prefs/               # behaviour text fragments per preference value
 ├── tests/               # the engine test suite + fixtures
 ├── VERSION              # current version string

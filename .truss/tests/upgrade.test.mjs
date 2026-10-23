@@ -299,7 +299,9 @@ describe('runUpgrade', () => {
     // engine
     assert.equal((await read(ws, '.truss/VERSION')).trim(), '0.0.2')
     assert.ok(await exists(ws, '.truss/lib/marker.mjs'), 'new engine files are in place')
-    assert.equal(await read(ws, '.truss/prompts/custom/mine.md'), 'my own prompt\n')
+    assert.equal(await exists(ws, '.truss/prompts'), false, 'the engine holds no project file any more (D-132)')
+    assert.equal(await read(ws, 'prompts/mine.md'), 'my own prompt\n', 'the prompt moved to the workspace')
+    assert.equal(await read(ws, '.truss.bak-0.0.1/prompts/custom/mine.md'), 'my own prompt\n', 'and the backup still has it')
     assert.ok(await exists(ws, '.truss.bak-0.0.1/baseline/AGENTS.md'), 'old baseline survives as the merge base')
     assert.equal(await exists(ws, '.truss.incoming'), false, 'staging directory is gone')
 
@@ -588,4 +590,25 @@ describe('D-070: engine manifest divergence in the upgrade report', () => {
         'a file that could not be read is not known to have changed')
       assert.deepEqual(res.engineDivergence.missing, [])
     })
+})
+
+describe('prompts leave the engine (D-132)', () => {
+  it('never overwrites a different prompt of the same name, and says where the engine copy stays', async () => {
+    const { tmp, ws, next } = await fixture()
+    await write(ws, '.truss/prompts/custom/clash.md', 'engine copy\n')
+    await write(ws, '.truss/prompts/custom/prefs/subagents/full.md', '---\n---\nmy wording\n')
+    await write(ws, 'prompts/clash.md', 'the project already has this\n')
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    try { await runUpgrade(next, ['--root', ws]) } finally { console.log = log }
+    process.exitCode = 0
+    assert.equal(await read(ws, 'prompts/clash.md'), 'the project already has this\n')
+    assert.equal(await read(ws, '.truss.bak-0.0.1/prompts/custom/clash.md'), 'engine copy\n')
+    assert.equal(await read(ws, 'prompts/prefs/subagents/full.md'), '---\n---\nmy wording\n')
+    const out = logs.join('\n')
+    assert.match(out, /kept\s+prompts\/clash\.md already exists and differs/)
+    assert.match(out, /prompts\/prefs\/ held preference-text overrides; `truss set` no longer reads them/)
+    await fs.rm(tmp, { recursive: true, force: true })
+  })
 })

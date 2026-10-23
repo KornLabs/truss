@@ -5,7 +5,8 @@
 //   1. Reading prunes. There is no cleanup command, so if reading ever stops
 //      removing dead records, the directory grows without bound forever.
 //   2. A hung session KEEPS its record — it is still present, and dropping it
-//      would under-report.
+//      would under-report. Since D-131 it is not COUNTED once its last truss
+//      call is older than ENDED_AFTER_MS, and its record goes after a week.
 //   3. EPERM means alive. Reading it as dead buries every other user's session,
 //      and missing a session is the dangerous direction.
 //   4. A foreign HOST is never judged and never deleted.
@@ -19,8 +20,8 @@ import os from 'node:os'
 import path from 'node:path'
 
 import {
-  PRESENCE_REL_DIR, EPOCH_TOLERANCE_S,
-  bootEpoch, alive, coreSnapshot,
+  PRESENCE_REL_DIR, EPOCH_TOLERANCE_S, ENDED_AFTER_MS, FORGET_AFTER_MS,
+  bootEpoch, alive, coreSnapshot, idleMs, touchPresence, listSessions,
   readPresence, writePresence, journalDiff, presenceLines, observe, indexLockAge,
 } from '../lib/presence.mjs'
 
@@ -138,7 +139,7 @@ describe('reading prunes — there is no cleanup command', () => {
   it('survives a missing directory — someone deleted .truss/out mid-run', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-presence-gone-'))
     const res = await readPresence(root)
-    assert.deepEqual(res, { live: [], foreignHost: 0, pruned: 0 })
+    assert.deepEqual(res, { live: [], ended: [], foreignHost: 0, pruned: 0 })
   })
 
   it('scales: 200 dead records collapse to the one live record in a single read', async () => {
@@ -152,14 +153,73 @@ describe('reading prunes — there is no cleanup command', () => {
   })
 })
 
-describe('a hung session keeps its record', () => {
-  it('an old record whose process still runs stays — it IS still present', async () => {
+describe('a living session that stopped calling truss (D-131)', () => {
+  const ago = (ms) => new Date(Date.now() - ms).toISOString()
+
+  it('is still active just under the limit', async () => {
     const root = await tmpRoot()
-    const hoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString()
-    await seed(root, 'h__1.json', liveRecord({ started: hoursAgo, seen: hoursAgo }))
-    const { live, pruned } = await readPresence(root)
-    assert.equal(live.length, 1, 'age must never be the criterion — liveness is')
+    await seed(root, 'h__1.json', liveRecord({ started: ago(9 * 3600_000), seen: ago(ENDED_AFTER_MS - 60_000) }))
+    const { live, ended } = await readPresence(root)
+    assert.equal(live.length, 1)
+    assert.equal(ended.length, 0)
+  })
+
+  it('counts as ended past the limit, but keeps its record — the next call revives it', async () => {
+    const root = await tmpRoot()
+    await seed(root, 'h__1.json', liveRecord({ started: ago(9 * 3600_000), seen: ago(ENDED_AFTER_MS + 60_000) }))
+    const { live, ended, pruned } = await readPresence(root)
+    assert.equal(live.length, 0, 'an open but idle desktop session is not someone about to commit')
+    assert.equal(ended.length, 1)
     assert.equal(pruned, 0)
+    assert.deepEqual(await names(root), ['h__1.json'])
+  })
+
+  it('uses the later of seen and active — any truss call is activity', async () => {
+    const root = await tmpRoot()
+    await seed(root, 'h__1.json', liveRecord({ seen: ago(ENDED_AFTER_MS * 3), active: ago(60_000) }))
+    const { live } = await readPresence(root)
+    assert.equal(live.length, 1)
+    assert.ok(idleMs({ seen: ago(10 * 60_000), active: ago(60_000) }) < 2 * 60_000)
+  })
+
+  it('is forgotten after a week without a truss call', async () => {
+    const root = await tmpRoot()
+    await seed(root, 'h__1.json', liveRecord({ seen: ago(FORGET_AFTER_MS + 60_000) }))
+    const { live, ended, pruned } = await readPresence(root)
+    assert.equal(live.length + ended.length, 0)
+    assert.equal(pruned, 1)
+  })
+
+  it('never ends the caller itself, however old its record', async () => {
+    const root = await tmpRoot()
+    await seed(root, 'h__1.json', liveRecord({ seen: ago(ENDED_AFTER_MS * 2) }))
+    const { live } = await readPresence(root, { pid: process.pid })
+    assert.equal(live.length, 1)
+    assert.equal(live[0].self, true)
+  })
+})
+
+describe('touchPresence', () => {
+  it('moves only the activity mark, never the journal\'s snapshot or seen', async () => {
+    const root = await tmpRoot()
+    const old = new Date(Date.now() - 3600_000).toISOString()
+    const record = liveRecord({ seen: old, snapshot: { head: 'abc', dirty: ['x.md'], core: { 'a.md': 'h' } } })
+    const { hostProcess } = await import('../lib/presence.mjs')
+    const self = await hostProcess()
+    if (!self) return   // no process ancestry here (Windows): nothing to touch, by design
+    await seed(root, `${os.hostname().replace(/[^A-Za-z0-9._-]/g, '_')}__${self.pid}.json`, { ...record, pid: self.pid })
+    assert.equal(await touchPresence(root), true)
+    const files = await names(root)
+    const after = JSON.parse(await fs.readFile(path.join(root, PRESENCE_REL_DIR, files[0]), 'utf8'))
+    assert.equal(after.seen, old)
+    assert.deepEqual(after.snapshot, record.snapshot)
+    assert.ok(Date.now() - Date.parse(after.active) < 60_000)
+  })
+
+  it('does nothing without a presence directory', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-presence-none-'))
+    assert.equal(await touchPresence(root), false)
+    await assert.rejects(fs.access(path.join(root, PRESENCE_REL_DIR)))
   })
 })
 
@@ -355,5 +415,35 @@ describe('helpers', () => {
 
   it('bootEpoch is stable across calls', () => {
     assert.ok(Math.abs(bootEpoch() - bootEpoch()) <= 1)
+  })
+})
+
+describe('truss sessions (D-131)', () => {
+  it('lists active and ended sessions and says how an ended one comes back', async () => {
+    const root = await tmpRoot()
+    const ago = (ms) => new Date(Date.now() - ms).toISOString()
+    await seed(root, 'h__1.json', liveRecord({ tool: 'claude-code', started: ago(30 * 3600_000), seen: ago(16 * 3600_000) }))
+    const { runSessions } = await import('../lib/commands/sessions.mjs')
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    let res
+    try { res = await runSessions(root) } finally { console.log = log }
+    const out = logs.join('\n')
+    assert.equal(res.ended.length, 1)
+    assert.match(out, /ended \(no truss call for 4 h\)/)
+    assert.match(out, /claude-code\s+30h00\s+16h00 ago\s+ended/)
+    assert.match(out, /counts again as soon as it runs any truss command/)
+  })
+
+  it('names ended sessions in the status line only next to a live one', () => {
+    const now = Date.now()
+    const base = { identity: true, foreignHost: 0, diff: journalDiff(null) }
+    const alone = presenceLines({ ...base, sessions: 1, others: [], ended: 2 }, { lockAgeMs: null })
+    assert.deepEqual(alone, [], 'alone with only ended sessions: nothing to say')
+    const two = presenceLines({ ...base, sessions: 2, ended: 1,
+      others: [{ pid: 7, tool: 'codex', started: new Date(now - 60_000).toISOString(), seen: new Date(now - 60_000).toISOString() }] },
+      { lockAgeMs: null }).join('\n')
+    assert.match(two, /2 sessions live in this tree — also: codex\(7\).*\(\+1 ended, no truss call for 4 h — truss sessions\)/)
   })
 })

@@ -12,6 +12,7 @@
 // ST-10  I/W decision index absent (I) or out of step with decisions.md (W)
 // ST-11  W  docs/schema.md holds a row the engine had to drop (that class stops being checked)
 // ST-12  W  a workspace skill or plugin is also installed globally — it loads twice (D-127)
+// ST-13  W  project files inside the engine: .truss/prompts/ exists (D-132)
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -38,6 +39,7 @@ export const meta = [
   { id: 'ST-10', severity: 'W', title: 'Decision index missing, out of step, or holding an entry it cannot address', description: 'D-075/D-081/D-087: info while the index has never been generated or is still in the pre-D-087 format (steps not taken, not defects); warning once it exists and disagrees with the source, or when a decision body sits where the index can never reach it — a stale or incomplete index lies to every session boot' },
   { id: 'ST-11', severity: 'W', title: 'docs/schema.md holds a row the engine cannot use', description: 'D-079: the entry classes are read from this file. Any row the engine drops switches RF-02, RF-03 and SY-03 off for that class in silence; a file that is not a Truss schema at all (no Class-headed table) is not reported, so an unrelated docs/schema.md stays green' },
   { id: 'ST-12', severity: 'W', title: 'Skill or plugin installed both globally and in the workspace', description: 'D-127: Claude Code loads ~/.claude/skills and .claude/skills alike, so the same skill appears twice and costs its frontmatter twice. Silent in team mode, where the workspace copy is deliberate, and wherever ~/.claude has no skills (CI)' },
+  { id: 'ST-13', severity: 'W', title: 'Project files inside the engine directory', description: 'D-132: .truss/ is the engine and is replaced on upgrade; prompts and other project files belong in the workspace (prompts/). Only the legacy .truss/prompts/ is named here — any other stray file shows as ST-09 extra' },
 ];
 
 // Top-level paths that were a valid §2 routing target before an engine change
@@ -524,6 +526,23 @@ export async function run(ctx) {
   }
 
   findings.push(...await checkGlobalDuplicates(ctx));
+
+  // ── ST-13: project files kept inside the engine (D-132) ─────────────────
+  // .truss/prompts/custom/ was once the documented place for a project's own
+  // prompts. It is not any more: the engine holds no project file, and `upgrade`
+  // moves what it finds there to prompts/. Whatever is still here was written
+  // after that — by hand or by an agent following an old instruction.
+  try {
+    const stray = path.join(ctx.root, '.truss', 'prompts');
+    if ((await fs.stat(stray)).isDirectory()) {
+      findings.push({
+        id: 'ST-13', severity: 'W',
+        file: '.truss/prompts/',
+        message: '.truss/prompts/ holds project files — the engine directory is replaced on every upgrade',
+        fix: 'Move each prompt to prompts/<id>.md in the workspace (git mv works if tracked), then remove .truss/prompts/. Nothing reads files from there any more.',
+      });
+    }
+  } catch { /* absent — the normal state */ }
 
   return findings;
 }

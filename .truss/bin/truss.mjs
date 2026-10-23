@@ -787,6 +787,10 @@ const HANDLERS = {
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
   skills:    (args) => runSkills(root, args),
+  sessions:  async () => {
+    const { runSessions } = await import('../lib/commands/sessions.mjs')
+    return runSessions(root)
+  },
   team:      async (args) => {
     const { runTeam } = await import('../lib/commands/team.mjs')
     return runTeam(root, args)
@@ -838,6 +842,20 @@ if (meta) {
     await exitFlushed(1)
   }
 }
+
+// Any truss call is activity (D-131): it keeps this session counted as active
+// for the others. Not for init/upgrade, whose root is not necessarily the
+// workspace the caller stands in. Best effort — it never changes an outcome.
+const markActive = async () => {
+  if (command === 'init' || command === 'upgrade') return
+  try {
+    const { touchPresence } = await import('../lib/presence.mjs')
+    await touchPresence(root)
+  } catch { /* presence must never take a command down */ }
+}
+
+// Marked before the command runs: several commands end the process themselves.
+await markActive()
 
 if (THROWS_TO_EXIT_2.has(command)) {
   try { await handler(args) }

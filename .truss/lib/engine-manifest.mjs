@@ -24,10 +24,11 @@ export const MANIFEST_REL = 'MANIFEST.sha256'
 
 // Scope rule — walk everything under the engine dir EXCEPT:
 //   out/            runtime state the tool itself writes, not engine source
-//   prompts/custom/ user content; `upgrade` already carries it over verbatim
 //   MANIFEST.sha256 the manifest can't hash itself
+// Nothing else: since D-132 no project file lives in the engine, so a file
+// anyone put under .truss/ shows up as "extra" (ST-09) instead of hiding.
 // This is deliberately the exact same cut the Forge release script's runtime
-// rsync already uses (`--exclude /out/ --exclude /prompts/custom/`), so a
+// rsync already uses (`--exclude /out/`), so a
 // workspace kept in sync by that rsync verifies clean against the manifest it
 // receives.
 /** Paths under the engine dir the manifest never hashes. Exported because the
@@ -35,7 +36,7 @@ export const MANIFEST_REL = 'MANIFEST.sha256'
  *  a gate that judges by a second copy of the rule drifts from the rule it
  *  guards. It did — the gate aborted a release over `.truss/out/doctor.json`,
  *  a file the manifest never looks at. */
-export const EXCLUDED_RELS = new Set(['out', 'prompts/custom', MANIFEST_REL])
+export const EXCLUDED_RELS = new Set(['out', MANIFEST_REL])
 
 /**
  * Every regular file under `dir`, as POSIX-separated paths relative to it.

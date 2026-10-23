@@ -232,6 +232,7 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | `init` | once, to scaffold the workspace |
 | `doctor` | agents run it routinely; you run it when you're curious |
 | `status` | a five-line snapshot in the terminal |
+| `sessions` | when several agents work in the tree — which sessions are still active |
 | `set <key> <value>` | change an agent preference |
 | `unset <key>` | remove an agent preference — no directive at all |
 | `upgrade` | when a new Truss version is out — run it from the new engine, it merges the changes into your workspace and leaves your state alone ([upgrade.md](.truss/docs/upgrade.md)) |
@@ -245,7 +246,6 @@ The commands you'll actually type (full reference: [.truss/docs/cli.md](.truss/d
 | [.truss/docs/upgrade.md](.truss/docs/upgrade.md) | moving an existing project to a newer Truss version |
 | [.truss/docs/team.md](.truss/docs/team.md) | team mode — several people, one workspace (optional) |
 | [.truss/docs/architecture.md](.truss/docs/architecture.md) | how the engine is built (contributors) |
-| [.truss/prompts/README.md](.truss/prompts/README.md) | where your own prompts live |
 
 ## Contributing
 

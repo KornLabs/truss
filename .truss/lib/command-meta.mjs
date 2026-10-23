@@ -73,6 +73,11 @@ export const COMMAND_META = [
     flags: { '--no-global-check': {} },
   },
   {
+    name: 'sessions', display: 'sessions',
+    summary: 'which agent sessions in this tree are still active — ended after 4 h without a truss call',
+    flags: {},
+  },
+  {
     name: 'team', display: 'team <enable [--as @me]|whoami|link|unlink>',
     summary: 'team mode: enable it, set who you are, link a workspace you do not hold',
     flags: { '--as': { value: true } },

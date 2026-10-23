@@ -195,9 +195,10 @@ node /tmp/truss/.truss/bin/truss.mjs upgrade      # from your project directory
 
 What it does, in order: refuse if the workspace has uncommitted changes (that
 commit is your rollback) or if a backup from an earlier run is still lying
-around; stage the new engine into `.truss.incoming/` and carry `prompts/custom/`
-over; swap it in by renaming `.truss/` to `.truss.bak-<old-version>/`; then
-reconcile the baseline files. `--dry-run` stops after planning and is not gated
+around; stage the new engine into `.truss.incoming/`; swap it in by renaming
+`.truss/` to `.truss.bak-<old-version>/`; copy prompts an older version kept in
+`.truss/prompts/custom/` to the workspace's `prompts/` (never over a different
+file of the same name); then reconcile the baseline files. `--dry-run` stops after planning and is not gated
 on a clean tree. Unfinished work exits with code `3`.
 
 The merge base comes free: every installed engine ships the `.truss/baseline/`
@@ -221,6 +222,28 @@ covers the semantic half — `doctor` names retired preference keys and their
 replacements after the swap. Full walkthrough: [upgrade.md](upgrade.md).
 
 ---
+
+## `sessions`
+
+Which agent sessions in this working tree are still active. One line per session
+with its first and its last truss call and a verdict:
+
+```
+truss sessions — 1 active, 1 ended (no truss call for 4 h)
+  PID    Tool         Since  Last truss call  State
+  99235  claude-code  2h10   3min ago         active (this session)
+  51899  claude-code  40h46  16h12 ago        ended
+```
+
+A session is **ended** when its process still runs but its last truss call — of
+any kind, not only `status` — is more than 4 hours old: desktop hosts keep a
+finished conversation open for days. An ended session is not counted by
+`status` or `doctor`; it counts again the moment it runs any truss command, with
+its journal intact. Its record is deleted after a week without a call; a session
+whose process is gone disappears at the next read, as always. The limit cannot
+tell an abandoned session from one that works for hours without calling truss —
+no tool-agnostic signal can. Read-only apart from that pruning;
+`TRUSS_NO_PRESENCE` switches the whole presence layer off.
 
 ## `status`
 

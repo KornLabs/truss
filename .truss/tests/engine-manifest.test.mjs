@@ -44,10 +44,10 @@ async function makeFakeEngine() {
 }
 
 describe('engine-manifest: generation', () => {
-  it('computeEngineHashes covers engine files, excludes out/ and prompts/custom/', async () => {
+  it('computeEngineHashes covers engine files and excludes out/ only — prompts/custom/ is no longer exempt (D-132)', async () => {
     const dir = await makeFakeEngine()
     const entries = await computeEngineHashes(dir)
-    assert.deepEqual(entries.map(e => e.rel), ['VERSION', 'lib/a.mjs', 'prompts/shipped/x.md'])
+    assert.deepEqual(entries.map(e => e.rel), ['VERSION', 'lib/a.mjs', 'prompts/custom/mine.md', 'prompts/shipped/x.md'])
     for (const e of entries) assert.match(e.sha, /^[0-9a-f]{64}$/)
   })
 
@@ -68,7 +68,7 @@ describe('engine-manifest: generation', () => {
   it('writeManifest writes MANIFEST_REL at the engine root and returns the entry count', async () => {
     const dir = await makeFakeEngine()
     const count = await writeManifest(dir)
-    assert.equal(count, 3)
+    assert.equal(count, 4)
     const raw = await fs.readFile(path.join(dir, MANIFEST_REL), 'utf8')
     assert.match(raw, /^[0-9a-f]{64} {2}VERSION\n/m)
   })
@@ -107,14 +107,14 @@ describe('engine-manifest: verification', () => {
     assert.deepEqual(await verifyEngine(dir), { modified: [], missing: [], extra: ['lib/b.mjs'], unreadable: [] })
   })
 
-  it('out/ and prompts/custom/ are invisible in both directions', async () => {
+  it('out/ is invisible in both directions; a file someone put in the engine is not (D-132)', async () => {
     const dir = await makeFakeEngine()
     await writeManifest(dir)
     await fs.writeFile(path.join(dir, 'out', 'doctor.json'), '{"changed":true}\n')
     await fs.rm(path.join(dir, 'out', 'doctor.json'))
-    await fs.writeFile(path.join(dir, 'prompts', 'custom', 'mine.md'), 'edited\n')
-    await fs.writeFile(path.join(dir, 'prompts', 'custom', 'new.md'), 'brand new\n')
     assert.deepEqual(await verifyEngine(dir), { modified: [], missing: [], extra: [], unreadable: [] })
+    await fs.writeFile(path.join(dir, 'prompts', 'custom', 'new.md'), 'brand new\n')
+    assert.deepEqual((await verifyEngine(dir)).extra, ['prompts/custom/new.md'])
   })
 
   // OS junk is neither hashed nor reported: the workspace walk already skips it

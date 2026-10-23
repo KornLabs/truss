@@ -30,7 +30,7 @@ and an old install never needs to have shipped with upgrade support.
 
 | | |
 |---|---|
-| **Replaced** | `.truss/` — the engine. Staged next to the workspace, then swapped in by rename; the old one becomes `.truss.bak-<old-version>/` and is never deleted. `prompts/custom/` is carried over. Local edits to the engine itself are *replaced*, and named before that happens — see below. |
+| **Replaced** | `.truss/` — the engine. Staged next to the workspace, then swapped in by rename; the old one becomes `.truss.bak-<old-version>/` and is never deleted. Prompts an older version kept in `.truss/prompts/custom/` are copied to the workspace's `prompts/` — the engine holds no project file (D-132). |
 | **Reconciled** | The **framework** files: `AGENTS.md`, `docs/*.md`, `package.json`, `.gitignore`, `.trussignore`, the adapter stubs. You edit these, but their content is Truss's, so a new version has something to say about them. |
 | **Reported, never written** | The **seed** files: `state/*`, `VISION.md`, `README.md`. `init` writes them once; after that they are your decision log, your phase plan, your vision. If the baseline changed one, you are told — nothing is merged into it. |
 | **Never looked at** | `context/`, `HUMAN-TODOS.md`, `archive/`, your code root, and every other file the baseline never had. |
@@ -49,7 +49,7 @@ one of those edits — that is what "swapped in by rename" means. So it says whi
 files it is about to take with it.
 
 Each release writes `MANIFEST.sha256`: sha256 hashes of the engine's own files,
-everything under `.truss/` except `out/`, `prompts/custom/` and the manifest
+everything under `.truss/` except `out/` and the manifest
 itself. Before the swap, `upgrade` compares the installed engine against it and
 reports one of three things — no manifest to check against, a clean match, or
 the files that diverged plus the backup directory to recover them from. Run it

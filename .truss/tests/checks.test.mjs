@@ -1310,3 +1310,20 @@ describe('SY-13 ignores fenced and commented-out examples', () => {
     assert.equal(f.length, 0)
   })
 })
+
+describe('ST-13 — project files inside the engine (D-132)', () => {
+  it('warns about a leftover .truss/prompts/ and is silent without one', async () => {
+    const { makeRoot, runChecks } = await import('./helpers.mjs')
+    const { runInit } = await import('../lib/commands/init.mjs')
+    const fsp = await import('node:fs/promises')
+    const pathm = await import('node:path')
+    const root = await makeRoot('truss-st13-')
+    await runInit(root, ['--name', 'ST13', '--lang', 'English', '--skills', 'none'])
+    assert.deepEqual((await runChecks(root)).filter(f => f.id === 'ST-13'), [])
+    await fsp.mkdir(pathm.join(root, '.truss', 'prompts', 'custom'), { recursive: true })
+    await fsp.writeFile(pathm.join(root, '.truss', 'prompts', 'custom', 'x.md'), 'x\n')
+    const st13 = (await runChecks(root)).filter(f => f.id === 'ST-13')
+    assert.equal(st13.length, 1)
+    assert.match(st13[0].fix, /prompts\/<id>\.md/)
+  })
+})

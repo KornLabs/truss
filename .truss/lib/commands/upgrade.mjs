@@ -3,7 +3,8 @@
 // Lifts an existing workspace to this engine's version. Two halves, split at the
 // seam where a script stops being able to decide:
 //
-//   mechanical  — swap .truss/ (preserving prompts/custom/), then reconcile the
+//   mechanical  — swap .truss/ (moving a legacy prompts/custom/ out to the
+//                 workspace's prompts/, D-132), then reconcile the
 //                 baseline-derived workspace files by 3-way merge. Done here.
 //   judgment    — the hunks where the project and the baseline changed the same
 //                 place. Handed to the agent as an inline prompt in the upgrade output.
@@ -445,6 +446,32 @@ function wellFormed(rel, text, mine) {
 /** A version string safe to interpolate into a path we later delete. */
 const safeVersionTag = (v) => (/^[A-Za-z0-9._+-]+$/.test(v) ? v : 'unknown')
 
+/**
+ * Prompts a project kept in the engine's `prompts/custom/` belong to the project
+ * (D-132): copy them to the workspace's `prompts/`. A file already there with the
+ * same bytes counts as moved; one with different bytes is left alone and the
+ * engine's copy stays in the backup — never overwrite the project's file. The
+ * backup itself is not touched, so nothing can be lost here.
+ * @returns {Promise<{moved: string[], kept: string[], prefs: boolean}>}
+ */
+async function movePromptsOut(customDir, target, { dryRun = false } = {}) {
+  const out = { moved: [], kept: [], prefs: false }
+  const rels = await walkRel(customDir)
+  for (const rel of rels.sort()) {
+    const dst = path.join(target, 'prompts', ...rel.split('/'))
+    const src = await readBuf(path.join(customDir, rel))
+    const mine = await readBuf(dst)
+    if (rel.startsWith('prefs/')) out.prefs = true
+    if (mine !== null && !sameBytes(mine, src)) { out.kept.push(rel); continue }
+    if (mine === null && !dryRun) {
+      await assertInsideWorkspace(target, dst)
+      await writeFileAtomic(dst, src)
+    }
+    out.moved.push(rel)
+  }
+  return out
+}
+
 /** Make sure the backup directory can never be committed by a later `git add -A`. */
 async function ensureBackupIgnored(target) {
   const gi = path.join(target, '.gitignore')
@@ -527,7 +554,8 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       theirsDir,
       { exclude: buildExcludes(groups, selected, await readSkippedGlobal(target)) },
     )
-    printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence,
+    const promptsMoved = await movePromptsOut(path.join(oldEngine, 'prompts', 'custom'), target, { dryRun: true })
+    printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence, promptsMoved,
       staleGroups, groups, pluginsPending: await pluginsPending(target, groups),
       legacyDecisionLog: await hasLegacyDecisionLog(target) })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
@@ -568,16 +596,10 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   }
   try {
     await fs.cp(newEngine, incoming, { recursive: true })
-    const customSrc = path.join(oldEngine, 'prompts', 'custom')
-    if (await exists(customSrc)) {
-      await fs.rm(path.join(incoming, 'prompts', 'custom'), { recursive: true, force: true })
-      await fs.cp(customSrc, path.join(incoming, 'prompts', 'custom'), { recursive: true })
-    }
   } catch (err) {
     await fs.rm(incoming, { recursive: true, force: true }).catch(() => {})
     throw new UpgradeError(`upgrade: staging the new engine failed (${err.message}); nothing was changed.`)
   }
-  const customRestored = await exists(path.join(oldEngine, 'prompts', 'custom'))
   try {
     await fs.rename(oldEngine, backup)
   } catch (err) {
@@ -621,7 +643,8 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   await applyPlan(target, plan, baseDir, theirsDir)
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 
-  const result = { target, from: oldVersion, to: newVersion, backup, customRestored, gitignoreUpdated, plan, engineDivergence, staleGroups }
+  const promptsMoved = await movePromptsOut(path.join(backup, 'prompts', 'custom'), target)
+  const result = { target, from: oldVersion, to: newVersion, backup, promptsMoved, gitignoreUpdated, plan, engineDivergence, staleGroups }
   printReport({ ...result, dryRun: false, staleGroups, groups, pluginsPending: await pluginsPending(target, groups),
     legacyDecisionLog: await hasLegacyDecisionLog(target) })
   // A run that still needs a human must not look like a clean one to a script.
@@ -732,7 +755,7 @@ function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
   return lines
 }
 
-function printReport({ target, from, to, plan, backup, customRestored, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups, pluginsPending }) {
+function printReport({ target, from, to, plan, backup, promptsMoved, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups, pluginsPending }) {
   const L = []
   L.push('')
   L.push(dryRun ? `  truss upgrade — dry run: ${from} → ${to}` : `  truss upgrade — ${from} → ${to}`)
@@ -745,7 +768,12 @@ function printReport({ target, from, to, plan, backup, customRestored, gitignore
   } else {
     L.push(`  Engine replaced. Previous engine kept at ${path.basename(backup)}/`)
     L.push(...engineDivergenceLines(engineDivergence, { dryRun: false, backup }))
-    if (customRestored) L.push('  Your prompts/custom/ was carried over.')
+    if (promptsMoved?.moved.length || promptsMoved?.kept.length) {
+      L.push(`  ${dryRun ? 'Would move' : 'Moved'} your prompts out of the engine: .truss/prompts/custom/ → prompts/ (D-132)`)
+      for (const rel of promptsMoved.moved) L.push(`    ${dryRun ? 'would move' : 'moved     '}  prompts/${rel}`)
+      for (const rel of promptsMoved.kept) L.push(`    kept        prompts/${rel} already exists and differs — the engine's copy stays in ${dryRun ? 'the backup' : path.basename(backup)}/prompts/custom/`)
+      if (promptsMoved.prefs) L.push('    note        prompts/prefs/ held preference-text overrides; `truss set` no longer reads them')
+    }
     if (gitignoreUpdated) L.push('  Added .truss.bak-*/ to .gitignore so the backup is never committed.')
     L.push('')
   }
