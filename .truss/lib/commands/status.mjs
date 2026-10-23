@@ -6,6 +6,7 @@ import { loadWorkspace } from '../workspace.mjs'
 import { listDomains } from '../domains.mjs'
 import { branchReport, recentCommits, fileLineAges, gitChangedPaths } from '../git.mjs'
 import { observe, presenceLines, indexLockAge } from '../presence.mjs'
+import { updateLines } from '../update-check.mjs'
 import { decisionFilesFrom } from '../decisions-index.mjs'
 import { runAllChecks } from '../run-checks.mjs'
 import { CHECKBOX_ANY, CHECKBOX_DONE, ignoredLines } from '../md.mjs'
@@ -109,6 +110,15 @@ export async function runStatus(root, argv) {
     console.log(`  Prefs:   ${prefRows.map(r => `${r.key}=${r.value}`).join(' · ')}`)
   }
   console.log(`  Health:  ${doctorSummary}`)
+  // Newer Truss release (D-133) — read from a cache, never from the network:
+  // a stale cache starts a detached refresh whose answer the NEXT status shows.
+  // Silent when there is nothing new, when it was declined, offline, and in CI.
+  {
+    const version = await fs.readFile(path.join(root, '.truss', 'VERSION'), 'utf8').then(v => v.trim()).catch(() => '')
+    const lines = await updateLines(root, version, { engineScript: path.join(root, '.truss', 'bin', 'truss.mjs') })
+    const yel = useColorGlobal ? '\x1b[33m' : '', rst = useColorGlobal ? '\x1b[0m' : ''
+    for (const [i, l] of lines.entries()) console.log(i === 0 ? `  ${yel}Update:${rst}  ${l}` : `           ${l}`)
+  }
   // What §1 costs THIS session, measured the way CX-01 measures it — the map
   // prices every domain file, and the mandatory boot went unpriced (TF-007).
   // A number, not a verdict: whether the boot contract is worth its tokens is

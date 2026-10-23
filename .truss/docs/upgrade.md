@@ -1,9 +1,19 @@
 # Upgrading a workspace to a new Truss version
 
-Two commands and, if anything needed judgment, one pasted prompt.
+One command and, if anything needed judgment, one pasted prompt.
 
 ```bash
-# From the project you want to upgrade:
+# From the project you want to upgrade (engine 1.5.0 or newer):
+node .truss/bin/truss.mjs update             # what is new, what it would change here
+node .truss/bin/truss.mjs update --install <version>   # do it — the version you looked at
+```
+
+`truss status` tells the agent when a newer release is out, and the agent asks
+you once; `update --skip <version>` declines until a newer one appears
+([cli.md](cli.md#update)). An engine older than 1.5.0 has no `update` — clone
+the new release and run its `upgrade`:
+
+```bash
 git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
 node /tmp/truss/.truss/bin/truss.mjs upgrade
 ```

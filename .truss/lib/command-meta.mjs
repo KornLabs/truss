@@ -78,6 +78,11 @@ export const COMMAND_META = [
     flags: {},
   },
   {
+    name: 'update', display: 'update [flags]',
+    summary: 'is a newer Truss out — every release note since this engine, what it would change here; install or decline',
+    flags: { '--install': {}, '--force': {}, '--ignore-sessions': {}, '--skip': {}, '--since': { value: true }, '--refresh': {} },
+  },
+  {
     name: 'team', display: 'team <enable [--as @me]|whoami|link|unlink>',
     summary: 'team mode: enable it, set who you are, link a workspace you do not hold',
     flags: { '--as': { value: true } },

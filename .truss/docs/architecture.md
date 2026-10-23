@@ -27,7 +27,9 @@ accident. Nothing here is published to npm; the directory *is* the distribution.
 │   ├── suppress.mjs     # a reasoned in-file marker silences one info finding
 │   ├── engine-manifest.mjs # hash + verify the engine's own files (writes and checks MANIFEST.sha256)
 │   ├── defaults.mjs     # resolves a preference's behaviour text
-│   └── commands/        # init, status, map, phase, skills, upgrade handlers
+│   ├── presence.mjs     # which sessions share this tree, and what moved since each looked
+│   ├── update-check.mjs # newer-release cache, notes, download + manifest check (D-133)
+│   └── commands/        # init, status, map, phase, skills, sessions, update, upgrade, … handlers
 ├── checks/              # one module per check family (st, bl, rf, sy, ph, cx)
 ├── docs/                # product documentation (concepts, cli, architecture)
 ├── baseline/            # the pristine workspace skeleton `init` scaffolds from
@@ -58,7 +60,7 @@ surfaces:
   derived from `the decision log` and never edited by hand; doctor report modes
   own files under `.truss/out/`.
 
-Checks and `status` are read-only.
+Checks are read-only. `status` writes nothing a workspace tracks: only its own runtime files under the gitignored `.truss/out/` — the session record (D-101) and the release cache (D-133), whose refresh it starts detached rather than waiting on the network.
 
 ## Checks
 

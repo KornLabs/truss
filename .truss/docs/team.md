@@ -41,7 +41,7 @@ node .truss/bin/truss.mjs team whoami @<your-login>    # stored in git config --
 
 It also creates this clone's `state/personal.md`, if missing.
 
-`truss status` then opens with `Team: you are @… — …`, names your focus file, and lists what the others committed since the last `status` in this clone. "Others" means a git author email different from your `user.email`. The mark is per clone, so a second session in the same clone sees only what arrived after the first one looked. `status` never calls the network: if your login is only known to `gh`, run `team whoami` once. Git carries authorship: every agent commits under its person's git identity, so there is no `By:` field.
+`truss status` then opens with `Team: you are @… — …`, names your focus file, and lists what the others committed since the last `status` in this clone. "Others" means a git author email different from your `user.email`. The mark is per clone, so a second session in the same clone sees only what arrived after the first one looked. `status` never waits on the network — the one call it starts, the daily release check, runs detached (`truss update`) — so if your login is only known to `gh`, run `team whoami` once. Git carries authorship: every agent commits under its person's git identity, so there is no `By:` field.
 
 ## Your own notes — `state/personal.md`
 

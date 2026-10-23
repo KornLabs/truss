@@ -521,7 +521,8 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   if (path.resolve(newEngine) === path.resolve(oldEngine)) {
     throw new UpgradeError(
       'upgrade: the workspace and the new engine are the same directory; nothing was changed.\n' +
-      '       upgrade runs the NEW engine against an EXISTING workspace:\n' +
+      '       To lift this workspace to the newest release: node .truss/bin/truss.mjs update --install\n' +
+      '       By hand, upgrade runs the NEW engine against an EXISTING workspace:\n' +
       '         git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss\n' +
       '         node /tmp/truss/.truss/bin/truss.mjs upgrade      # from your project directory',
     )
@@ -877,7 +878,9 @@ function printReport({ target, from, to, plan, backup, promptsMoved, gitignoreUp
 
   L.push('  Next steps:')
   if (dryRun) {
-    L.push('    1. Re-run without --dry-run to apply.')
+    // Run by `truss update` (D-133): the next step is that command, not this one.
+    const via = process.env.TRUSS_VIA_UPDATE
+    L.push(via ? `    1. Install with: node .truss/bin/truss.mjs update --install ${via}` : '    1. Re-run without --dry-run to apply.')
   } else if (attention.length === 0) {
     // render/map before doctor: a version can change what the generated files
     // should contain, so running doctor first reports drift the adopter did not

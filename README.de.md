@@ -237,7 +237,8 @@ Die Befehle, die du wirklich tippen wirst (vollständige Referenz: [.truss/docs/
 | `sessions` | wenn mehrere Agenten im Baum arbeiten — welche Sessions noch aktiv sind |
 | `set <key> <value>` | eine Agenten-Präferenz ändern |
 | `unset <key>` | eine Agenten-Präferenz entfernen — keine Vorgabe mehr |
-| `upgrade` | wenn eine neue Truss-Version da ist — aus der neuen Engine heraus ausgeführt, merged sie die Änderungen in deinen Workspace und lässt deinen State in Ruhe ([upgrade.md](.truss/docs/upgrade.md)) |
+| `update` | wenn `status` eine neue Truss-Version meldet — zeigt alle Release-Notes seit deiner Version und was sie hier ändern würde; `--install` hebt an, `--skip` lehnt ab ([upgrade.md](.truss/docs/upgrade.md)) |
+| `upgrade` | nur für eine Engine älter als 1.5.0, die noch kein `update` kennt — aus einem Klon des neuen Release ([upgrade.md](.truss/docs/upgrade.md)) |
 
 ## Dokumentation
 

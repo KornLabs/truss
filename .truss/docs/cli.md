@@ -175,6 +175,45 @@ deletes only one that still matches it.
 
 ---
 
+## `update`
+
+Is a newer Truss out, what is new in it, and what would it change here (D-133).
+It talks to the public GitHub API of `KornLabs/truss`; nothing else leaves the
+machine.
+
+```bash
+node .truss/bin/truss.mjs update                 # notes since this engine + dry run of the newest
+node .truss/bin/truss.mjs update --install 1.5.0 # download, verify, upgrade this workspace
+node .truss/bin/truss.mjs update --skip 1.5.0    # decline until a newer release appears
+node .truss/bin/truss.mjs update --since 1.3.0   # what is new from 1.3.0 up to this engine
+```
+
+| Flag | Meaning |
+|---|---|
+| (none) | the release notes of **every** release after the running engine, added up oldest first, then the newest release's `upgrade --dry-run` against this workspace — what is new, and what it would change here. The dry run is that release's own code, run read-only |
+| `--install [<version>]` | download the release (default: the newest; name the one you previewed, so a release published in between cannot slip in), check it against its own `MANIFEST.sha256`, run its `upgrade` here; refuses while another session is active in the tree (`truss sessions`) or while a `.truss.bak-*` from an earlier upgrade is still there |
+| `--ignore-sessions` | with `--install`: install although other sessions look active |
+| `--force` | with `--install`: passed on to `upgrade` — proceed despite an unclean tree |
+| `--skip [<version>]` | decline a release (default: the newest); `status` stays quiet until a newer one appears |
+| `--since <version>` | the added-up notes from `<version>` to the running engine — for whoever pulled an upgraded engine |
+
+The manifest check is integrity, not authenticity: it catches a truncated or
+corrupted download; the trust is HTTPS to GitHub, as with the `git clone` the
+manual path uses. `--install` runs the same `upgrade` as below, from the new
+engine, so the same rules hold: commit first, exit `3` when files need you.
+
+A decline is not a decision of the project: it lands in `.truss/out/update.json`
+(gitignored) and nowhere else. That file belongs to the working tree — another
+clone, a second git worktree, and the tree that just upgraded each start empty
+and ask once on their own.
+
+Release notes are printed with control characters removed and under a line that
+marks them as text to pass on, not instructions. Downloads are accepted only
+from GitHub hosts. Node's `fetch` does not use `HTTPS_PROXY`; behind a proxy
+that blocks direct connections the check stays silent and `update` reports the
+connection error. `TRUSS_UPDATE_API` replaces the GitHub API address — a hook
+for tests.
+
 ## `upgrade`
 
 Lift an existing workspace to a newer Truss version. Unlike every other command,
@@ -186,6 +225,8 @@ logic is always the current one.
 git clone --depth 1 https://github.com/KornLabs/truss.git /tmp/truss
 node /tmp/truss/.truss/bin/truss.mjs upgrade      # from your project directory
 ```
+
+From 1.5.0 on, `truss update --install` does the download and runs this for you.
 
 | Flag | Meaning |
 |---|---|
@@ -256,6 +297,18 @@ have no reliable clock, and a current timestamp lets them date what they write.
 first. `Boot:` is the token estimate for the §1 load order, measured the way
 CX-01 measures it: the map prices every domain file, and this prices the
 mandatory part.
+
+An **Update** line appears when a newer Truss release is out and has not been
+declined, telling the agent to ask the human — once per session, until they
+answer (`truss update` shows what is new and names the install and decline
+commands). It also says once when
+the engine in this clone got newer since its last `status` — after a `git pull`
+of someone else's upgrade — and points at `truss update --since`. `status` never
+waits on the network: it reads `.truss/out/update.json`, and when that is older
+than a day it starts `truss update --refresh` detached, so the answer shows on
+the next run. Offline it stays silent. The automatic check is off in CI (`CI`
+set) and with `TRUSS_NO_UPDATE_CHECK=1`, and then the whole line is silent;
+`truss update` itself still works. A failed refresh is retried after an hour.
 When `state/profile.md` configures a
 `code-root`, it also prints a **Branch** line: the live code-root branch against the
 `branch:` declared in `state/current.md` (`✓` when they match, `✗ MISMATCH` with a

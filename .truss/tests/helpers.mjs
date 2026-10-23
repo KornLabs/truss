@@ -14,6 +14,9 @@ import { CHECK_MODULES } from '../lib/run-checks.mjs'
 // Never prompt (no readline hang) and never shell out to git in tests.
 process.stdin.isTTY = false
 process.env.TRUSS_NO_GIT = '1'
+// Never ask GitHub for releases from a test (D-133): `status` would start a
+// background refresh. Tests of the update check clear this for their own runs.
+process.env.TRUSS_NO_UPDATE_CHECK = '1'
 // Never read the developer's real ~/.claude (D-127): a skill installed there
 // would change what init installs and what doctor reports. A path that does
 // not exist means "nothing installed globally"; a test that needs a global
