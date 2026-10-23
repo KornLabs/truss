@@ -97,7 +97,7 @@ export function renderPhaseBlock(phaseDef, phaseId, position, total, ts) {
 
   // Prompts
   if (phaseDef.prompts) {
-    lines.push(`Prompts: ${phaseDef.prompts} (\`.truss/prompts/\`)`)
+    lines.push(`Prompts: ${phaseDef.prompts} (\`prompts/\`)`)
   }
 
   return lines

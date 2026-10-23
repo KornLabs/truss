@@ -493,7 +493,7 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
     const since = minutes === null ? '' : ` (${minutes} min)`
     const shown = appeared.slice(0, 4).join(', ')
     const more = appeared.length > 4 ? `, +${appeared.length - 4} more` : ''
-    lines.push(`Uncommitted since your last truss run${since}: ${shown}${more}`)
+    lines.push(`Uncommitted since your last status/doctor run${since}: ${shown}${more}`)
     lines.push(`  → yours or another session's — commit by path: git commit -- <the paths you changed>`)
   }
 
@@ -502,7 +502,7 @@ export function presenceLines(obs, { lockAgeMs = null, gitAvailable = true } = {
     const what = []
     if (headMoved) what.push(`HEAD ${headMoved.from} → ${headMoved.to}`)
     if (coreChanged.length) what.push(coreChanged.join(', '))
-    lines.push(`Changed since your last truss run${since}: ${what.join('; ')}`)
+    lines.push(`Changed since your last status/doctor run${since}: ${what.join('; ')}`)
     // "By you or another session": the journal compares against this session's
     // own previous run and cannot attribute the change. With one session it is
     // redundant with the editor's own memory; with two it is the only warning

@@ -83,16 +83,20 @@ workspace was scaffolded from, at the version you installed. So for each file:
 | the file left the baseline | kept as yours — never deleted, with the one exception in the next row |
 | an installed baseline skill or agent left the baseline | removed if unchanged, together with directories that leave empty; an edited copy is kept as yours |
 | a skill is recorded as skipped for a global copy (`skippedGlobal`) | left out, as if its group were not selected |
+| you had deleted the file | not resurrected; the upstream change is reported, not applied |
+| a write fails (permissions, disk) | that one file is reported as `FAILED`; the rest of the run continues |
 
 A dropped skill is removed as a whole or not at all: if any of its files was edited,
 every file of it stays. The report also lists, under **Plugin groups**, a plugin
-group the selection names but neither this workspace nor (outside team mode) your
-global settings enable — `superpowers` was copied files before; one
-`truss skills add superpowers` switches it on. A selected group a later baseline split up
-— `marketing` became seven groups — is listed under **Skill selection** with its
-successors; add the ones the project needs.
-| you had deleted the file | not resurrected; the upstream change is reported, not applied |
-| a write fails (permissions, disk) | that one file is reported as `FAILED`; the rest of the run continues |
+group that neither this workspace nor (outside team mode) your global settings
+enable although the selection names it or its old copies were just removed —
+`superpowers` was copied files before; one `truss skills add superpowers` switches
+it on. A group a later baseline split up — `marketing` became seven groups — is
+listed under **Skill selection** with its successors, again whether the selection
+names it or its copies were removed; add the ones the project needs. Prompts kept
+in `.truss/prompts/custom/` are listed as moved, kept or `FAILED` — in the dry run
+too; a prompt that could not be moved stays in the backup and the run exits as
+needing attention.
 
 Your workspace is bootable at every point of the run. Files are written
 atomically, so no live file is ever half-written; no conflict markers land in a

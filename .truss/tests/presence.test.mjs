@@ -320,7 +320,7 @@ describe('rendering — silence is the default', () => {
     }
     const out = presenceLines(unknown, { lockAgeMs: null }).join('\n')
     assert.ok(!/sessions live/.test(out), 'a wrong count is worse than no count')
-    assert.match(out, /Changed since your last truss run/, 'the journal half still works without identity')
+    assert.match(out, /Changed since your last status\/doctor run/, 'the journal half still works without identity')
   })
 
   it('names the pre-existing paths and gives the executable alternative', () => {
@@ -344,7 +344,7 @@ describe('rendering — silence is the default', () => {
       { head: 'a', dirty: ['context/plan.md', 'state/truss-findings.md'], core: {} })
     const two = { sessions: 2, identity: true, foreignHost: 0, others: [{ pid: 1, tool: 'claude-code', started: new Date().toISOString() }], diff }
     const out = presenceLines(two, { lockAgeMs: null }).join('\n')
-    assert.match(out, /Uncommitted since your last truss run \(9 min\): context\/plan\.md, state\/truss-findings\.md/)
+    assert.match(out, /Uncommitted since your last status\/doctor run \(9 min\): context\/plan\.md, state\/truss-findings\.md/)
     assert.match(out, /yours or another session's — commit by path: git commit -- /)
     const one = { sessions: 1, identity: true, foreignHost: 0, others: [], diff }
     assert.deepEqual(presenceLines(one, { lockAgeMs: null }), [], 'alone in the tree, own new work is not news')
@@ -445,5 +445,30 @@ describe('truss sessions (D-131)', () => {
       others: [{ pid: 7, tool: 'codex', started: new Date(now - 60_000).toISOString(), seen: new Date(now - 60_000).toISOString() }] },
       { lockAgeMs: null }).join('\n')
     assert.match(two, /2 sessions live in this tree — also: codex\(7\).*\(\+1 ended, no truss call for 4 h — truss sessions\)/)
+  })
+})
+
+describe('every truss command marks the session active (D-131)', () => {
+  it('a plain `map` sets `active` on the caller\'s record; `init` does not touch presence', async () => {
+    const { makeRoot } = await import('./helpers.mjs')
+    const { runInit } = await import('../lib/commands/init.mjs')
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const run = promisify(execFile)
+    const root = await makeRoot('truss-presence-cli-')
+    await runInit(root, ['--name', 'Mark', '--lang', 'English', '--skills', 'none'])
+    // The CLI child's host is this test process: the first non-shell ancestor.
+    const name = `${(os.hostname() || 'unknown').replace(/[^A-Za-z0-9._-]/g, '_')}__${process.pid}.json`
+    const old = new Date(Date.now() - 3600_000).toISOString()
+    await fs.mkdir(path.join(root, PRESENCE_REL_DIR), { recursive: true })
+    await seed(root, name, liveRecord({ seen: old }))
+    const env = { ...process.env, TRUSS_NO_GIT: '1' }
+    delete env.TRUSS_NO_PRESENCE
+    const { hostProcess } = await import('../lib/presence.mjs')
+    if (!(await hostProcess())) return   // no process ancestry here (Windows): nothing to mark, by design
+    await run(process.execPath, [path.join(root, '.truss', 'bin', 'truss.mjs'), 'map'], { cwd: root, env })
+    const rec = JSON.parse(await fs.readFile(path.join(root, PRESENCE_REL_DIR, name), 'utf8'))
+    assert.equal(rec.seen, old, 'seen belongs to the journal and stays')
+    assert.ok(Date.now() - Date.parse(rec.active) < 60_000, 'map counted as activity')
   })
 })

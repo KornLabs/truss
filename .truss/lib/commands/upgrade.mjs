@@ -451,25 +451,44 @@ const safeVersionTag = (v) => (/^[A-Za-z0-9._+-]+$/.test(v) ? v : 'unknown')
  * (D-132): copy them to the workspace's `prompts/`. A file already there with the
  * same bytes counts as moved; one with different bytes is left alone and the
  * engine's copy stays in the backup — never overwrite the project's file. The
- * backup itself is not touched, so nothing can be lost here.
- * @returns {Promise<{moved: string[], kept: string[], prefs: boolean}>}
+ * `prefs/` overrides are not copied: nothing reads them any more, and the backup
+ * keeps them. The backup itself is never touched, so nothing can be lost here.
+ *
+ * Runs after the engine swap, so it must not throw: a `prompts` that is a file,
+ * a symlink out of the workspace or a read-only directory becomes a `failed`
+ * entry the report names, never a crash with no report (the swap is done by then).
+ * @returns {Promise<{moved: string[], kept: string[], prefs: string[], failed: {rel: string, reason: string}[]}>}
  */
 async function movePromptsOut(customDir, target, { dryRun = false } = {}) {
-  const out = { moved: [], kept: [], prefs: false }
-  const rels = await walkRel(customDir)
-  for (const rel of rels.sort()) {
+  const out = { moved: [], kept: [], prefs: [], failed: [] }
+  const rels = (await walkRel(customDir)).sort()
+  for (const rel of rels) {
+    if (rel.startsWith('prefs/')) { out.prefs.push(rel); continue }
     const dst = path.join(target, 'prompts', ...rel.split('/'))
-    const src = await readBuf(path.join(customDir, rel))
-    const mine = await readBuf(dst)
-    if (rel.startsWith('prefs/')) out.prefs = true
-    if (mine !== null && !sameBytes(mine, src)) { out.kept.push(rel); continue }
-    if (mine === null && !dryRun) {
+    try {
       await assertInsideWorkspace(target, dst)
-      await writeFileAtomic(dst, src)
+      const src = await readBuf(path.join(customDir, rel))
+      const mine = await readBuf(dst)
+      if (mine !== null && !sameBytes(mine, src)) { out.kept.push(rel); continue }
+      if (mine === null && !dryRun) await writeFileAtomic(dst, src)
+      out.moved.push(rel)
+    } catch (err) {
+      out.failed.push({ rel, reason: `${err.code || err.name}: ${err.message.split('\n')[0]}` })
     }
-    out.moved.push(rel)
   }
   return out
+}
+
+/** The report block for movePromptsOut — printed by the dry run and the real run alike. */
+function promptsMovedLines(moved, { dryRun, backupName }) {
+  if (!moved || !(moved.moved.length || moved.kept.length || moved.prefs.length || moved.failed.length)) return []
+  const where = dryRun ? 'the backup' : `${backupName}/prompts/custom/`
+  const L = [`  ${dryRun ? 'Would move' : 'Moved'} your prompts out of the engine: .truss/prompts/custom/ → prompts/ (D-132)`]
+  for (const rel of moved.moved) L.push(`    ${dryRun ? 'would move' : 'moved     '}  prompts/${rel}`)
+  for (const rel of moved.kept) L.push(`    kept        prompts/${rel} already exists and differs — the engine's copy stays in ${where}`)
+  for (const { rel, reason } of moved.failed) L.push(`    FAILED      prompts/${rel} — ${reason}; the engine's copy stays in ${where}`)
+  if (moved.prefs.length) L.push(`    not moved   ${moved.prefs.length} preference override(s) under prefs/ — \`truss set\` no longer reads them; they stay in ${where}`)
+  return L
 }
 
 /** Make sure the backup directory can never be committed by a later `git add -A`. */
@@ -540,6 +559,10 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   // than after the swap is what makes this a report on the workspace's actual
   // OLD engine, not on whatever .truss/ happens to be by the time we get here.
   const engineDivergence = await verifyEngine(oldEngine)
+  // An engine shipped before D-132 kept project prompts in prompts/custom/. The
+  // current manifest rule sees them as "extra", but they are not lost local
+  // changes: movePromptsOut carries them into the workspace and reports them.
+  if (engineDivergence?.extra) engineDivergence.extra = engineDivergence.extra.filter((rel) => !rel.startsWith('prompts/custom/'))
 
   // --dry-run writes nothing, so it must never be gated on a clean tree: it is
   // exactly what a cautious user wants to run BEFORE committing.
@@ -555,8 +578,9 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
       { exclude: buildExcludes(groups, selected, await readSkippedGlobal(target)) },
     )
     const promptsMoved = await movePromptsOut(path.join(oldEngine, 'prompts', 'custom'), target, { dryRun: true })
+    const dropped = droppedGroups(plan, groups)
     printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence, promptsMoved,
-      staleGroups, groups, pluginsPending: await pluginsPending(target, groups),
+      staleGroups: [...new Set([...staleGroups, ...dropped.split])], groups, pluginsPending: await pluginsPending(target, groups, dropped.plugins),
       legacyDecisionLog: await hasLegacyDecisionLog(target) })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
   }
@@ -644,8 +668,11 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   const gitignoreUpdated = await ensureBackupIgnored(target).catch(() => false)
 
   const promptsMoved = await movePromptsOut(path.join(backup, 'prompts', 'custom'), target)
+  if (promptsMoved.failed.length) process.exitCode = EXIT_NEEDS_ATTENTION
   const result = { target, from: oldVersion, to: newVersion, backup, promptsMoved, gitignoreUpdated, plan, engineDivergence, staleGroups }
-  printReport({ ...result, dryRun: false, staleGroups, groups, pluginsPending: await pluginsPending(target, groups),
+  const dropped = droppedGroups(plan, groups)
+  printReport({ ...result, dryRun: false, staleGroups: [...new Set([...staleGroups, ...dropped.split])], groups,
+    pluginsPending: await pluginsPending(target, groups, dropped.plugins),
     legacyDecisionLog: await hasLegacyDecisionLog(target) })
   // A run that still needs a human must not look like a clean one to a script.
   if (plan.some((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))) {
@@ -657,14 +684,35 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
 // ── Report ───────────────────────────────────────────────────────────────────
 
 /**
+ * Groups whose copied skills this run drops, read off the plan itself. A
+ * workspace installed with `--skills all` has no selection file, so the
+ * selection-based notices never fire there — yet it is exactly the workspace
+ * that loses the most. Each dropped `<prefix>-*` skill names its old group; the
+ * report then points at that group's successors or plugin switch.
+ * @returns {{split: string[], plugins: string[]}}
+ */
+function droppedGroups(plan, groups) {
+  const split = new Set()
+  const plugins = new Set()
+  for (const p of plan) {
+    if (!p.rel.startsWith('.claude/skills/')) continue
+    if (!['remove', 'removed'].includes(p.action) && !/no longer part of the baseline/.test(p.note ?? '')) continue
+    const prefix = p.rel.split('/')[2].split('-')[0]
+    if (GROUP_SUCCESSORS[prefix]) split.add(prefix)
+    if (groups?.get(prefix)?.plugin) plugins.add(prefix)
+  }
+  return { split: [...split], plugins: [...plugins] }
+}
+
+/**
  * Plugin groups the selection file names but the workspace has not switched on —
  * `superpowers` was a copied group before D-126. Only explicit names count: a
  * missing selection file means "all groups" and must not nag about every plugin.
  */
-async function pluginsPending(target, groups) {
+async function pluginsPending(target, groups, also = []) {
   const pending = []
   const team = await readBuf(path.join(target, TEAM_FILE)) !== null
-  for (const name of await selectionNames(target)) {
+  for (const name of new Set([...await selectionNames(target), ...also])) {
     const plugin = groups.get(name)?.plugin
     if (!plugin || await pluginEnabled(target, plugin)) continue
     if (!team && await globalPluginEnabled(plugin.key)) continue      // covered globally (D-127)
@@ -764,16 +812,12 @@ function printReport({ target, from, to, plan, backup, promptsMoved, gitignoreUp
 
   if (dryRun) {
     L.push(...engineDivergenceLines(engineDivergence, { dryRun: true, backup }))
+    L.push(...promptsMovedLines(promptsMoved, { dryRun: true }))
     L.push('')
   } else {
     L.push(`  Engine replaced. Previous engine kept at ${path.basename(backup)}/`)
     L.push(...engineDivergenceLines(engineDivergence, { dryRun: false, backup }))
-    if (promptsMoved?.moved.length || promptsMoved?.kept.length) {
-      L.push(`  ${dryRun ? 'Would move' : 'Moved'} your prompts out of the engine: .truss/prompts/custom/ → prompts/ (D-132)`)
-      for (const rel of promptsMoved.moved) L.push(`    ${dryRun ? 'would move' : 'moved     '}  prompts/${rel}`)
-      for (const rel of promptsMoved.kept) L.push(`    kept        prompts/${rel} already exists and differs — the engine's copy stays in ${dryRun ? 'the backup' : path.basename(backup)}/prompts/custom/`)
-      if (promptsMoved.prefs) L.push('    note        prompts/prefs/ held preference-text overrides; `truss set` no longer reads them')
-    }
+    L.push(...promptsMovedLines(promptsMoved, { dryRun: false, backupName: path.basename(backup) }))
     if (gitignoreUpdated) L.push('  Added .truss.bak-*/ to .gitignore so the backup is never committed.')
     L.push('')
   }

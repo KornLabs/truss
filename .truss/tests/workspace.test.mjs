@@ -478,8 +478,6 @@ describe('ST-04: stub drift detected', async () => {
 
     // .truss skeleton
     await write('.truss/VERSION', '1.0.0-alpha\n')
-    await write('.truss/prompts/custom/discover-kickoff.md', 'stub\n')
-    await write('.truss/prompts/custom/validate-kickoff.md', 'stub\n')
 
     const ctx = await loadWorkspace(tmpDir)
     const findings = await st.run(ctx)
@@ -786,7 +784,7 @@ describe('renderPhaseBlock — no double period (B2)', () => {
       'Allowed: domain notes, research, open questions, sketches, VISION.md sections. Forbidden: code in repo/, final decisions without D-entry, spec documents, architecture diagrams.',
       'Read this phase (beyond §1): state/profile.md',
       'Exit (checked by `doctor --gate`): section: VISION.md#Problem; glob: research*.md; pursue/park leaning noted (human)',
-      'Prompts: discover-kickoff, discover-recap (`.truss/prompts/`)',
+      'Prompts: discover-kickoff, discover-recap (`prompts/`)',
     ]
     assert.deepEqual(lines, expected)
   })
@@ -1285,7 +1283,5 @@ async function scaffoldWorkspace(tag) {
     await writeFileIn(tmp, `docs/${f}`, `# ${f}\n`)
   }
   await writeFileIn(tmp, '.truss/VERSION', '1.0.0-test\n')
-  await writeFileIn(tmp, '.truss/prompts/custom/discover-kickoff.md', 'stub\n')
-  await writeFileIn(tmp, '.truss/prompts/custom/validate-kickoff.md', 'stub\n')
   return tmp
 }

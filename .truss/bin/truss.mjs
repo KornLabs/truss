@@ -787,9 +787,9 @@ const HANDLERS = {
   status:    (args) => runStatus(root, args),
   map:       (args) => runMap(root, args),
   skills:    (args) => runSkills(root, args),
-  sessions:  async () => {
+  sessions:  async (args) => {
     const { runSessions } = await import('../lib/commands/sessions.mjs')
-    return runSessions(root)
+    return runSessions(root, args)
   },
   team:      async (args) => {
     const { runTeam } = await import('../lib/commands/team.mjs')
@@ -812,7 +812,7 @@ const HANDLERS = {
 }
 
 // init/phase surface user-facing fatals as a throw → exit code 2.
-const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions', 'team', 'ci', 'sync'])
+const THROWS_TO_EXIT_2 = new Set(['init', 'upgrade', 'phase', 'skills', 'split-decisions', 'team', 'ci', 'sync', 'sessions'])
 
 if (!command || ['help', '--help', '-h'].includes(command)) {
   showHelp(); await exitFlushed(0)

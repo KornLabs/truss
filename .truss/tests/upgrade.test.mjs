@@ -605,10 +605,63 @@ describe('prompts leave the engine (D-132)', () => {
     process.exitCode = 0
     assert.equal(await read(ws, 'prompts/clash.md'), 'the project already has this\n')
     assert.equal(await read(ws, '.truss.bak-0.0.1/prompts/custom/clash.md'), 'engine copy\n')
-    assert.equal(await read(ws, 'prompts/prefs/subagents/full.md'), '---\n---\nmy wording\n')
+    assert.equal(await exists(ws, 'prompts/prefs'), false, 'nothing reads pref overrides any more — they stay in the backup')
+    assert.equal(await read(ws, '.truss.bak-0.0.1/prompts/custom/prefs/subagents/full.md'), '---\n---\nmy wording\n')
     const out = logs.join('\n')
     assert.match(out, /kept\s+prompts\/clash\.md already exists and differs/)
-    assert.match(out, /prompts\/prefs\/ held preference-text overrides; `truss set` no longer reads them/)
+    assert.match(out, /not moved\s+1 preference override\(s\) under prefs\/ — `truss set` no longer reads them/)
+    await fs.rm(tmp, { recursive: true, force: true })
+  })
+})
+
+describe('upgrade report after review (D-132, D-128)', () => {
+  const capture = async (fn) => {
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    try { await fn() } finally { console.log = log }
+    process.exitCode = 0
+    return logs.join('\n')
+  }
+
+  it('the dry run names the prompts it would move and does not call them replaced engine files', async () => {
+    const { tmp, ws, next } = await fixture()
+    await writeManifest(path.join(ws, '.truss'))
+    await write(ws, '.truss/prompts/custom/later.md', 'written after the manifest\n')
+    const out = await capture(() => runUpgrade(next, ['--root', ws, '--dry-run']))
+    assert.match(out, /Would move your prompts out of the engine/)
+    assert.match(out, /would move\s+prompts\/later\.md/)
+    assert.doesNotMatch(out, /prompts\/custom\/later\.md/, 'a prompt about to be moved is not an engine change to compare by hand')
+    assert.equal(await exists(ws, 'prompts/later.md'), false, 'the dry run writes nothing')
+    await fs.rm(tmp, { recursive: true, force: true })
+  })
+
+  it('a prompt that cannot be moved is reported, not a crash after the swap', async () => {
+    const { tmp, ws, next } = await fixture()
+    await write(ws, 'prompts', 'a FILE where the directory should go\n')
+    await write(ws, '.truss/prompts/custom/a.md', 'mine\n')
+    let exitCode = null
+    const out = await capture(async () => {
+      await runUpgrade(next, ['--root', ws])
+      exitCode = process.exitCode
+    })
+    assert.match(out, /FAILED\s+prompts\/a\.md — .*the engine's copy stays in \.truss\.bak-0\.0\.1\/prompts\/custom\//)
+    assert.match(out, /Next steps|need judgment/, 'the report is complete')
+    assert.equal(exitCode, 3, 'needs attention (EXIT_NEEDS_ATTENTION)')
+    assert.equal(await read(ws, '.truss.bak-0.0.1/prompts/custom/a.md'), 'mine\n')
+    await fs.rm(tmp, { recursive: true, force: true })
+  })
+
+  it('a workspace with no selection file still hears about plugin groups and split groups', async () => {
+    const { tmp, ws, next } = await fixture()
+    for (const skill of ['superpowers-brainstorming', 'marketing-ads']) {
+      await write(ws, `.truss/baseline/.claude/skills/${skill}/SKILL.md`, 'shipped\n')
+      await write(ws, `.claude/skills/${skill}/SKILL.md`, 'shipped\n')
+    }
+    const out = await capture(() => runUpgrade(next, ['--root', ws]))
+    assert.equal(await exists(ws, '.claude/skills/superpowers-brainstorming'), false)
+    assert.match(out, /pending\s+superpowers\s+now a Claude Code plugin/)
+    assert.match(out, /(split|gone)\s+marketing/)
     await fs.rm(tmp, { recursive: true, force: true })
   })
 })

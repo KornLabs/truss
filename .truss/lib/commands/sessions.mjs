@@ -11,7 +11,8 @@ import { ENDED_AFTER_MS, idleMs, listSessions, spanOf } from '../presence.mjs'
 
 const ago = (ms) => (ms === null ? '—' : `${spanOf(new Date(Date.now() - ms).toISOString())} ago`)
 
-export async function runSessions(root) {
+export async function runSessions(root, args = []) {
+  if (args.length) throw new Error(`truss sessions: takes no arguments (got '${args[0]}').`)
   if (process.env.TRUSS_NO_PRESENCE) {
     console.log('truss sessions: presence is switched off (TRUSS_NO_PRESENCE).')
     return { live: [], ended: [] }
@@ -41,6 +42,7 @@ export async function runSessions(root) {
     for (const cell of cells) console.log(line(cell))
   }
   if (!self) console.log('  This session could not be identified here (no process ancestry, e.g. on Windows) — it is not listed.')
+  else if (!live.some(rec => rec.pid === self.pid)) console.log('  This session has no record yet — `truss status` creates one, after which the others can see it.')
   if (foreignHost) console.log(`  ${foreignHost} record(s) from another machine — not judged from here.`)
   if (ended.length) console.log(`  An ended session counts again as soon as it runs any truss command.`)
   return { self, live, ended, foreignHost }

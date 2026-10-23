@@ -284,8 +284,10 @@ sessions are live — `since` counts from each one's first `truss` call, and
 `idle` says how long it has gone without one, so a conversation a desktop host
 keeps open for days is distinguishable from one that is working — which paths
 were already uncommitted when this one began, which became uncommitted since its
-own last `truss` run, which core files moved, and whether a `.git/index.lock` is
-present. It never says *who* changed a path — the record cannot know — so the
+own last `status` or `doctor` run, which core files moved, and whether a
+`.git/index.lock` is present. A session with no truss call of any kind for 4
+hours counts as ended and is left out (D-131); the line says how many, and
+`truss sessions` lists them. It never says *who* changed a path — the record cannot know — so the
 lines name the paths and put the path-scoped commit beside them. It is **visibility, not coordination** — nothing is locked, claimed or
 queued, and the exit code never changes, so `doctor --gate` cannot start failing
 because a colleague is present. Silent whenever there is nothing to say, which
@@ -294,8 +296,9 @@ is the normal case for a single session in a quiet tree.
 It needs no cleanup command. Each session's record lives under
 `.truss/out/presence/` (gitignored), and **reading is the cleanup**: a record
 whose process is gone is removed by the next read, by whichever session reads
-first. A session that is merely hung keeps its record — it is still present, and
-dropping it would under-report. On Windows the process ancestry is not
+first. A session whose process is alive keeps its record; once it has gone 4
+hours without a truss call it is no longer counted, and after a week without one
+its record is removed (see `sessions`). On Windows the process ancestry is not
 available, so no session count is printed rather than a wrong one; the rest of
 the block still works. `TRUSS_NO_PRESENCE=1` turns the whole layer off, the way
 `TRUSS_NO_GIT=1` turns off git.

@@ -52,10 +52,6 @@ When commands like `truss doctor` are run, the engine outputs the results (e.g.,
 Contains system preferences, behavioral modifiers, and configuration templates for AI agents.
 These preferences (e.g., `auto-commit`, `subagents`, `clarify`, `scope`) dictate how agents should interact, their level of autonomy, communication style, and workflow gates within the project. No key has a default — a preference exists only once it is set, and `truss unset` removes it again; the canonical catalogue is `lib/prefs.mjs`.
 
-### `prompts/`
-
-Where your own prompts go: `custom/<id>.md`, opened by hand. See its README.
-
 ### `tests/`
 
 The internal test suite ensuring the reliability and correctness of the Truss engine itself.

@@ -41,7 +41,6 @@ node .truss/bin/truss.mjs doctor
 ```
 
 Each `prompts:` line ships empty — the shipped prompt library was removed
-(D-065). A phase
-whose `section:`/`file:` exit target doesn't exist yet because the project
+(D-065). A phase whose `section:`/`file:` exit target doesn't exist yet because the project
 hasn't reached that phase is expected and shows as PH-06 info (`I`), not a
 warning; it upgrades to a warning once that phase becomes `current:`.

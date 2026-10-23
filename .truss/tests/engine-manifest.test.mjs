@@ -2,7 +2,7 @@
 // Run with: node --test .truss/tests/engine-manifest.test.mjs
 //
 // Covers lib/engine-manifest.mjs directly (generation, verification, the
-// out/ + prompts/custom/ scope cut) and checks/st.mjs's ST-09, driven straight
+// out/ scope cut — prompts/custom/ is no longer exempt since D-132) and checks/st.mjs's ST-09, driven straight
 // against the check module — workspace.test.mjs and checks.test.mjs are owned
 // elsewhere, so ST-09 is exercised here instead of there.
 
