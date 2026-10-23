@@ -8,6 +8,9 @@ import { runStatus } from '../lib/commands/status.mjs'
 import path from 'node:path'
 import { makeRoot } from './helpers.mjs'
 
+// Local calendar date, the way status and the checks read `Opened:` (parseLocalDate).
+const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 test('status uses the configured project name instead of the folder name', async () => {
   const root = await makeRoot('truss-status-name-')
   const output = []
@@ -53,7 +56,7 @@ test('status lists open decisions with their age', async () => {
   const root = await makeRoot('truss-status-od-')
   try {
     await runInit(root, ['--name', 'Waiting', '--lang', 'English'])
-    const opened = new Date(Date.now() - 12 * 86400000).toISOString().slice(0, 10)
+    const opened = localDate(new Date(Date.now() - 12 * 86400000))
     await fs.writeFile(path.join(root, 'state', 'open-decisions.md'), OD_FILE(
       `## OD-007 — Ship or hold?\n\nOpened: ${opened}\nOptions:\n- A: ship — now +fast / –rough\n- B: hold — later +safe / –slow\nTrade-offs: x\nLeaning: B\n`
     ))
@@ -92,7 +95,7 @@ test('status marks an open decision that challenges a recorded one', async () =>
   try {
     await runInit(root, ['--name', 'Contested', '--lang', 'English'])
     await fs.writeFile(path.join(root, 'state', 'open-decisions.md'), OD_FILE(
-      `## OD-007 — Revisit D-001?\n\nOpened: ${new Date().toISOString().slice(0, 10)}\nOptions:\n- A: keep — stay +cheap / –stale\n- B: move — switch +modern / –costly\nTrade-offs: x\nLeaning: A\n`
+      `## OD-007 — Revisit D-001?\n\nOpened: ${localDate(new Date())}\nOptions:\n- A: keep — stay +cheap / –stale\n- B: move — switch +modern / –costly\nTrade-offs: x\nLeaning: A\n`
     ))
     await fs.writeFile(path.join(root, 'state', 'decisions.md'),
       `# Decisions\n\n## D-001 — Pick a stack\n\nDate: 2026-06-01\nDecision: Node.\nRationale: small runtime\nConsequences: node --test\nChallenged-by: OD-007\n`)

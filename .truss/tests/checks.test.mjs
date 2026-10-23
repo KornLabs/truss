@@ -27,8 +27,12 @@ const execFileP = promisify(execFile)
 const SCHEMA = await loadSchema(path.join(os.tmpdir(), 'truss-no-such-workspace'))
 
 const DAY = 86_400_000
-const today  = () => new Date().toISOString().slice(0, 10)
-const daysAgo = (n) => new Date(Date.now() - n * DAY).toISOString().slice(0, 10)
+// LOCAL calendar dates, as the checks read them (parseLocalDate). A UTC date
+// (toISOString) is a day behind in the first hours after local midnight east
+// of Greenwich, which made these tests fail only between 00:00 and 02:00 CEST.
+const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const today  = () => localDate(new Date())
+const daysAgo = (n) => localDate(new Date(Date.now() - n * DAY))
 const ids = (findings, id) => findings.filter(f => f.id === id)
 
 function file(content, ageDays = 0) {
