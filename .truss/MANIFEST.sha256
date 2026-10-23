@@ -446,7 +446,7 @@ a85d79254ec2e1813a13055efb9951b84ea55a04f43aa6fb6c880aa448924d38  baseline/.clau
 596cf38433b5c5a3c0a1af348863a61e6c31ecff3c1b46e04d989b10822c37a5  baseline/.claude/skills/slop-diagrams/assets/example-axonometric-plan-warehouse-full.html
 aed38ba8afc9c560fe22c7cbba1448e3c8f0efe43853d2c457b32e76d1bfef76  baseline/.claude/skills/slop-diagrams/assets/example-axonometric-plan-warehouse.html
 1ffd4767dbb9c0fd49190582a7304d0aac4cd6df7cd7d538eb6e84cd1803f30a  baseline/.claude/skills/slop-diagrams/assets/example-axonometric-plan.html
-fb96534eff0910a006dabca940d71aeb1019076abfbe9a020758747c2e2cbb0a  baseline/.claude/skills/slop-diagrams/assets/example-bar-dark.html
+17175ed34c9588f3d5902ed97f5718a47d8c17fbad4326056f47d2131d060304  baseline/.claude/skills/slop-diagrams/assets/example-bar-dark.html
 ac8eff087cc5f2f04cffda1cb63b4e95641e9b05ca151a580e4df0016ddd08e1  baseline/.claude/skills/slop-diagrams/assets/example-bar-full.html
 b82fea59d393f0754f1543cf1e8d9189542fb93cf458bcd256a0c56fa060461b  baseline/.claude/skills/slop-diagrams/assets/example-bar.html
 597cf05ad582eb0dbe8040949c6f164096ce84631e6d3ba85d5fbf778d2b1dc7  baseline/.claude/skills/slop-diagrams/assets/example-beeswarm-dark.html
@@ -461,9 +461,9 @@ cdf62733836ff70f2b04e3a9062609b24f17d3b8be60d110a8182f9bc12a02a7  baseline/.clau
 a3f5f27b4a690a6d806c735bf2db42b1e3d7f235387018200830329379829917  baseline/.claude/skills/slop-diagrams/assets/example-data-flow-dark.html
 606d1f7650ea6db8e84f977beb591616fa32df9bc3085c09072da81885db5133  baseline/.claude/skills/slop-diagrams/assets/example-data-flow-full.html
 f65978b77410fff9993fc099f4cf0d25bcaf67ce98fea2e281976e2406783b99  baseline/.claude/skills/slop-diagrams/assets/example-data-flow.html
-7eb08a81b703a1fb87877d33c79c0f31fcbd9a8fbc1dac20646e3f68aff93404  baseline/.claude/skills/slop-diagrams/assets/example-datalake-dark.html
-f978706df71ffcdd6b2408aaeab78360ad68010487b9a849459219cd8cb8f5a3  baseline/.claude/skills/slop-diagrams/assets/example-datalake-full.html
-311b9143dc66cb96d7fe1ca3fa6d9cbf17b864976b8168ee3e8e8c497fe264d6  baseline/.claude/skills/slop-diagrams/assets/example-datalake.html
+1f4a64b1fb3e24808d85617f3fb0a76a496929c3c9b3ba4cfc7e769e343c1def  baseline/.claude/skills/slop-diagrams/assets/example-datalake-dark.html
+ba943db97ffe83cea198fc8b56d4e7c350fd129b869c23339b6bcf552ee5e7f3  baseline/.claude/skills/slop-diagrams/assets/example-datalake-full.html
+579fe3bc65fc82d342e00c565a2d0d6cc5f5c81ca51d6b832beb9a78ba3b959a  baseline/.claude/skills/slop-diagrams/assets/example-datalake.html
 c1f566f092642c8c58969b7609598272ea78eae5beb172f35afe1d1366078c6a  baseline/.claude/skills/slop-diagrams/assets/example-db-schema-dark.html
 897c88e8cde6537409e0b0359495dfa33e658dc40581fdf0039bc65a0433cd25  baseline/.claude/skills/slop-diagrams/assets/example-db-schema-full.html
 5b65adae081c31b8f4a9772d8ba4a4066e759625197e2111885ac503cf8c2104  baseline/.claude/skills/slop-diagrams/assets/example-db-schema.html
@@ -507,7 +507,7 @@ d0925f006f7ae339b7e3467886dc069e73def905e1316a5de00b2baeb61a63b2  baseline/.clau
 9b69415f880744d1c3dff23cf1dfa6bfbcc3bf38178456ce6668a74b783647ef  baseline/.claude/skills/slop-diagrams/assets/example-flowchart-dark.html
 68bdada8201f46df8c76aa27be10194bc8d870a683696d400435817a19f0b696  baseline/.claude/skills/slop-diagrams/assets/example-flowchart-full.html
 f9c92596d77b010417b78f710ae96cf161395831ad8e51153caa41fa4a31446c  baseline/.claude/skills/slop-diagrams/assets/example-flowchart.html
-777c051f19001dbfdf9ced01d836622bda2ee5ad9d2d753012cd6f23fdde70d4  baseline/.claude/skills/slop-diagrams/assets/example-gantt-dark.html
+5859b97315691859d777479a22641e8bd7324f9bc48aa6c4a9f2e31185613c1c  baseline/.claude/skills/slop-diagrams/assets/example-gantt-dark.html
 171c7bed870d24976124e3f56aa884bd107d46380dd212bb0300fd92badd91b2  baseline/.claude/skills/slop-diagrams/assets/example-gantt-full.html
 4e017a543771aec9338e15df3be5f9278fa4883e306373c4ea0555b65c7c43a4  baseline/.claude/skills/slop-diagrams/assets/example-gantt.html
 6ec2953db65dbabcdbd5abe3d43f7e001524317ddd3e1230398f9de927e547c0  baseline/.claude/skills/slop-diagrams/assets/example-heatmap-dark.html
@@ -534,7 +534,7 @@ e557f78ae75b4f088f148ff7e3006d8c4aa0f8dfc0824e237ba656eb566021f8  baseline/.clau
 412df7b0710cf14cd95c1e806e708241bda6b3bc8e1f142107adf857ed6aa7d1  baseline/.claude/skills/slop-diagrams/assets/example-layers-dark.html
 6d9a2dc1eaa4f2d7309d93b8dedb9e379bb9debe42787030ee474725d26e68d8  baseline/.claude/skills/slop-diagrams/assets/example-layers-full.html
 e4edabd125d9d9de3e27d2a530b7e791042910e97ec71c3d8e23912eafda5082  baseline/.claude/skills/slop-diagrams/assets/example-layers.html
-552abdcac08788dac5ee7fa419ab854c5e09451b69822eb48935712880382a9d  baseline/.claude/skills/slop-diagrams/assets/example-line-dark.html
+a9615747b04505d9d3875b70d9e8a85328c362833bf965798456146701015a81  baseline/.claude/skills/slop-diagrams/assets/example-line-dark.html
 d121a15bc242986e2ce490ea34623ceba4eca96d6e16a531ab985fbc60dfd079  baseline/.claude/skills/slop-diagrams/assets/example-line-full.html
 8d53adb388306a8593a72c4eea063b8a95a0ba79d2134f51313a645c2554e227  baseline/.claude/skills/slop-diagrams/assets/example-line.html
 8ef6feecb47dc6043e1a7714fd0a795e357d484d38df35b594be85105029eb01  baseline/.claude/skills/slop-diagrams/assets/example-loop-dark.html
@@ -578,7 +578,7 @@ b430c4ec58ab69c044cba2eb39e20adbc8769cbd85fb5f41d8c3f75136d62f90  baseline/.clau
 4c2a4ff17cfba1412aee8b6569e76c1d314d9ce64d6038c99e89505225b9baf1  baseline/.claude/skills/slop-diagrams/assets/example-sankey-dark.html
 33f52288399db22c20374ecbfd26ec597b77f3512c03115cea240ece21485bb9  baseline/.claude/skills/slop-diagrams/assets/example-sankey-full.html
 5997eca7d06b41cc779abed904ef1b782a5d9be160f9dffcb0fef067142b904f  baseline/.claude/skills/slop-diagrams/assets/example-sankey.html
-347bea032f65f2698f1ce0fe2a5fc01b02dfa03e4fadd84c7a4260369d95fb80  baseline/.claude/skills/slop-diagrams/assets/example-scatter-dark.html
+2ddaddaff0268f8668dde187319af30da00bcdb1f2fa5b6f7c3974a4c884faf4  baseline/.claude/skills/slop-diagrams/assets/example-scatter-dark.html
 af03bf90e91b1a4449ee5b776f08df07a40dec1c1fa27457dc75540c8fa4e379  baseline/.claude/skills/slop-diagrams/assets/example-scatter-full.html
 baa3fe5115e6a0448fd90629c20729b78eb735d5d95b74501f8d3d0fd8183980  baseline/.claude/skills/slop-diagrams/assets/example-scatter.html
 f2c0fc2e127bce07c78ff09e6b8540f4993d1d85deafbca73af4834b8944e89b  baseline/.claude/skills/slop-diagrams/assets/example-sequence-dark.html
