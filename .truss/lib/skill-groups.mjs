@@ -18,7 +18,7 @@ export const CORE_GROUPS = ['slop']
  */
 export const GROUP_INFO = {
   slop: 'clear, human prose and editorial diagrams — the core, useful in any project',
-  code: 'software work: API design, migrations, Postgres, error handling, E2E and web-app testing, deployment, changelogs',
+  code: 'software work: API design, migrations, Postgres, error handling, E2E and web-app testing, deployment, changelogs, security audits',
   strategy: 'marketing groundwork: product context (read by every marketing group), positioning, pricing, offers, launch, plans',
   seo: 'being found: SEO and AI-search audits, programmatic pages, schema, site architecture, app stores, directories',
   content: 'writing that sells: page copy, editing, lifecycle and cold email, social, SMS, image and video',
@@ -26,9 +26,21 @@ export const GROUP_INFO = {
   conversion: 'turning visitors into users: page CRO, signup, onboarding, popups, paywalls, churn',
   growth: 'growth loops: referrals, co-marketing, free tools, lead magnets, community, PR',
   sales: 'B2B sales: RevOps, sales collateral, prospecting',
-  design: 'Claude Code plugin impeccable: frontend design, critique and polish (no files here)',
+  diagrams: 'archify: validated, explorable HTML diagrams (architecture, workflow, sequence, ERD, …) — interactive, next to slop-diagrams; needs Node',
+  design: 'Claude Code plugin impeccable: frontend design language, critique and polish (no files here)',
+  taste: 'Claude Code plugin taste-skill: art direction for landing pages and app screens, checked in a real browser (no files here)',
+  uiux: 'Claude Code plugin ui-ux-pro-max: searchable styles, palettes, fonts and stack guidelines; needs Python 3. Its logo/icon scripts read ~/.claude/.env and send prompts with your keys to Gemini, AtlasCloud or MuAPI (no files here)',
   superpowers: 'Claude Code plugin superpowers: TDD, debugging, planning, code review (no files here)',
 }
+
+/**
+ * The release each group first shipped in (D-134). `upgrade` names a group
+ * newer than the workspace's old engine, so a group that arrives with a release
+ * is offered instead of passing unseen — never installed on its own, because
+ * every group costs tokens in every session. Groups older than this map are
+ * simply absent from it.
+ */
+export const GROUP_SINCE = { diagrams: '1.6.0', taste: '1.6.0', uiux: '1.6.0' }
 
 /**
  * How the dialog, the init report and `skills list` order and head the groups:
@@ -39,7 +51,9 @@ export const GROUP_SECTIONS = [
   { title: 'Core — installed by default', groups: ['slop'] },
   { title: 'Software', groups: ['code'] },
   { title: 'Marketing — seven groups; start with strategy, its product context feeds the others', groups: ['strategy', 'seo', 'content', 'paid', 'conversion', 'growth', 'sales'] },
-  { title: 'Claude Code plugins — switched on in .claude/settings.json, nothing copied', groups: ['design', 'superpowers'] },
+  { title: 'Diagrams — interactive, in addition to the core slop-diagrams', groups: ['diagrams'] },
+  { title: 'Frontend design — Claude Code plugins; pick ONE, they answer the same requests', groups: ['design', 'taste', 'uiux'] },
+  { title: 'Claude Code plugins — switched on in .claude/settings.json, nothing copied', groups: ['superpowers'] },
 ]
 
 /**
@@ -75,7 +89,25 @@ export async function groupTokens(baselineDir, assets) {
  */
 export const PLUGIN_GROUPS = {
   design: { key: 'impeccable@impeccable', marketplace: 'impeccable', repo: 'pbakaus/impeccable' },
+  taste: { key: 'taste-skill@taste-skill', marketplace: 'taste-skill', repo: 'Leonxlnx/taste-skill' },
+  uiux: { key: 'ui-ux-pro-max@ui-ux-pro-max-skill', marketplace: 'ui-ux-pro-max-skill', repo: 'nextlevelbuilder/ui-ux-pro-max-skill' },
   superpowers: { key: 'superpowers@superpowers-marketplace', marketplace: 'superpowers-marketplace', repo: 'obra/superpowers-marketplace' },
+}
+
+/**
+ * Plugin groups that do the same job (D-134): all three take "build me a landing
+ * page". Two on at once compete for the same requests, so adding a second one
+ * says so — it does not refuse, the human may want to compare.
+ */
+export const DESIGN_ALTERNATIVES = ['design', 'taste', 'uiux']
+
+/**
+ * What `all` means (D-134): every group except the design alternatives after the
+ * first — `all` must not switch on three plugins that compete for the same
+ * requests, one of which reads ~/.claude/.env. Choose taste or uiux by name.
+ */
+export function allGroups(groups) {
+  return new Set([...groups.keys()].filter(group => !DESIGN_ALTERNATIVES.slice(1).includes(group)))
 }
 
 async function entriesAt(absPath) {
@@ -151,7 +183,7 @@ export function buildExcludes(groups, selected, skipped = {}) {
  */
 export function selectedGroupsFor(value, groups) {
   if (value == null) return new Set(CORE_GROUPS.filter(group => groups.has(group)))
-  if (value === 'all') return new Set(groups.keys())
+  if (value === 'all') return allGroups(groups)
   if (value === 'none') return new Set()
   const selected = new Set(value.split(',').map(group => group.trim()).filter(Boolean))
   if (selected.size === 0 || [...selected].some(group => !groups.has(group))) {
@@ -179,7 +211,7 @@ export function selectionContent(groups, selected, skipped = {}) {
 
 /**
  * Skills left out because the same skill is installed globally (D-127):
- * `{ "slop-tells": "stop-slop" }`. Lenient like droppedSelectedGroups — `upgrade`
+ * `{ "slop-humanizer": "humanizer" }`. Lenient like droppedSelectedGroups — `upgrade`
  * reads it and must finish; the strict reader raises where it matters.
  */
 export async function readSkippedGlobal(root) {

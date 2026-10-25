@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 import { applyTree } from '../lib/scaffold.mjs'
-import { buildExcludes, CORE_GROUPS, discoverGroups, droppedSelectedGroups, readSelectedGroups, SKILL_SELECTION_REL } from '../lib/skill-groups.mjs'
+import { buildExcludes, CORE_GROUPS, discoverGroups, droppedSelectedGroups, GROUP_SINCE, PLUGIN_GROUPS, readSelectedGroups, SKILL_SELECTION_REL } from '../lib/skill-groups.mjs'
 import { runSkills } from '../lib/commands/skills.mjs'
 import { runInit } from '../lib/commands/init.mjs'
 import { makeRoot, exists, runChecks, ENGINE_DIR } from './helpers.mjs'
@@ -64,7 +64,7 @@ describe('skill groups', () => {
     const baselineDir = await buildSyntheticBaseline()
     const groups = await discoverGroups(baselineDir)
 
-    assert.deepEqual([...groups.keys()], ['alpha', 'design', 'misc', 'solo', 'superpowers', 'zeta'])
+    assert.deepEqual([...groups.keys()], ['alpha', 'design', 'misc', 'solo', 'superpowers', 'taste', 'uiux', 'zeta'])
     assert.deepEqual(groups.get('alpha').skills, ['alpha-one', 'alpha-two'])
     assert.deepEqual(groups.get('alpha').agents, ['alpha-helper.md'])
     assert.deepEqual(groups.get('zeta').skills, [])
@@ -135,7 +135,7 @@ describe('skills command', () => {
     const listed = await runCli(root, ['skills', 'list'])
     assert.equal(listed.code, 0)
     assert.match(listed.stdout, /Group\s+Skills\s+Tokens\s+Kind\s+Installed\s+For/)
-    assert.match(listed.stdout, /code\s+8\s+~\d+\s+opt-in\s+—\s+software work/)
+    assert.match(listed.stdout, /code\s+9\s+~\d+\s+opt-in\s+—\s+software work/)
     assert.match(listed.stdout, /superpowers\s+—\s+—\s+plugin\s+—\s+Claude Code plugin superpowers/)
 
     const help = await runCli(root, ['skills', 'list', '--help'])
@@ -251,6 +251,46 @@ describe('plugin groups', () => {
     await runSkills(root, ['remove', 'superpowers'])
     settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'))
     assert.deepEqual(settings, { model: 'opus', enabledPlugins: { 'other@elsewhere': true } })
+  })
+
+  it('switches taste and uiux on from their own marketplaces, and names the overlap of two design plugins (D-134)', async () => {
+    const root = await makeRoot('truss-skills-plugin-design-')
+    await runInit(root, ['--name', 'Plugin', '--lang', 'English', '--skills', 'none'])
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    try {
+      await runSkills(root, ['add', 'taste'])
+      assert.doesNotMatch(logs.join('\n'), /compete/, 'one design plugin is no overlap')
+      await runSkills(root, ['add', 'uiux'])
+    } finally { console.log = log }
+    const settings = JSON.parse(await fs.readFile(path.join(root, '.claude', 'settings.json'), 'utf8'))
+    assert.equal(settings.enabledPlugins['taste-skill@taste-skill'], true)
+    assert.equal(settings.enabledPlugins['ui-ux-pro-max@ui-ux-pro-max-skill'], true)
+    assert.deepEqual(settings.extraKnownMarketplaces['taste-skill'], { source: { source: 'github', repo: 'Leonxlnx/taste-skill' } })
+    assert.deepEqual(settings.extraKnownMarketplaces['ui-ux-pro-max-skill'], { source: { source: 'github', repo: 'nextlevelbuilder/ui-ux-pro-max-skill' } })
+    assert.match(logs.join('\n'), /taste, uiux all answer frontend-design requests and compete for them/)
+  })
+
+  it('fills nothing into a same-name folder that is not the Truss copy, and `all` leaves out the competing design plugins (D-134)', async () => {
+    const root = await makeRoot('truss-skills-foreign-')
+    await runInit(root, ['--name', 'Foreign', '--lang', 'English', '--skills', 'none'])
+    await fs.mkdir(path.join(root, '.claude/skills/code-security-audit'), { recursive: true })
+    await fs.writeFile(path.join(root, '.claude/skills/code-security-audit/SKILL.md'), 'my own audit\n')
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    try { await runSkills(root, ['add', 'code']) } finally { console.log = log }
+    assert.deepEqual(await fs.readdir(path.join(root, '.claude/skills/code-security-audit')), ['SKILL.md'])
+    assert.match(logs.join('\n'), /left\s+code-security-audit/)
+    assert.doesNotMatch(logs.join('\n'), /compete/, 'adding code says nothing about design plugins')
+
+    const all = await makeRoot('truss-skills-all-')
+    await runInit(all, ['--name', 'All', '--lang', 'English', '--skills', 'all'])
+    const settings = JSON.parse(await fs.readFile(path.join(all, '.claude', 'settings.json'), 'utf8'))
+    assert.equal(settings.enabledPlugins['impeccable@impeccable'], true)
+    assert.equal(settings.enabledPlugins['taste-skill@taste-skill'], undefined)
+    assert.equal(settings.enabledPlugins['ui-ux-pro-max@ui-ux-pro-max-skill'], undefined)
   })
 
   it('removes a settings.json it leaves empty, and refuses to rewrite one that is not JSON', async () => {
@@ -397,5 +437,20 @@ describe('matchGlobal', () => {
     const prefixed = { names: new Set(['paid-ads']), upstream: 'ads', description: 'x' }
     assert.equal(matchGlobal(prefixed, [{ dir: 'mine', names: new Set(['paid-ads']), description: 'y' }]), 'mine',
       'a distinctive baseline name matches on its own')
+  })
+})
+
+// D-134: `upgrade` offers a new group only if GROUP_SINCE knows it. A group added
+// to the baseline without an entry would arrive unannounced — this list is the
+// groups that existed before GROUP_SINCE did, and it never grows.
+describe('GROUP_SINCE', () => {
+  const BEFORE_GROUP_SINCE = ['slop', 'code', 'strategy', 'seo', 'content', 'paid', 'conversion', 'growth', 'sales', 'design', 'superpowers']
+  it('names every group that is not from before it', async () => {
+    const groups = await discoverGroups(path.join(ENGINE_DIR, 'baseline'))
+    const names = new Set([...groups.keys(), ...Object.keys(PLUGIN_GROUPS)])
+    for (const name of names) {
+      assert.ok(BEFORE_GROUP_SINCE.includes(name) || GROUP_SINCE[name], `group '${name}' needs a GROUP_SINCE entry`)
+    }
+    for (const name of Object.keys(GROUP_SINCE)) assert.ok(names.has(name), `GROUP_SINCE names '${name}', which does not exist`)
   })
 })

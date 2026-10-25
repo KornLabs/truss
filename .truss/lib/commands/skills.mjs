@@ -10,6 +10,8 @@ import {
   readSkippedGlobal,
   SkillSelectionError,
   writeSelectedGroups,
+  DESIGN_ALTERNATIVES,
+  allGroups,
 } from '../skill-groups.mjs'
 import { globalPluginEnabled, resolveGlobalSkips } from '../global-skills.mjs'
 import { disablePlugin, enablePlugin, pluginEnabled, PluginSettingsError } from '../skill-plugins.mjs'
@@ -27,7 +29,7 @@ async function exists(absPath) {
 }
 
 function selectedGroups(groups, selection) {
-  if (selection === 'all') return new Set(groups.keys())
+  if (selection === 'all') return allGroups(groups)
   if (!groups.has(selection)) {
     throw new SkillsError(
       `skills: unknown group '${selection}'. Available: ${[...groups.keys()].join(', ')}`,
@@ -49,10 +51,28 @@ async function isInstalled(root, assets, skipped = {}, team = false) {
   return total > 0 && (await Promise.all(paths.map(exists))).every(Boolean)
 }
 
+/**
+ * A skill folder that exists here but is not the Truss copy is the project's own
+ * (D-134): filling the Truss files into it would mix two skills in one folder.
+ * The Truss copy is recognised by its unchanged SKILL.md; a missing folder, or one
+ * holding that SKILL.md, may be filled.
+ */
+async function foreignSkillFolder(source, target) {
+  if (!await exists(target)) return false
+  const [mine, theirs] = await Promise.all([
+    fs.readFile(path.join(target, 'SKILL.md')).catch(() => null),
+    fs.readFile(path.join(source, 'SKILL.md')).catch(() => null),
+  ])
+  return !(mine && theirs && mine.equals(theirs))
+}
+
 async function addGroup(root, baselineDir, assets, skip = {}) {
-  const result = { written: [], skipped: [], errors: [] }
+  const result = { written: [], skipped: [], errors: [], foreign: [] }
   for (const skill of assets.skills) {
     if (skip[skill]) continue
+    const source = path.join(baselineDir, '.claude', 'skills', skill)
+    const target = path.join(root, '.claude', 'skills', skill)
+    if (await foreignSkillFolder(source, target)) { result.foreign.push(skill); result.skipped.push(target); continue }
     const copied = await applyTree(
       path.join(baselineDir, '.claude', 'skills', skill),
       path.join(root, '.claude', 'skills', skill),
@@ -251,6 +271,9 @@ export async function runSkills(root, argv) {
         result.written.push(...copied.written)
         result.skipped.push(...copied.skipped)
         result.errors.push(...copied.errors)
+        for (const skill of copied.foreign) {
+          lines.push(`  left    ${skill} — a folder of that name is here and is not the Truss copy; nothing was written into it`)
+        }
       }
       if (result.errors.length) {
         const first = result.errors[0]
@@ -261,6 +284,14 @@ export async function runSkills(root, argv) {
       const plugins = result.plugins.length ? `; plugin enabled in .claude/settings.json: ${result.plugins.join(', ')}` : ''
       console.log(`truss skills: added ${[...selected].join(', ')} (${result.written.length} written, ${result.skipped.length} existing${plugins})`)
       for (const line of lines) console.log(line)
+      const designOn = []
+      for (const group of DESIGN_ALTERNATIVES) {
+        const plugin = groups.get(group)?.plugin
+        if (plugin && (await pluginEnabled(root, plugin) || (!team && await globalPluginEnabled(plugin.key)))) designOn.push(group)
+      }
+      if ([...selected].some(group => DESIGN_ALTERNATIVES.includes(group)) && designOn.length > 1) {
+        console.log(`  note: ${designOn.join(', ')} all answer frontend-design requests and compete for them — keep one: node .truss/bin/truss.mjs skills remove <group>`)
+      }
       return result
     }
 
@@ -306,6 +337,7 @@ export async function restoreSkippedGlobal(root) {
   for (const skill of names) {
     const source = path.join(baselineDir, '.claude', 'skills', skill)
     if (await exists(source)) {
+      if (await foreignSkillFolder(source, path.join(root, '.claude', 'skills', skill))) continue
       const copied = await applyTree(source, path.join(root, '.claude', 'skills', skill))
       if (copied.errors.length) throw new SkillsError(`skills: could not install ${copied.errors[0].path}: ${copied.errors[0].error}`)
       restored.push(skill)

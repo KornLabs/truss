@@ -60,7 +60,9 @@ import { promisify } from 'node:util'
 import { parseBlocks } from '../md.mjs'
 import { writeFileAtomic } from '../scaffold.mjs'
 import { isGitCheckout } from '../git.mjs'
-import { buildExcludes, discoverGroups, droppedSelectedGroups, GROUP_SUCCESSORS, readSelectedGroups, readSkippedGlobal, selectionNames } from '../skill-groups.mjs'
+import { isOsJunk } from '../workspace.mjs'
+import { buildExcludes, discoverGroups, droppedSelectedGroups, GROUP_INFO, GROUP_SINCE, GROUP_SUCCESSORS, readSelectedGroups, readSkippedGlobal, selectionNames } from '../skill-groups.mjs'
+import { compareVersions } from '../update-check.mjs'
 import { pluginEnabled } from '../skill-plugins.mjs'
 import { globalPluginEnabled } from '../global-skills.mjs'
 import { TEAM_FILE } from '../team.mjs'
@@ -262,7 +264,102 @@ export async function planBaseline(target, baseDir, theirsDir, { exclude = null 
       p.note = 'no longer part of the baseline — kept as yours, another file of this skill was edited'
     }
   }
+  // A file you put into a Truss skill's folder is yours, and upgrade never reads
+  // or writes a path the baseline does not have — so a dropped skill whose folder
+  // holds one stays whole, instead of leaving your file behind without its SKILL.md.
+  const baselineRels = new Set(rels)
+  for (const dir of new Set(plan.filter((p) => p.action === 'remove' && p.rel.startsWith('.claude/skills/')).map((p) => skillDirOf(p.rel)))) {
+    // .DS_Store and the like are nobody's work and must not keep a dead skill alive.
+    const own = (await walkRel(path.join(target, dir))).filter((f) => !baselineRels.has(`${dir}/${f}`) && !isOsJunk(path.basename(f)))
+    if (own.length === 0) continue
+    for (const p of plan) {
+      if (p.action === 'remove' && skillDirOf(p.rel) === dir) {
+        p.action = 'skip'
+        p.note = `no longer part of the baseline — kept as yours, the folder holds a file of your own (${own[0]})`
+      }
+    }
+  }
+  // Per skill folder (D-134), two cases a per-file view cannot see:
+  // - a skill new in this version whose folder already exists here belongs to the
+  //   project — a same-name skill of its own. Nothing goes into it, not even the
+  //   files the project does not have, or two skills would share one folder;
+  // - a skill whose SKILL.md the project deleted (the opt-out) gets no new file
+  //   either, or an orphan without SKILL.md would appear.
+  const skillDirs = new Set(plan.filter((p) => p.rel.startsWith('.claude/skills/')).map((p) => skillDirOf(p.rel)))
+  for (const dir of skillDirs) {
+    const [baseSkill, mineSkill, mineDir] = await Promise.all([
+      readBuf(path.join(baseDir, dir, 'SKILL.md')),
+      readBuf(path.join(target, dir, 'SKILL.md')),
+      fs.stat(path.join(target, dir)).then((st) => st.isDirectory(), () => false),
+    ])
+    let note = null
+    if (baseSkill === null && mineDir) note = 'new in this version, but the folder exists here and is yours — nothing written into it'
+    else if (baseSkill !== null && mineSkill === null && mineDir === false) note = null
+    else if (baseSkill !== null && mineSkill === null) note = 'its SKILL.md was deleted here — kept deleted, no new file added'
+    if (!note) continue
+    for (const p of plan) {
+      if (skillDirOf(p.rel) !== dir) continue
+      if (['write', 'merge', 'report'].includes(p.action)) { p.action = 'skip'; p.note = note }
+    }
+  }
   return plan
+}
+
+/**
+ * One line per kind of change to the Truss skills this run touches, by skill
+ * rather than by file (D-134). Skills the project added itself never appear:
+ * the plan holds baseline paths only.
+ */
+export function skillSummaryLines(plan, { dryRun = false } = {}) {
+  const bySkill = new Map()
+  for (const p of plan) {
+    if (!p.rel.startsWith('.claude/skills/')) continue
+    const name = p.rel.split('/')[2]
+    if (!bySkill.has(name)) bySkill.set(name, [])
+    bySkill.get(name).push(p)
+  }
+  const kinds = { new: [], updated: [], removed: [], kept: [], review: [] }
+  for (const [name, entries] of bySkill) {
+    const actions = entries.map((p) => p.action)
+    if (actions.some((a) => ['conflict', 'manual', 'failed', 'report'].includes(a))) kinds.review.push(name)
+    else if (actions.every((a) => ['remove', 'removed'].includes(a))) kinds.removed.push(name)
+    else if (actions.some((a) => a === 'skip') && actions.every((a) => ['skip', 'remove', 'removed'].includes(a))) kinds.kept.push(name)
+    else if (entries.some((p) => p.rel.endsWith(`/${name}/SKILL.md`) && /new in this version/.test(p.note ?? ''))) kinds.new.push(name)
+    else kinds.updated.push(name)
+  }
+  const label = dryRun
+    ? { new: 'would add', updated: 'would update', removed: 'would remove', kept: 'kept as yours', review: 'needs you' }
+    : { new: 'added', updated: 'updated', removed: 'removed', kept: 'kept as yours', review: 'needs you' }
+  const lines = []
+  for (const kind of ['new', 'updated', 'removed', 'kept', 'review']) {
+    const names = kinds[kind]
+    if (names.length) lines.push(`    ${label[kind].padEnd(13)} ${names.length} skill${names.length === 1 ? '' : 's'}: ${names.join(', ')}`)
+  }
+  if (!lines.length) return []
+  return ['  Truss skills (only groups installed here; skills you added yourself are never touched):', ...lines, '']
+}
+
+/**
+ * Groups that arrived after the workspace's old engine and are not on here yet
+ * (D-134). Offered, never installed: a group costs tokens in every session.
+ */
+async function newGroupsSince(target, from, groups, selected) {
+  const out = []
+  for (const [name, since] of Object.entries(GROUP_SINCE)) {
+    const group = groups.get(name)
+    if (!group || compareVersions(since, from) <= 0) continue
+    if (group.plugin ? await pluginEnabled(target, group.plugin) : selected.has(name)) continue
+    out.push(name)
+  }
+  return out
+}
+
+function newGroupLines(names) {
+  if (!names?.length) return []
+  const L = ['  New skill groups in this version — none is installed until you choose it:']
+  for (const name of names) L.push(`    new         ${name.padEnd(13)} ${GROUP_INFO[name] ?? ''}`)
+  L.push(`    ${''.padEnd(11)} add one with: node .truss/bin/truss.mjs skills add <group>`, '')
+  return L
 }
 
 /** `.claude/skills/<name>` for any file inside it; an agent file is its own unit. */
@@ -582,6 +679,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
     const dropped = droppedGroups(plan, groups)
     printReport({ target, from: oldVersion, to: newVersion, plan, backup: null, dryRun: true, engineDivergence, promptsMoved,
       staleGroups: [...new Set([...staleGroups, ...dropped.split])], groups, pluginsPending: await pluginsPending(target, groups, dropped.plugins),
+      newGroups: await newGroupsSince(target, oldVersion, groups, selected),
       legacyDecisionLog: await hasLegacyDecisionLog(target) })
     return { target, from: oldVersion, to: newVersion, plan, dryRun: true, engineDivergence }
   }
@@ -674,6 +772,7 @@ export async function runUpgrade(engineRoot, argv, invokedCwd = null) {
   const dropped = droppedGroups(plan, groups)
   printReport({ ...result, dryRun: false, staleGroups: [...new Set([...staleGroups, ...dropped.split])], groups,
     pluginsPending: await pluginsPending(target, groups, dropped.plugins),
+    newGroups: await newGroupsSince(target, oldVersion, groups, selected),
     legacyDecisionLog: await hasLegacyDecisionLog(target) })
   // A run that still needs a human must not look like a clean one to a script.
   if (plan.some((p) => ['conflict', 'manual', 'failed', 'report'].includes(p.action))) {
@@ -804,7 +903,7 @@ function engineDivergenceLines(engineDivergence, { dryRun, backup }) {
   return lines
 }
 
-function printReport({ target, from, to, plan, backup, promptsMoved, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups, pluginsPending }) {
+function printReport({ target, from, to, plan, backup, promptsMoved, gitignoreUpdated, dryRun, engineDivergence, legacyDecisionLog, staleGroups, groups, pluginsPending, newGroups }) {
   const L = []
   L.push('')
   L.push(dryRun ? `  truss upgrade — dry run: ${from} → ${to}` : `  truss upgrade — ${from} → ${to}`)
@@ -831,10 +930,12 @@ function printReport({ target, from, to, plan, backup, promptsMoved, gitignoreUp
       ? '  No baseline file changed between these versions — but the engine half was not a no-op; see the engine note above.'
       : '  No baseline file changed between these versions — the engine swap was the whole upgrade.')
   } else {
+    L.push(...skillSummaryLines(plan, { dryRun }))
     L.push('  Baseline files:')
     for (const p of plan) L.push(`    ${(ACTION_LABEL[p.action] || p.action).padEnd(11)} ${p.rel.padEnd(26)} ${p.note}`)
   }
   L.push('')
+  L.push(...newGroupLines(newGroups))
 
   // A selection naming a group this baseline no longer has installs nothing and,
   // without this, says nothing either — the adopter is left with the old skills

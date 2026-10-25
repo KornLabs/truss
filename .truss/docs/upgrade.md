@@ -91,13 +91,23 @@ workspace was scaffolded from, at the version you installed. So for each file:
 | the file is binary | reported; never fed to a line merge |
 | new file in this version | created |
 | the file left the baseline | kept as yours — never deleted, with the one exception in the next row |
-| an installed baseline skill or agent left the baseline | removed if unchanged, together with directories that leave empty; an edited copy is kept as yours |
+| an installed baseline skill or agent left the baseline | removed if unchanged, together with directories that leave empty; an edited copy, or one whose folder holds a file of your own, is kept as yours |
+| a skill or file you added under `.claude/` | never written — the plan only knows baseline paths (a dropped skill's folder is listed to find files of yours). A folder of yours with the name of a new baseline skill gets nothing written into it; a skill whose `SKILL.md` you deleted gets no new file |
 | a skill is recorded as skipped for a global copy (`skippedGlobal`) | left out, as if its group were not selected |
 | you had deleted the file | not resurrected; the upstream change is reported, not applied |
 | a write fails (permissions, disk) | that one file is reported as `FAILED`; the rest of the run continues |
 
 A dropped skill is removed as a whole or not at all: if any of its files was edited,
-every file of it stays. The report also lists, under **Plugin groups**, a plugin
+every file of it stays. Above the file list, **Truss skills** sums the run up by skill
+— added, updated, removed, kept as yours, needs you — for the groups installed here
+only. A group that is newer than the old engine and not on yet is listed under
+**New skill groups in this version**; nothing is installed for it until you run
+`truss skills add <group>`, because every group costs context in every session.
+The exception is a workspace without `.claude/.truss-skills.json`, which means *every*
+group: there a new copied group is installed with the run (and listed under **Truss
+skills**); plugin groups are still only offered. `upgrade` does not compare new skills
+against `~/.claude/skills` — `doctor` reports a duplicate as `ST-12`.
+`truss update` shows the same report in its dry run before you decide. The report also lists, under **Plugin groups**, a plugin
 group that neither this workspace nor (outside team mode) your global settings
 enable although the selection names it or its old copies were just removed —
 `superpowers` was copied files before; one `truss skills add superpowers` switches

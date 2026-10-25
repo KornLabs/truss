@@ -665,3 +665,102 @@ describe('upgrade report after review (D-132, D-128)', () => {
     await fs.rm(tmp, { recursive: true, force: true })
   })
 })
+
+// ── D-134: Truss skills follow the release; the project's own skills are never touched ──
+describe('upgrade and the project\'s own skills (D-134)', () => {
+  /** A slop-only workspace on 0.0.1 and a next engine whose baseline is this one, edited by `edit`. */
+  async function skillFixture(edit) {
+    const ws = await makeRoot('truss-upgrade-own-')
+    await runInit(ws, ['--name', 'Own', '--lang', 'English', '--skills', 'slop'])
+    await fs.writeFile(path.join(ws, '.truss/VERSION'), '0.0.1\n')
+    const next = await fs.mkdtemp(path.join(os.tmpdir(), 'truss-upgrade-own-next-'))
+    await fs.cp(path.join(ENGINE_DIR, 'baseline'), path.join(next, '.truss/baseline'), { recursive: true })
+    await fs.writeFile(path.join(next, '.truss/VERSION'), '0.0.2\n')
+    await edit(path.join(next, '.truss/baseline/.claude/skills'))
+    return { ws, next }
+  }
+  const run = async (next, ws, extra = []) => {
+    const logs = []
+    const log = console.log
+    console.log = (...args) => logs.push(args.join(' '))
+    // A run that needs attention sets exit code 3; that is its report, not a test failure.
+    try { return { result: await runUpgrade(next, ['--root', ws, ...extra]), text: logs.join('\n') } } finally { console.log = log; process.exitCode = 0 }
+  }
+
+  it('adds, updates and removes Truss skills, and summarises them by skill', async () => {
+    const { ws, next } = await skillFixture(async (skills) => {
+      await fs.mkdir(path.join(skills, 'slop-new'), { recursive: true })
+      await fs.writeFile(path.join(skills, 'slop-new/SKILL.md'), '---\nname: slop-new\ndescription: new\n---\nnew\n')
+      await fs.appendFile(path.join(skills, 'slop-prose/SKILL.md'), '\nA new upstream line.\n')
+      await fs.rm(path.join(skills, 'slop-humanizer'), { recursive: true })
+    })
+    const { text } = await run(next, ws)
+    assert.equal(await exists(ws, '.claude/skills/slop-new/SKILL.md'), true)
+    assert.match(await read(ws, '.claude/skills/slop-prose/SKILL.md'), /A new upstream line\./)
+    assert.equal(await exists(ws, '.claude/skills/slop-humanizer'), false)
+    assert.match(text, /skills you added yourself are never touched/)
+    assert.match(text, /added\s+1 skill: slop-new/)
+    assert.match(text, /updated\s+1 skill: slop-prose/)
+    assert.match(text, /removed\s+1 skill: slop-humanizer/)
+  })
+
+  it('never reads or writes a skill the project added, even one the release then ships under the same name', async () => {
+    const { ws, next } = await skillFixture(async (skills) => {
+      await fs.mkdir(path.join(skills, 'slop-mine/references'), { recursive: true })
+      await fs.writeFile(path.join(skills, 'slop-mine/SKILL.md'), 'the release\'s version\n')
+      await fs.writeFile(path.join(skills, 'slop-mine/references/extra.md'), 'a file the project does not have\n')
+    })
+    await write(ws, '.claude/skills/my-own/SKILL.md', 'mine\n')
+    await write(ws, '.claude/skills/slop-mine/SKILL.md', 'mine too\n')
+    const { result } = await run(next, ws, ['--force'])
+    assert.equal(await read(ws, '.claude/skills/my-own/SKILL.md'), 'mine\n')
+    assert.equal(await read(ws, '.claude/skills/slop-mine/SKILL.md'), 'mine too\n', 'a name collision is reported, not overwritten')
+    assert.equal(await exists(ws, '.claude/skills/slop-mine/references/extra.md'), false, 'no Truss file is mixed into the folder')
+    assert.equal(result.plan.some(p => p.rel.startsWith('.claude/skills/my-own')), false)
+  })
+
+  it('keeps a dropped Truss skill whole when its folder holds a file of the project\'s own', async () => {
+    const { ws, next } = await skillFixture(async (skills) => {
+      await fs.rm(path.join(skills, 'slop-humanizer'), { recursive: true })
+    })
+    await write(ws, '.claude/skills/slop-humanizer/my-notes.md', 'notes\n')
+    const { result } = await run(next, ws, ['--force'])
+    assert.equal(await exists(ws, '.claude/skills/slop-humanizer/SKILL.md'), true)
+    assert.equal(await read(ws, '.claude/skills/slop-humanizer/my-notes.md'), 'notes\n')
+    assert.match(result.plan.find(p => p.rel === '.claude/skills/slop-humanizer/SKILL.md').note, /file of your own \(my-notes\.md\)/)
+  })
+
+  it('lets OS junk not keep a dropped skill alive', async () => {
+    const { ws, next } = await skillFixture(async (skills) => { await fs.rm(path.join(skills, 'slop-humanizer'), { recursive: true }) })
+    await write(ws, '.claude/skills/slop-humanizer/.DS_Store', 'junk')
+    await run(next, ws, ['--force'])
+    assert.equal(await exists(ws, '.claude/skills/slop-humanizer/SKILL.md'), false)
+  })
+
+  it('adds no file to a skill whose SKILL.md the project deleted, and calls an existing skill that gains a file updated', async () => {
+    const { ws, next } = await skillFixture(async (skills) => {
+      await fs.writeFile(path.join(skills, 'slop-humanizer/NEW.md'), 'new file\n')
+      await fs.mkdir(path.join(skills, 'slop-prose/references'), { recursive: true })
+      await fs.writeFile(path.join(skills, 'slop-prose/references/NEW.md'), 'new file\n')
+    })
+    await fs.rm(path.join(ws, '.claude/skills/slop-humanizer/SKILL.md'))
+    const { text } = await run(next, ws, ['--force'])
+    assert.equal(await exists(ws, '.claude/skills/slop-humanizer/NEW.md'), false)
+    assert.equal(await exists(ws, '.claude/skills/slop-prose/references/NEW.md'), true)
+    assert.match(text, /updated\s+1 skill: slop-prose/)
+    assert.doesNotMatch(text, /added\s+\d+ skills?:/)
+  })
+
+  it('names the groups that arrived after the old engine, and installs none of them', async () => {
+    const { ws, next } = await skillFixture(async () => {})
+    const { text } = await run(next, ws)
+    assert.match(text, /New skill groups in this version/)
+    for (const group of ['diagrams', 'taste', 'uiux']) assert.match(text, new RegExp(`new\\s+${group}\\s`))
+    assert.equal(await exists(ws, '.claude/skills/diagrams-archify'), false)
+    assert.equal(await exists(ws, '.claude/settings.json'), false)
+
+    const { ws: current, next: next2 } = await skillFixture(async () => {})
+    await fs.writeFile(path.join(current, '.truss/VERSION'), '1.6.0\n')
+    assert.doesNotMatch((await run(next2, current, ['--force'])).text, /New skill groups/, 'nothing is new to a 1.6.0 workspace')
+  })
+})

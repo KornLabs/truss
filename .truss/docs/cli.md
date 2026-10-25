@@ -80,11 +80,13 @@ truss skills add all
 ```
 
 `list` shows each group's purpose, its approximate context cost in every session, and its kind: `core` (installed by `init`), `opt-in`, or
-`plugin`. A **plugin group** (`design`, `superpowers`) copies nothing: `add`
+`plugin`. A **plugin group** (`design`, `taste`, `uiux`, `superpowers`) copies nothing: `add`
 registers the upstream marketplace under `extraKnownMarketplaces` and enables the
 plugin under `enabledPlugins` in `.claude/settings.json`, and Claude Code installs
 and updates it from there; `remove` takes both entries out and leaves the rest of
-the file alone.
+the file alone. `design`, `taste` and `uiux` all answer frontend-design
+requests; adding a second one prints a note that they compete — keep one. `uiux`
+reads `~/.claude/.env` for image-generation keys (see `.claude/SOURCES.md`).
 
 `add` never overwrites an existing skill. `remove` deletes only unchanged
 baseline skills of the selected group; existing or modified files are preserved.

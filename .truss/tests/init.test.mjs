@@ -138,7 +138,7 @@ describe('init (core)', () => {
       const res = await runInit(root, ['--name', 'Default', '--lang', 'English'])
 
       assert.deepEqual(res.skills, ['slop'])
-      await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'skills', 'slop-tells', 'SKILL.md')))
+      await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'skills', 'slop-humanizer', 'SKILL.md')))
       await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'seo-audit')))
       await assert.rejects(fs.access(path.join(root, '.claude', 'agents')))
       await assert.rejects(fs.access(path.join(root, '.claude', 'settings.json')), 'no plugin group by default')
@@ -160,7 +160,7 @@ describe('init (core)', () => {
       const selectedRoot = await makeRoot('truss-init-skills-selected-')
       await runInit(selectedRoot, ['--name', 'Selected', '--lang', 'English', '--skills', 'code'])
       await assert.doesNotReject(() => fs.access(path.join(selectedRoot, '.claude', 'skills', 'code-webapp-testing', 'scripts', 'with_server.py')))
-      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'skills', 'slop-tells')), 'an explicit list replaces the core')
+      await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'skills', 'slop-humanizer')), 'an explicit list replaces the core')
       await assert.rejects(fs.access(path.join(selectedRoot, '.claude', 'settings.json')))
     })
 
@@ -187,29 +187,29 @@ describe('init (core)', () => {
       const fs = await import('node:fs/promises')
       const path = await import('node:path')
       const saved = process.env.TRUSS_GLOBAL_CLAUDE_DIR
-      // stop-slop: the upstream name, same description → the same skill. my-diagrams:
+      // humanizer: the upstream name, same description → the same skill. my-diagrams:
       // carries the baseline name itself. slop-prose's upstream name with another
       // description is somebody else's skill and must not count.
       process.env.TRUSS_GLOBAL_CLAUDE_DIR = await globalWith([
-        ['stop-slop', 'stop-slop', await baselineDescription('slop-tells')],
+        ['humanizer', 'humanizer', await baselineDescription('slop-humanizer')],
         ['my-diagrams', 'slop-diagrams'],
         ['no-ai-slop', 'no-ai-slop', 'an unrelated skill of the same name'],
       ])
       try {
         const root = await makeRoot('truss-init-skills-global-')
         const res = await runInit(root, ['--name', 'Global', '--lang', 'English'])
-        assert.deepEqual(res.skippedGlobal, { 'slop-diagrams': 'my-diagrams', 'slop-tells': 'stop-slop' })
-        await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'slop-tells')))
+        assert.deepEqual(res.skippedGlobal, { 'slop-diagrams': 'my-diagrams', 'slop-humanizer': 'humanizer' })
+        await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'slop-humanizer')))
         await assert.rejects(fs.access(path.join(root, '.claude', 'skills', 'slop-diagrams')))
         await assert.doesNotReject(() => fs.access(path.join(root, '.claude', 'skills', 'slop-prose', 'SKILL.md')))
         assert.deepEqual(JSON.parse(await read(root, '.claude/.truss-skills.json')), {
-          groups: ['slop'], skippedGlobal: { 'slop-diagrams': 'my-diagrams', 'slop-tells': 'stop-slop' },
+          groups: ['slop'], skippedGlobal: { 'slop-diagrams': 'my-diagrams', 'slop-humanizer': 'humanizer' },
         })
 
         const forced = await makeRoot('truss-init-skills-global-off-')
         const off = await runInit(forced, ['--name', 'Forced', '--lang', 'English', '--no-global-check'])
         assert.deepEqual(off.skippedGlobal, {})
-        await assert.doesNotReject(() => fs.access(path.join(forced, '.claude', 'skills', 'slop-tells', 'SKILL.md')))
+        await assert.doesNotReject(() => fs.access(path.join(forced, '.claude', 'skills', 'slop-humanizer', 'SKILL.md')))
       } finally {
         process.env.TRUSS_GLOBAL_CLAUDE_DIR = saved
       }
