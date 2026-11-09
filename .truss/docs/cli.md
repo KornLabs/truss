@@ -521,6 +521,9 @@ truss unset clarify          # back to the host agent's own behavior
 
 ### Preference keys
 
+Every key also takes `truss unset <key>`: the line disappears from `AGENTS.md`
+and nothing about that key is recorded.
+
 | Key | Values |
 |---|---|
 | `subagents` | never · ask · research · full |
