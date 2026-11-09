@@ -123,6 +123,50 @@ export function bootFilesFrom(lines) {
 export const wordCount = (content) => (content.trim().match(/\S+/g) || []).length
 export const toTokens  = (words) => Math.round(words * TOKENS_PER_WORD)
 
+// A workspace may LOWER the warn band for itself with `boot-budget: <tokens>` in
+// state/profile.md (D-136). The use case is a project whose sessions or subagents
+// run on small local models: they follow long boot text worse, and every subagent
+// loads AGENTS.md again, so 18k is too late a warning there. Only lowering: a
+// higher budget would turn this into a second, unreviewed way to silence CX-01,
+// and raising is what `truss ack context` is for (reviewed, with a re-fire
+// ceiling). The error band is never moved — 30k stays unambiguous ballast.
+export const MIN_BUDGET_TOKENS = 1000
+
+/**
+ * Parse `boot-budget:` from the profile text.
+ * @param {string|null|undefined} profile state/profile.md content
+ * @returns {{value: number|null, raw: string|null, valid: boolean}}
+ *   raw is the text after the key when the line exists (null when absent or empty).
+ */
+export function bootBudgetFrom(profile) {
+  // Comments first, whole blocks across lines: an example or a commented-out key
+  // in the profile is documentation, not configuration, and must not win.
+  const text = (profile ?? '').replace(/<!--[\s\S]*?-->/g, '')
+  const lines = text.split(/\r?\n/).filter((l) => /^\s*boot-budget\s*:/i.test(l))
+  if (lines.length > 1) return { value: null, raw: `${lines.length} boot-budget lines`, valid: false }
+  const raw = lines.length ? lines[0].slice(lines[0].indexOf(':') + 1).trim() : ''
+  if (!raw) return { value: null, raw: null, valid: true }
+  // Plain digits, or thousands groups with one separator kind (8000, 8_000, 8.000,
+  // 8,000, 8'000). Anything looser (1,5,0,0 or 12.5) is a guess about what the
+  // writer meant, and a guess must not set a budget.
+  const m = raw.match(/^(\d+|\d{1,3}(?:([_.,'])\d{3})(?:\2\d{3})*)$/)
+  const value = m ? Number(m[1].replace(/[_.,']/g, '')) : NaN
+  const valid = Number.isInteger(value) && value >= MIN_BUDGET_TOKENS && value < WARN_TOKENS
+  return { value: valid ? value : null, raw, valid }
+}
+
+/**
+ * The warn threshold CX-01 and `truss ack context` judge this workspace against.
+ * One function for both, for the reason measureBootContext gives (L-006).
+ * @param {{files?: Map<string, {content?: string}>}} ctx
+ * @returns {{warn: number, source: 'default'|'profile', invalid: string|null}}
+ */
+export function warnTokensFor(ctx) {
+  const b = bootBudgetFrom(ctx?.files?.get('state/profile.md')?.content)
+  if (b.value != null) return { warn: b.value, source: 'profile', invalid: null }
+  return { warn: WARN_TOKENS, source: 'default', invalid: b.valid ? null : b.raw }
+}
+
 // The current phase's `read:` targets (§1 load-order step 6, deterministic part).
 // `phases` is the object returned by lib/md.mjs parsePhases() — { frontmatter, defs }.
 // Splits on whitespace as well as , ; so "read: a.md b.md" also works.
@@ -147,7 +191,7 @@ export function phaseReadTargets(phases) {
  * @param {{files: Map<string, {content?: string}>, phases?: object, root?: string}} ctx
  * @param {(rel: string) => Promise<string|null>} [readOutside] resolve a path the
  *        workspace did not load (a phase `read:` target outside the table).
- * @returns {Promise<{counted: Array<{file:string, words:number}>, words: number,
+ * @returns {Promise<{counted: Array<{file:string, words:number, chars:number}>, words: number,
  *                    tokens: number, boot: ReturnType<typeof bootFilesFrom>,
  *                    bootFiles: string[], priorSet: Set<string>}>}
  */
@@ -157,7 +201,7 @@ export async function measureBootContext(ctx, readOutside) {
   const add = (rel, content) => {
     if (content == null || seen.has(rel)) return
     seen.add(rel)
-    counted.push({ file: rel, words: wordCount(content) })
+    counted.push({ file: rel, words: wordCount(content), chars: content.length })
   }
 
   const boot = bootFilesFrom(ctx?.files?.get('AGENTS.md')?.lines ?? [])

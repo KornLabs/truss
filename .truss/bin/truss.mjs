@@ -354,6 +354,28 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
 
   // ── JSON output ─────────────────────────────────────────────────────────
   if (wantJson) {
+    // What the boot context is made of, per file (D-136): tooling that tracks the
+    // budget across workspaces reads it here instead of recounting with its own
+    // rules. Same measurement and same warn band as CX-01 and `truss ack context`.
+    // An extra, never a reason to lose the report: on any failure it is null.
+    let bootContext = null
+    try {
+      const budget = await import('../lib/context-budget.mjs')
+      const measured = await budget.measureBootContext(ctx, async (rel) => {
+        try { return await fs.readFile(path.join(root, rel), 'utf8') } catch { return null }
+      })
+      const band = budget.warnTokensFor(ctx)
+      bootContext = {
+        files: measured.counted.map(c => ({ file: c.file, words: c.words, tokens: budget.toTokens(c.words), chars: c.chars })),
+        words: measured.words,
+        tokens: measured.tokens,     // from the word total; per-file tokens are rounded each
+        chars: measured.counted.reduce((s, c) => s + c.chars, 0),
+        warnTokens: band.warn,
+        warnSource: band.source,     // 'default' or 'profile' (boot-budget in state/profile.md)
+        errorTokens: budget.ERROR_TOKENS,
+        list: measured.boot.ok ? 'section-1' : 'fallback',
+      }
+    } catch { bootContext = null }
     const report = {
       initialized: true,       // reached only past the agentsMissing guard → workspace exists.
                                // Stamped so a fresh doctor run self-heals a stale uninit report.
@@ -362,6 +384,7 @@ code{background:#eee;padding:2px 6px;border-radius:4px;font-size:14px}</style></
       version: getVersion(),
       gate,
       summary: { errors: errors.length, warnings: warnings.length, infos: infos.length, total: findings.length, occurrences: occurrenceTotal, suppressed: suppressed.length, unapplied: unapplied.length },
+      bootContext,
       // A marker that silenced nothing is exactly what a tooling consumer needs to
       // see: it looks like a decision in the file and has no effect.
       unappliedMarkers: unapplied,
@@ -554,8 +577,9 @@ async function runAck(args) {
   // which point `ack` could answer "already under the threshold" about a warning
   // CX-01 was still printing: a finding that cannot be cleared, which is the one
   // outcome this whole mechanism exists to prevent.
-  const { measureBootContext, WARN_TOKENS, ERROR_TOKENS } = await import('../lib/context-budget.mjs')
+  const { measureBootContext, warnTokensFor, ERROR_TOKENS } = await import('../lib/context-budget.mjs')
   const ctx = await loadWorkspace(root)
+  const { warn: WARN_TOKENS } = warnTokensFor(ctx)
   const { tokens } = await measureBootContext(ctx, async (rel) => {
     try { return await fs.readFile(path.join(root, rel), 'utf8') } catch { return null }
   })

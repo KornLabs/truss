@@ -387,7 +387,13 @@ truss doctor --fix-prompt # print a copyable remediation prompt for an agent
 ```
 
 `--json` writes to **stdout** as well as to the file, so `truss doctor --json |
-jq '.findings'` works. The note naming the written path goes to stderr, which
+jq '.findings'` works. Besides the findings, the report carries `bootContext`:
+the size of every boot file (`words`, `tokens`, `chars`), the totals, and the warn
+band it is judged against (`warnTokens`, `warnSource`: `default` or `profile`,
+see [`ack`](#ack)), measured exactly as `CX-01` measures. Tokens are rounded per
+file, so they need not add up to `tokens`; `chars` is the string length. The
+field is missing from the report of a folder that is not a workspace yet, and
+`null` if the measurement itself failed. The note naming the written path goes to stderr, which
 keeps the pipe clean. `--fix-prompt` also writes to stdout, so combining the two
 puts two formats in one stream — pick one per run if you are piping.
 
@@ -584,7 +590,8 @@ truss ack context --note "24 decisions, all live"
 truss ack context --clear               # drop the baseline
 ```
 
-`CX-01` judges the boot context against absolute bands (18k warn / 30k error).
+`CX-01` judges the boot context against absolute bands (18k warn, or a lower
+`boot-budget` below / 30k error).
 An absolute band cannot tell a bloated workspace from a legitimately big one, so
 without this command a lean project that grows past 18k carries a permanent,
 unclearable warning — and an unclearable finding trains you to stop reading
@@ -600,6 +607,26 @@ cannot silence an error, and `truss ack context` refuses to record one.
 The record lives in `.truss/out/context-ack.json`, gitignored like `doctor.json`:
 it is a local reading judgement, not a project fact, so it costs zero boot tokens
 and a fresh clone correctly starts unreviewed.
+
+**A lower band for one workspace.** A project whose sessions or subagents run on
+small local models can set its own warn band in `state/profile.md`:
+
+```
+boot-budget: 8000
+```
+
+The value is in tokens (words × 1.5, like `CX-01`), written as plain digits or in
+thousands groups (`8000`, `8_000`, `8.000`), and can only **lower** the band: from
+1000 up to below 18000. A higher budget is not accepted, because raising is what
+the reviewed `ack` is for, and the error band (30k) never moves. A key line that
+cannot be used, or a second one, is ignored and reported as `CX-03` (info); a
+line inside an HTML comment is documentation and is not read. `CX-01`,
+`truss ack context` and `doctor --json` all judge against the same band.
+
+The budget is a warn band like the default one: `truss ack context` can still
+record a reviewed size above it, and the finding is then downgraded within the
+same 15 % headroom. `SY-09` keeps its own fixed 18k line, because it asks a
+different question: whether a session that reads every decision still has room.
 
 The trim itself is the `cleanup` ritual (`.truss/docs/rituals/cleanup.md`), which
 proposes dispositions and leaves execution to you.

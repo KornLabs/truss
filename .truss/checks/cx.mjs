@@ -1,8 +1,10 @@
 // checks/cx.mjs — Context-size checks (CX-01, CX-02)
 //
 // CX-01  W/E  mandatory Truss boot metadata exceeds the token budget
-//             (warn ≥ 18000, error ≥ 30000 token-equivalent; words × 1.5 heuristic)
+//             (warn ≥ 18000, or lower with `boot-budget:` in state/profile.md (D-136);
+//             error ≥ 30000 token-equivalent, never moved; words × 1.5 heuristic)
 // CX-02  I    the boot list could not be read from AGENTS.md §1 — CX-01 fell back
+// CX-03  I    `boot-budget:` in state/profile.md is not a usable number — CX-01 uses the default band
 //
 // "Mandatory Truss boot metadata" = the deterministic files an agent loads per the
 // AGENTS.md §1 load order — READ OUT OF §1 (bootFilesFrom), not out of a constant
@@ -41,11 +43,12 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { CONTEXT_FILES, TOKENS_PER_WORD, WARN_TOKENS, ERROR_TOKENS, toTokens, measureBootContext } from '../lib/context-budget.mjs'
+import { CONTEXT_FILES, TOKENS_PER_WORD, WARN_TOKENS, ERROR_TOKENS, MIN_BUDGET_TOKENS, toTokens, measureBootContext, warnTokensFor } from '../lib/context-budget.mjs'
 import { ackVerdict } from '../lib/context-ack.mjs'
 
 export const meta = [
-  { id: 'CX-01', severity: 'W', title: 'mandatory Truss boot metadata exceeds the token budget', description: `Excludes task-selected domain/source context; W ≥ ${WARN_TOKENS}, E ≥ ${ERROR_TOKENS} token-equivalent (words × 1.5)` },
+  { id: 'CX-01', severity: 'W', title: 'mandatory Truss boot metadata exceeds the token budget', description: `Excludes task-selected domain/source context; W ≥ ${WARN_TOKENS} (or a lower boot-budget in state/profile.md, D-136), E ≥ ${ERROR_TOKENS} token-equivalent (words × 1.5)` },
+  { id: 'CX-03', severity: 'I', title: 'boot-budget in state/profile.md is not usable', description: `A workspace may lower the CX-01 warn band with \`boot-budget: <tokens>\` (${MIN_BUDGET_TOKENS} ≤ n < ${WARN_TOKENS}, D-136); anything else is ignored, and said so instead of silently` },
   { id: 'CX-02', severity: 'I', title: 'the boot list could not be read from AGENTS.md §1', description: 'CX-01 then measures the shipped six-file list instead of what this workspace actually loads — info, because a §1 the parser does not recognise is a shape it has not seen, not a broken workspace (D-081)' },
 ]
 
@@ -66,6 +69,19 @@ export async function run(ctx) {
       try { return await fs.readFile(path.join(ctx.root, rel), 'utf8') } catch { return null }
     },
   )
+
+  // The warn band this workspace is judged against: the default, or a lower one
+  // the workspace set for itself (D-136). The error band never moves.
+  const { warn, source: warnSource, invalid } = warnTokensFor(ctx)
+  if (invalid != null) {
+    findings.push({
+      id: 'CX-03', severity: 'I',
+      file: 'state/profile.md',
+      message: `boot-budget is ignored ("${invalid}") — it must be one line with a whole number of tokens from ${MIN_BUDGET_TOKENS} up to below ${WARN_TOKENS}; CX-01 uses the default ${WARN_TOKENS}`,
+      fix: `Write a lower budget as plain digits (e.g. \`boot-budget: 8000\`), or remove the line. A budget at or above ${WARN_TOKENS} is not accepted: to live with a bigger boot context, review it and record it with \`truss ack context\`.`,
+    })
+  }
+  const warnLabel = warnSource === 'profile' ? `${warn} warn (boot-budget in state/profile.md)` : `${warn} warn`
 
   if (!boot.ok) {
     findings.push({
@@ -101,11 +117,11 @@ export async function run(ctx) {
   // instance red", not "we hide whatever the new measurement finds".
   const crossedOnlyByNewFiles = (tokens) =>
     boot.ok && newlyCounted.length > 0 &&
-    tokens < ERROR_TOKENS && toTokens(priorWords) < WARN_TOKENS
+    tokens < ERROR_TOKENS && toTokens(priorWords) < warn
 
-  if (tokens >= WARN_TOKENS) {
+  if (tokens >= warn) {
     const hardSeverity = tokens >= ERROR_TOKENS ? 'E' : 'W'
-    const threshold = hardSeverity === 'E' ? `${ERROR_TOKENS} error` : `${WARN_TOKENS} warn`
+    const threshold = hardSeverity === 'E' ? `${ERROR_TOKENS} error` : warnLabel
     const heaviest = [...counted]
       .sort((a, b) => b.words - a.words)
       .slice(0, 3)
@@ -125,7 +141,7 @@ export async function run(ctx) {
         id: 'CX-01', severity: 'I',
         file: 'AGENTS.md',
         message: `mandatory Truss boot metadata ≈ ${tokens} tokens — over the ${threshold} threshold, but only because §1 also names ${newlyCounted.join(', ')}, which earlier releases did not count (≈${toTokens(priorWords)} without them). Info, not a warning, because our change is what moved it. Heaviest: ${heaviest}. Counted: ${countedList}`,
-        fix: `Read the newly counted files and decide whether they belong in every session's boot. If they do, record the size with \`truss ack context\`; if they do not, route them out of §1. Either way this becomes a full warning once the long-counted files alone exceed ${WARN_TOKENS}.`,
+        fix: `Read the newly counted files and decide whether they belong in every session's boot. If they do, record the size with \`truss ack context\`; if they do not, route them out of §1. Either way this becomes a full warning once the long-counted files alone exceed ${warn}.`,
       })
     } else if (verdict.downgraded) {
       // Reviewed and judged lean at `baseline`; growth since then is still
