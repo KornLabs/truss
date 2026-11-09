@@ -392,6 +392,44 @@ describe('BL-03: invalid pref value detected', async () => {
       `legacy key=off must not produce a finding; got ${JSON.stringify(findings)}`)
   })
 
+  it('stays silent on the retired scope=balanced line (D-135)', async () => {
+    const lines = [
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '',
+      '**SCOPE**',
+      '- scope=balanced :: written by an older engine',
+      '<!-- truss:end preferences -->',
+    ]
+    const ctx = {
+      blocks: parseBlocks(lines),
+      phases: { frontmatter: {}, ordered: [], defs: new Map() },
+      files: new Map(),
+    }
+    const findings = await bl.run(ctx)
+    assert.equal(findings.filter(f => f.id === 'BL-03').length, 0,
+      `scope=balanced must not produce a finding; got ${JSON.stringify(findings)}`)
+  })
+
+  it('treats balanced as an alias for scope only (D-135)', async () => {
+    const lines = [
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '',
+      '**AUTONOMY**',
+      '- subagents=balanced :: not a value of this key',
+      '<!-- truss:end preferences -->',
+    ]
+    const ctx = {
+      blocks: parseBlocks(lines),
+      phases: { frontmatter: {}, ordered: [], defs: new Map() },
+      files: new Map(),
+    }
+    const findings = (await bl.run(ctx)).filter(f => f.id === 'BL-03')
+    assert.equal(findings.length, 1, `subagents=balanced must be reported; got ${JSON.stringify(findings)}`)
+    assert.equal(findings[0].severity, 'E')
+  })
+
   // D-109: control-word was removed after 1.0.0. A workspace that set it gets a
   // migration warning, never an unknown-key error.
   it('reports a leftover control-word as retired (W), not unknown (E)', async () => {
@@ -1219,6 +1257,62 @@ describe('render + set end-to-end (T4)', () => {
     agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
     assert(!/subagents=/.test(agents), 'set <key> off should leave no directive behind')
 
+    await rmTmp(tmp)
+  })
+
+  // D-135: `subagents ask` proposes and waits; `unset` leaves no line at all;
+  // `scope balanced` is retired into the unset path like `off`.
+  it('subagents ask renders, unset removes it, scope balanced unsets', async () => {
+    const tmp = await mkTmp('e2e-ask')
+    await fs.cp(ENGINE_DIR, path.join(tmp, '.truss'), { recursive: true })
+    await writeFileIn(tmp, 'AGENTS.md', [
+      '# AGENTS.md', '',
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '',
+      '**AUTONOMY**',
+      '- scope=balanced :: written by an older engine',
+      '<!-- truss:end preferences -->',
+      '',
+    ].join('\n'))
+    const bin = path.join(tmp, '.truss', 'bin', 'truss.mjs')
+
+    await execFileP('node', [bin, 'set', 'subagents', 'ask'], { cwd: tmp })
+    let agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(/-\s*subagents=ask\s*::\s*spawn no subagent on your own initiative/.test(agents),
+      'subagents=ask should render its directive')
+    assert(/gate-advocate` counts as approved/.test(agents), 'ask should exempt a set gate-advocate')
+    assert(!/scope=balanced/.test(agents), 'the next write should drop the retired scope=balanced line')
+
+    await execFileP('node', [bin, 'unset', 'subagents'], { cwd: tmp })
+    agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(!/subagents/.test(agents), 'unset should leave no trace of the key')
+
+    await execFileP('node', [bin, 'set', 'scope', 'thorough'], { cwd: tmp })
+    const { stdout } = await execFileP('node', [bin, 'set', 'scope', 'balanced'], { cwd: tmp })
+    assert(/truss unset scope/.test(stdout), 'set scope balanced should point at unset')
+    agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(!/scope=/.test(agents), 'set scope balanced should leave no directive behind')
+
+    await rmTmp(tmp)
+  })
+
+  it('gate-advocate is approved under subagents never', async () => {
+    const tmp = await mkTmp('e2e-gate-never')
+    await fs.cp(ENGINE_DIR, path.join(tmp, '.truss'), { recursive: true })
+    await writeFileIn(tmp, 'AGENTS.md', [
+      '# AGENTS.md', '',
+      '<!-- truss:begin preferences -->',
+      '> provenance',
+      '<!-- truss:end preferences -->',
+      '',
+    ].join('\n'))
+    const bin = path.join(tmp, '.truss', 'bin', 'truss.mjs')
+    await execFileP('node', [bin, 'set', 'subagents', 'never'], { cwd: tmp })
+    await execFileP('node', [bin, 'set', 'gate-advocate', 'on'], { cwd: tmp })
+    const agents = await fs.readFile(path.join(tmp, 'AGENTS.md'), 'utf8')
+    assert(/subagents=never\s*::[^\n]*Sole exception: a set `gate-advocate`/.test(agents))
+    assert(/gate-advocate=on\s*::[^\n]*always approved, whatever `subagents` says/.test(agents))
     await rmTmp(tmp)
   })
 

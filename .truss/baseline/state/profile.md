@@ -1,7 +1,7 @@
 ## Project
 
 name: [project name]
-language: [primary language for all agent output — e.g. English, German]
+language: [language of the text in workspace files, e.g. English, German; names stay English]
 code-root:
 <!-- optional relative directory holding the work product; overlay default repo/; empty = none -->
 pm-method: [kanban | scrum | none | custom]

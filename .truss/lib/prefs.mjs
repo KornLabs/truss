@@ -15,10 +15,14 @@
 // Everything whose floor is universally right lives as a fixed rule in
 // AGENTS.md §3/§4.
 export const PREFS_CATALOG = [
-  { key: 'subagents',       values: ['never', 'research', 'full'] },
+  // `ask` (D-135): delegate nothing unprompted; propose a subagent only when it
+  // clearly pays off and wait for the human's yes.
+  { key: 'subagents',       values: ['never', 'ask', 'research', 'full'] },
   { key: 'verify-inputs',   values: ['on'] },
   { key: 'clarify',         values: ['ask', 'infer'] },
-  { key: 'scope',           values: ['minimal', 'balanced', 'thorough'] },
+  // `balanced` was retired in D-135: "match scope to the problem" is what a host
+  // does without a directive, so it was `unset` under another name.
+  { key: 'scope',           values: ['minimal', 'thorough'] },
   { key: 'auto-commit',     values: ['never', 'suggest', 'on'] },
   { key: 'gate-advocate',   values: ['on', 'agentic'] },
   { key: 'branch-guard',    values: ['strict'] },
@@ -32,10 +36,16 @@ export const PREFS_CATALOG = [
 // A `set <key> off` is routed to the unset path and says so.
 export const LEGACY_UNSET_VALUES = new Set(['off'])
 
+// Per-key values that turned out to be the host's native behaviour under a
+// name, so they mean "no preference" as well (D-135: `scope balanced`).
+// Same treatment as `off`: accepted, routed to unset, never rendered.
+export const LEGACY_UNSET_BY_KEY = new Map([
+  ['scope', new Set(['balanced'])],
+])
+
 // True when a (key, value) pair should produce no preferences-block line.
-// Key-independent today; the signature keeps call sites stable if that changes.
-export function isUnsetValue(_key, value) {
-  return LEGACY_UNSET_VALUES.has(value)
+export function isUnsetValue(key, value) {
+  return LEGACY_UNSET_VALUES.has(value) || (LEGACY_UNSET_BY_KEY.get(key)?.has(value) ?? false)
 }
 
 // Keys retired in D-029 (and later, as noted per row). Their behaviour either became a fixed rule in AGENTS.md

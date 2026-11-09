@@ -6,7 +6,7 @@
 //
 // Argument semantics, step order and write discipline:
 //   --name <name>   → profile.md `name:`, VISION/README titles
-//   --lang <lang>   → profile.md `language:` (the language the agent answers in)
+//   --lang <lang>   → profile.md `language:` (the language of the text in workspace files)
 //   --overlay       → existing-project mode (phases ingest→operate, .gitignore +repo/)
 //   --code-root <dir> → (overlay only) use an existing relative directory instead
 //                       of repo/; no placement or .gitignore mutation.
@@ -91,7 +91,7 @@ const execFileP = promisify(execFile);
 export class InitError extends Error {}
 
 const LANG_TOKEN =
-  "[primary language for all agent output — e.g. English, German]";
+  "[language of the text in workspace files, e.g. English, German; names stay English]";
 
 async function exists(p) {
   try {
@@ -204,7 +204,7 @@ async function resolveInteractive(opts, groups, baselineDir) {
       opts.name = (await rl.question("Project name: ")).trim() || null;
     if (!opts.lang)
       opts.lang =
-        (await rl.question("Primary agent language (e.g. English): ")).trim() ||
+        (await rl.question("Language for workspace file contents (e.g. English): ")).trim() ||
         null;
     if (!opts.overlay) {
       const o = (await rl.question("Overlay an existing project? (y/N): "))

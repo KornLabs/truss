@@ -3,6 +3,7 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { loadWorkspace } from '../workspace.mjs'
+import { isUnsetValue } from '../prefs.mjs'
 import { listDomains } from '../domains.mjs'
 import { branchReport, recentCommits, fileLineAges, gitChangedPaths } from '../git.mjs'
 import { observe, presenceLines, indexLockAge } from '../presence.mjs'
@@ -105,7 +106,10 @@ export async function runStatus(root, argv) {
   // work — and `status` is what a session runs to find its footing, at the start
   // and after a compaction (TF-010). Keys only; the directive text is in the
   // block this was rendered from.
+  // Legacy no-preference lines (`key=off`, `scope=balanced`) direct nothing,
+  // so they are not shown as active (D-135).
   const prefRows = parsePrefsRows(ctx.blocks?.get('preferences')?.innerLines ?? [])
+    .filter(r => !isUnsetValue(r.key, r.value))
   if (prefRows.length > 0) {
     console.log(`  Prefs:   ${prefRows.map(r => `${r.key}=${r.value}`).join(' · ')}`)
   }

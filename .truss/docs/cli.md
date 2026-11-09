@@ -29,7 +29,7 @@ truss init --name "My Project" --lang English
 | Flag | Meaning |
 |---|---|
 | `--name <name>` | project name (used in `profile.md`, VISION/README titles); skips the interactive prompt |
-| `--lang <lang>` | primary language for agent output, e.g. `English`, `German` |
+| `--lang <lang>` | language of the text in workspace files, e.g. `English`, `German`; file, folder and command names stay English (`AGENTS.md` §3) |
 | `--overlay` | existing-project mode: installs the `ingest → operate` phase flow and adds `repo/` to `.gitignore`. `init` never places the code itself — clone or symlink it into `repo/` yourself |
 | `--no-phases` | scaffold without `state/phases.md`. The workspace then runs with no phase model at all: no gates, no `forbidden` lists, no exit criteria, and the `AGENTS.md` phase block carries a one-line notice instead. The default stays *with* phases — gates are the one place Truss can refuse. Reversible in both directions: add `state/phases.md` and run `render` to switch phases on, delete it and run `render` to switch them off. init refuses rather than deleting an existing `state/phases.md` |
 | `--code-root <dir>` | (overlay only) select exactly one existing relative in-workspace directory as the code-worktree boundary instead of `repo/`; it is not moved or added to `.gitignore` |
@@ -523,10 +523,10 @@ truss unset clarify          # back to the host agent's own behavior
 
 | Key | Values |
 |---|---|
-| `subagents` | never · research · full |
+| `subagents` | never · ask · research · full |
 | `verify-inputs` | on |
 | `clarify` | ask · infer |
-| `scope` | minimal · balanced · thorough |
+| `scope` | minimal · thorough |
 | `auto-commit` | never · suggest · on |
 | `gate-advocate` | on · agentic |
 | `branch-guard` | strict |
@@ -546,8 +546,20 @@ plausibly *more* than a project wants. The other keys have nothing to forbid —
 no project asks to take handed figures at face value — so their absence is the
 whole story.
 
-Upgrading from an older instance: `off` used to be that absence, written as a
-value. It stays accepted — `truss set <key> off` does the right thing and names
+`subagents ask` sits between the two: the agent spawns nothing on its own, but
+when a subagent would clearly pay off (parallel independent work, a
+fresh-context review before an expensive run, research that would flood its
+context) it proposes one in a line and waits for a yes. `gate-advocate` is the
+one subagent that needs no approval: when you set it, it runs at phase exit
+under `subagents never` and `subagents ask` alike.
+
+`scope balanced` is gone: "match scope to the problem" is what a host agent does
+without any directive, so it was absence under a name. Like `off`, it stays
+accepted as input (`truss set scope balanced` unsets the key and says so), is
+never reported by `doctor`, and is dropped from the block at the next write.
+
+Upgrading from an older instance: `off` used to mean "no preference", written as
+a value. It stays accepted — `truss set <key> off` does the right thing and names
 its successor, `doctor` never reports an existing `key=off` line — but it is no
 longer written, listed or documented, and the next write of any key drops it
 from the block. `set` and `unset` name each line they drop. Keys retired in

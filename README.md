@@ -58,7 +58,7 @@ unambiguous.
 
 **Sessions that stay on the task:** The mandatory boot set is about 3.2k tokens; everything else loads only on demand. The window stays free for the actual work, so sessions live longer, degrade later, and cost less.
 
-**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents for research or stay single-threaded? Nothing is preset, so your AI tool keeps its own behavior until you change something. Set what you want once (`truss set`), remove it again with `truss unset`, and every future session honors it.
+**Preferences set once, not repeated in every prompt:** How critical should the agent be with your input? Ask on ambiguity or pick a solution itself? Spawn subagents freely, only after asking you, or not at all? Nothing is preset, so your AI tool keeps its own behavior until you change something. Set what you want once (`truss set`), remove it again with `truss unset`, and every future session honors it.
 
 **Support for the structure:** A small, zero-dependency CLI backs the system: it checks that the files still follow their structure, warns when state drifts or a file grows past focus, and keeps generated blocks in sync. It only reports — every warning leaves the decision to you and the agent.
 
@@ -123,7 +123,7 @@ node .truss/bin/truss.mjs init
 node .truss/bin/truss.mjs doctor
 ```
 
-`init` asks for a project name and a language and records both in `state/profile.md`. That language (`--lang`) governs every free text in the workspace — `VISION.md`, state files, entries, briefings, notes (`AGENTS.md` §3). English stays for what machines parse (`D-NNN`, `focus:`), and for the engine itself: `AGENTS.md`, `.truss/docs/`, CLI output.
+`init` asks for a project name and a language and records both in `state/profile.md`. That language (`--lang`) governs the text inside workspace files: `VISION.md`, state files, entries, briefings, notes (`AGENTS.md` §3). Names stay English, as is usual among developers: file and folder names, CLI commands and options, script, branch and skill names, commit messages, and what machines parse (`D-NNN`, `focus:`). So does the engine itself: `AGENTS.md`, `.truss/docs/`, CLI output. In chat the agent answers in the language you write in.
 
 `init` doesn't scaffold and leave you at a blank page. It ends with your next steps and a **ready-to-paste boot prompt**: drop it into your AI tool, add your idea, and the agent interviews you into `VISION.md`, `state/profile.md`, and a phase plan instead of handing you an empty template:
 
@@ -190,7 +190,7 @@ Truss is small on purpose. These are the decisions that shaped it and what each 
 ### Humans decide, scripts report
 
 9. **Scripts check and report; they never decide.** `doctor` is read-only. Writes go through explicit, narrow commands (`set`, `render`, `phase`), and every finding is a warning for you and the agent to act on, not an action taken for you.
-10. **You advance the phase.** Phases widen or narrow what an agent may do. At the exit it runs the gate and leaves you one entry with the verdict; you set `current:` yourself with `truss phase <id>`, which refuses an uncleared gate without `--override-gate`. An action against the forbidden list makes the agent name the conflict and ask before it proceeds. Set `phase-lock: advisory` to harden that into a stop that binds its subagents too, or `gate-advocate` to have a review subagent challenge the exit verdict first. It may restructure future phases, never its own active guardrails.
+10. **You advance the phase.** Phases widen or narrow what an agent may do. At the exit it runs the gate and leaves you one entry with the verdict; you set `current:` yourself with `truss phase <id>`, which refuses an uncleared gate without `--override-gate`. An action against the forbidden list makes the agent name the conflict and ask before it proceeds. Its subagents inherit that forbidden list. Set `gate-advocate` to have a review subagent challenge the exit verdict first; it runs even when `subagents` is `never` or `ask`. It may restructure future phases, never its own active guardrails.
 11. **Human work is routed, not lost.** Anything **only you** can do becomes an `HT-NNN` entry in `HUMAN-TODOS.md`. Undecided questions become briefings in `state/open-decisions.md` with options and trade-offs, waiting for your decision instead of being settled silently.
 12. **Truss is a transparent nudge system, not enforcement.** Phase limits and hard rules are behavioral instructions to the agent. Truss reports evidence — grammar, uncommitted forbidden-path changes, exit artifacts — but it does not authenticate actors or intercept file writes, and the docs say so plainly. If your agent host adds an enforcement boundary, Truss composes with it.
 

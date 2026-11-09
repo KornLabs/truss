@@ -6,7 +6,7 @@ You are finishing a Truss version upgrade. `truss upgrade` already did the mecha
 - Constraints: {{CONSTRAINTS}} (optional)
 - Pointers: {{POINTERS}} (optional — project-specific sections that must survive verbatim)
 
-**Your default is to keep, not to align.** A file drifted from the baseline because someone decided it should. You are importing new framework rules into a project, not restoring a project to factory state. Write all free-text in the `language:` set in state/profile.md; ID tokens, keys/field labels and fixed headings stay English (AGENTS.md §3).
+**Your default is to keep, not to align.** A file drifted from the baseline because someone decided it should. You are importing new framework rules into a project, not restoring a project to factory state. Write the text inside files in the `language:` set in state/profile.md; names (files, folders, commands, branches, commit messages), ID tokens, keys/field labels and fixed headings stay English (AGENTS.md §3).
 
 **1. Orient.** Read AGENTS.md and state/current.md. Find the backup the upgrade left as `.truss.bak-<old-version>/` — `.truss.bak-<old>/baseline/` is the version this workspace was scaffolded from, and `.truss/baseline/` is the new one. Those two directories are the *only* authority on what the upgrade wants to change; never diff the workspace against the new baseline alone, or you will read every deliberate project decision as drift.
 

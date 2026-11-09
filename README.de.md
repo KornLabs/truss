@@ -60,7 +60,7 @@ unambiguous.
 
 **Sessions, die bei der Aufgabe bleiben:** Das Pflicht-Boot-Set liegt bei etwa 3,2k Tokens; alles Weitere lädt nur bei Bedarf. Das Fenster bleibt frei für die eigentliche Arbeit — Sessions leben länger, degradieren später und kosten weniger.
 
-**Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten für Recherche einsetzen oder alles selbst erledigen? Nichts ist voreingestellt, dein KI-Tool verhält sich also wie immer, bis du etwas änderst. Einmal setzen (`truss set`), mit `truss unset` wieder entfernen, und jede künftige Session hält sich daran.
+**Präferenzen einmal gesetzt statt in jedem Prompt wiederholt:** Wie kritisch soll der Agent mit deinem Input umgehen? Bei Unklarheit nachfragen oder selbst eine Lösung wählen? Subagenten frei einsetzen, erst nach Rückfrage oder gar nicht? Nichts ist voreingestellt, dein KI-Tool verhält sich also wie immer, bis du etwas änderst. Einmal setzen (`truss set`), mit `truss unset` wieder entfernen, und jede künftige Session hält sich daran.
 
 **Stützen für die Struktur:** Eine kleine CLI ohne Abhängigkeiten stützt das System: Sie prüft, ob die Dateien ihrer Struktur noch folgen, warnt, wenn State driftet oder eine Datei ihren Fokus verliert, und hält generierte Blöcke synchron. Sie berichtet nur — jede Warnung lässt die Entscheidung bei dir und dem Agenten.
 
@@ -125,7 +125,7 @@ node .truss/bin/truss.mjs init
 node .truss/bin/truss.mjs doctor
 ```
 
-`init` fragt nach Projektname und Sprache und legt beides in `state/profile.md` ab. Die Sprache (`--lang`) gilt für alle Freitexte im Workspace — `VISION.md`, State-Dateien, Einträge, Briefings, Notizen (`AGENTS.md` §3). Englisch bleibt, was Maschinen parsen (`D-NNN`, `focus:`), und die Engine selbst: `AGENTS.md`, `.truss/docs/`, CLI-Ausgabe.
+`init` fragt nach Projektname und Sprache und legt beides in `state/profile.md` ab. Die Sprache (`--lang`) gilt für den Text in den Workspace-Dateien: `VISION.md`, State-Dateien, Einträge, Briefings, Notizen (`AGENTS.md` §3). Namen bleiben englisch, wie in der Entwickler-Community üblich: Datei- und Ordnernamen, CLI-Befehle und Optionen, Skript-, Branch- und Skill-Namen, Commit-Nachrichten und alles, was Maschinen parsen (`D-NNN`, `focus:`). Ebenso die Engine selbst: `AGENTS.md`, `.truss/docs/`, CLI-Ausgabe. Im Chat antwortet der Agent in der Sprache, in der du schreibst.
 
 `init` lässt dich nach dem Scaffolden nicht vor einer leeren Seite sitzen. Es endet mit deinen nächsten Schritten und einem **fertigen Boot-Prompt:** in dein KI-Tool einfügen, Idee anhängen, und der Agent interviewt dich zu `VISION.md`, `state/profile.md` und einem Phasenplan, statt dir ein leeres Template zu überlassen (CLI-Ausgabe ist englisch):
 
@@ -192,7 +192,7 @@ Truss ist mit Absicht klein. Das sind die Entscheidungen, die es geformt haben u
 ### Menschen entscheiden, Skripte berichten
 
 9. **Skripte prüfen und berichten; sie entscheiden nie.** `doctor` ist read-only. Schreibzugriffe laufen über explizite, schmale Befehle (`set`, `render`, `phase`), und jeder Befund ist eine Warnung, auf die du und der Agent reagieren — keine Aktion, die für dich ausgeführt wird.
-10. **Die Phase weiterschaltest du.** Phasen weiten oder verengen, was ein Agent tun darf. Am Exit fährt er das Gate und hinterlässt dir einen Eintrag mit Verdikt; `current:` setzt du selbst per `truss phase <id>`, das ein ungeklärtes Gate ohne `--override-gate` verweigert. Verstößt eine Aktion gegen die Verbotsliste, benennt der Agent den Konflikt und fragt, bevor er weitermacht. Mit `phase-lock: advisory` härtest du das zu einem Stopp, der auch seine Subagenten bindet, mit `gate-advocate` lässt du ein Review-Subagent das Exit-Verdikt zuerst angreifen. Künftige Phasen darf er umbauen, seine eigenen aktiven Leitplanken nie.
+10. **Die Phase weiterschaltest du.** Phasen weiten oder verengen, was ein Agent tun darf. Am Exit fährt er das Gate und hinterlässt dir einen Eintrag mit Verdikt; `current:` setzt du selbst per `truss phase <id>`, das ein ungeklärtes Gate ohne `--override-gate` verweigert. Verstößt eine Aktion gegen die Verbotsliste, benennt der Agent den Konflikt und fragt, bevor er weitermacht. Seine Subagenten erben diese Verbotsliste. Mit `gate-advocate` lässt du einen Review-Subagenten das Exit-Verdikt zuerst angreifen; er läuft auch, wenn `subagents` auf `never` oder `ask` steht. Künftige Phasen darf er umbauen, seine eigenen aktiven Leitplanken nie.
 11. **Menschliche Arbeit wird geroutet, nicht verloren.** Alles, was **nur du** tun kannst, wird ein `HT-NNN`-Eintrag in `HUMAN-TODOS.md`. Unentschiedene Fragen werden Briefings in `state/open-decisions.md` mit Optionen und Trade-offs — sie warten auf deine Entscheidung, statt still entschieden zu werden.
 12. **Truss ist ein transparentes Nudge-System, kein Enforcement.** Phasengrenzen und harte Regeln sind Verhaltensanweisungen an den Agenten. Truss berichtet Evidenz — Grammatik, uncommittete Änderungen an verbotenen Pfaden, Exit-Artefakte —, aber es authentifiziert keine Akteure und fängt keine Schreibzugriffe ab, und die Doku sagt das unumwunden. Bringt dein Agent-Host eine Enforcement-Grenze mit, fügt sich Truss ein.
 

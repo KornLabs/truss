@@ -244,7 +244,7 @@ ${commandLines}
 
 Init flags:
   --name <name>     project name (skips the interactive prompt)
-  --lang <lang>     primary language for agent output (e.g. English)
+  --lang <lang>     language of the text in workspace files (e.g. English)
   --overlay         existing-project mode: ingest→operate phases, .gitignore repo/
   --code-root <dir> select one existing in-workspace code root (overlay only)
   --skills <groups> core groups (default), none, all, or comma-separated groups
