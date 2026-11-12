@@ -67,8 +67,9 @@ up. An entry only leaves the boot when its file leaves `state/decisions/`.
   its consequence, and nothing still open depends on it. The file moves to
   `archive/decisions/`, the index loses its line, and a pointer in
   `archive/decisions/README.md` records the range and why. This is the only move
-  that changes what the boot costs, and the `cleanup` ritual
-  (`.truss/docs/rituals/cleanup.md`) proposes it — it is never automatic.
+  that changes what the boot costs; the `cleanup` ritual
+  (`.truss/docs/rituals/cleanup.md`) does it only after opening the file that
+  carries the consequence.
 
 Never delete an entry either way: archived is findable, and RF-02 resolves an
 archived `D-NNN` because `archive/` is indexed. If in doubt, compress rather

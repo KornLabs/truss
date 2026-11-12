@@ -113,3 +113,4 @@ Phase exit — when exit criteria appear met (never self-declare a phase change)
 | docs/protocols.md | unsure about session ritual, archiving, or whether an entry belongs in the workspace at all |
 | docs/git.md | before the first commit of the session; anything overlay or git |
 | docs/import.md | importing an existing project |
+| .truss/docs/rituals/cleanup.md | the boot context is over budget (CX-01), or you are asked to clean up |

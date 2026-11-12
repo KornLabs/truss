@@ -628,8 +628,9 @@ record a reviewed size above it, and the finding is then downgraded within the
 same 15 % headroom. `SY-09` keeps its own fixed 18k line, because it asks a
 different question: whether a session that reads every decision still has room.
 
-The trim itself is the `cleanup` ritual (`.truss/docs/rituals/cleanup.md`), which
-proposes dispositions and leaves execution to you.
+The trim itself is the `cleanup` ritual (`.truss/docs/rituals/cleanup.md`), a
+guide an agent can follow on its own: relocate instead of delete, a loss check
+against the start commit, and a report that names what moved where.
 
 ---
 
