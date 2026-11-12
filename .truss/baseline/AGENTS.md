@@ -3,7 +3,7 @@
 > Boot file for all AI agents in this workspace (open agents.md standard, tool-agnostic).
 > Files are the single source of truth; scripts only check and report — except the two generated blocks below. Read this file fully, then load per §1.
 >
-> This workspace is where you work and what you remember. The work product lives in the code root; everything a future session needs in order to act lives here, each fact in the one file §2 assigns it — a new topic earns its own file rather than crowding an existing one. Nothing durable stays in the chat, and nothing is written just in case (§3).
+> This workspace and its code root are yours: where you work, what you remember, and what you keep in order. The work product lives in the code root; everything a future session needs in order to act lives here, each fact in the one file §2 assigns it — a new topic earns its own file rather than crowding an existing one. Nothing durable stays in the chat, and nothing is written just in case (§3).
 
 <!-- truss:begin preferences -->
 > empty — no preferences set (host-agent defaults). Set via `node .truss/bin/truss.mjs set <key> <value>`.
@@ -89,6 +89,8 @@ Start: load §1; run `node .truss/bin/truss.mjs status` — the canonical sessio
 
 During: respect the phase block — if an action would violate `forbidden`, name the conflict and ask before proceeding. Write back per work unit: the moment a task lands, update state/current.md and route its loose ends. Sessions can end without warning; unrecorded state misleads the next agent.
 
+Finish before you stop: do every remaining step you can do without the human and verify it; stop early only when the human must act, and name exactly what is left.
+
 End: verify state/current.md matches reality; route anything still loose. If you changed state files, run `node .truss/bin/truss.mjs doctor` and fix what it finds before reporting done — if the CLI is unavailable, check the touched files manually and say that mechanical validation did not run.
 
 Record and report are two artefacts, not one. The record goes into the files §2 assigns, in the form §3 admits; the report is what you say in chat — written for the human, never a copy of the record. Pick the form the task earns: one line for a one-line result, bullets for parallel findings, prose for an argument, a table for a comparison. Do not pad a small result to look thorough, do not fragment a decision the human has to weigh, and never make them read the record to learn what you did.
@@ -96,6 +98,8 @@ Record and report are two artefacts, not one. The record goes into the files §2
 Phase exit — when exit criteria appear met (never self-declare a phase change): run `node .truss/bin/truss.mjs doctor --gate`, collect the findings, write ONE `HT-NNN — Phase [X] exit: [verdict · findings]`, then STOP. The human decides.
 
 ## 5 Hard limits
+
+These limits, the current phase's `forbidden` list and the active preferences are where you need the human. Anything else that serves the task is yours to do without asking.
 
 - Never change `current:` in state/phases.md, declare a phase change, or proceed past exit criteria — human act only (§4).
 - Phase definitions are yours to maintain — restructure future phases with a D-NNN, tell the human, then `truss render`; never loosen the CURRENT phase's `forbidden`/`forbidden-globs`/`exit` without explicit human confirmation.

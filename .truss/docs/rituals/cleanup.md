@@ -58,7 +58,7 @@ Keep every decision that limits a future choice ("only", "never", "always", a bu
 
 **Open decisions.** Remove what a D-NNN already `Closes:` and any "was decided" tombstone (to `archive/open-decisions.md`). A briefing keeps the question, the options with one line of trade-off each, the recommendation and what it blocks; research and quotes go to the domain file.
 
-**AGENTS.md project text.** Compare with `.truss/baseline/AGENTS.md`. Keep rules from principle 3. Move task-specific rules to their domain file with a trigger line. Drop what repeats a preference, a hook, a skill, `docs/` or a live decision, naming the carrier. Long table rows keep a short purpose; the detail goes where the row points.
+**AGENTS.md project text.** Compare with `.truss/baseline/AGENTS.md`. Keep rules from principle 3. Move task-specific rules to their domain file with a trigger line. Drop what repeats a preference, a hook, a skill, `docs/` or a live decision, naming the carrier. Long table rows keep a short purpose; the detail goes where the row points. State approval rules precisely: a vague "never" or "ask first" makes every later session timid, so name the act and the condition ("push only when `auto-commit=on`").
 
 **VISION.md and state/profile.md.** VISION keeps problem, idea, principles and constraints; evidence, history and plans go to `context/`. Profile: one line per entry.
 
